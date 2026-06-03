@@ -1,15 +1,33 @@
-# Frontend
+# ── Frontend ──────────────────────────────────────────────────────────────────
 frontend/.next/
+frontend/out/
 frontend/node_modules/
 frontend/.env.local
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
-# Backend
+# ── Backend ───────────────────────────────────────────────────────────────────
 backend/cache/
+backend/.env
+backend/.env.*
+
+# Python
+backend/.venv/
+backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
-backend/.env
-backend/venv/
-backend/.venv/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
