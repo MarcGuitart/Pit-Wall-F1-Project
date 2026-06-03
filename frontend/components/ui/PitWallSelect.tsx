@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, useId } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export type PitWallSelectOption = {
   value: string
@@ -150,8 +151,13 @@ export function PitWallSelect({
         </span>
 
         {/* Dropdown menu */}
+        <AnimatePresence>
         {open && (
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: -4 }}
+            transition={{ duration: 0.12 }}
             role="listbox"
             aria-label={label}
             className="absolute z-50 top-[calc(100%+3px)] left-0 w-full min-w-max bg-bg-panel border border-border-default rounded-[3px] shadow-xl overflow-hidden"
@@ -187,8 +193,9 @@ export function PitWallSelect({
                 {opt.label}
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
     </div>
   )

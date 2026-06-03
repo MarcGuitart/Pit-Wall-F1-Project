@@ -12,6 +12,7 @@ frontend/yarn-error.log*
 backend/cache/
 backend/.env
 backend/.env.*
+!backend/.env.example
 
 # Python
 backend/.venv/

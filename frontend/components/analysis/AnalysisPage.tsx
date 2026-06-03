@@ -1,7 +1,9 @@
 'use client'
 
+import { motion, AnimatePresence } from 'framer-motion'
 import type { FullRaceAnalysis } from '@/types'
 import { useRaceStore } from '@/stores/raceStore'
+import { getSessionType } from '@/lib/utils'
 
 import { AnalysisModeToggle } from './AnalysisModeToggle'
 import { SessionTimelineBar } from './SessionTimelineBar'
@@ -11,25 +13,14 @@ import { StrategyViewGrid } from './StrategyViewGrid'
 import { DataViewTables } from './data/DataViewTables'
 import { RadioOverlay } from '@/components/radio/RadioOverlay'
 
-type Props = {
-  analysis: FullRaceAnalysis
-}
+type Props = { analysis: FullRaceAnalysis }
 
 function inferTotalLaps(analysis: FullRaceAnalysis): number {
-  if (analysis.tyre_degradation.length) {
+  if (analysis.tyre_degradation.length)
     return Math.max(...analysis.tyre_degradation.map((s) => s.lap_end))
-  }
-  if (analysis.pit_impact.length) {
+  if (analysis.pit_impact.length)
     return Math.max(...analysis.pit_impact.map((p) => p.lap_number)) + 10
-  }
   return 70
-}
-
-function inferSessionType(sessionName: string): 'Race' | 'Qualifying' | 'Practice' {
-  const s = sessionName.toLowerCase()
-  if (s.includes('race') || s.includes('sprint')) return 'Race'
-  if (s.includes('qual')) return 'Qualifying'
-  return 'Practice'
 }
 
 export function AnalysisPage({ analysis }: Props) {
@@ -39,8 +30,8 @@ export function AnalysisPage({ analysis }: Props) {
     focusedDriver, setFocusedDriver, clearFocusedDriver,
   } = useRaceStore()
 
-  const totalLaps  = inferTotalLaps(analysis)
-  const sessionType = inferSessionType(analysis.race.session_name)
+  const totalLaps = inferTotalLaps(analysis)
+  const sessionType = getSessionType(analysis.race.session_name)
 
   const focusedDriverRow = focusedDriver
     ? analysis.true_pace.find((d) => d.driver_code === focusedDriver.code)
@@ -56,7 +47,7 @@ export function AnalysisPage({ analysis }: Props) {
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
-      {/* ── Race header ───────────────────────────────────────────────────── */}
+      {/* Race header */}
       <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">
@@ -80,10 +71,8 @@ export function AnalysisPage({ analysis }: Props) {
             <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">Stints</div>
           </div>
           <div className={`px-3 py-1 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[1px] ${
-            analysis.chaos.level === 'Extreme'
-              ? 'bg-signal-red/20 text-signal-red border border-signal-red/30'
-              : analysis.chaos.level === 'High'
-              ? 'bg-signal-amber/20 text-signal-amber border border-signal-amber/30'
+            analysis.chaos.level === 'Extreme' ? 'bg-signal-red/20 text-signal-red border border-signal-red/30'
+              : analysis.chaos.level === 'High' ? 'bg-signal-amber/20 text-signal-amber border border-signal-amber/30'
               : 'bg-signal-green/20 text-signal-green border border-signal-green/30'
           }`}>
             {analysis.chaos.level} Chaos
@@ -91,7 +80,7 @@ export function AnalysisPage({ analysis }: Props) {
         </div>
       </div>
 
-      {/* ── Always-visible chrome ─────────────────────────────────────────── */}
+      {/* Always-visible chrome */}
       <SessionTimelineBar
         totalLaps={totalLaps}
         sessionType={sessionType}
@@ -99,61 +88,68 @@ export function AnalysisPage({ analysis }: Props) {
         pitEvents={analysis.pit_impact}
         chaosIndex={analysis.chaos}
       />
-
       <AnalysisModeToggle
         mode={analysisMode}
         sessionType={sessionType}
         lapCount={totalLaps}
         onChange={setAnalysisMode}
       />
-
       <DriverFocusStrip
         driverCode={focusedDriver?.code ?? null}
         driverName={focusedDriver?.name ?? null}
         onClear={clearFocusedDriver}
       />
 
-      {/* ── Strategy View ─────────────────────────────────────────────────── */}
-      {analysisMode === 'strategy' && (
-        <StrategyViewGrid
-          analysis={analysis}
-          sessionType={sessionType}
-          focusedDriver={focusedDriver?.code ?? null}
-          onDriverClick={handleDriverFocus}
-          onSwitchToData={() => setAnalysisMode('data')}
-        />
-      )}
+      {/* Animated view switch */}
+      <AnimatePresence mode="wait">
+        {analysisMode === 'strategy' ? (
+          <motion.div
+            key="strategy"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <StrategyViewGrid
+              analysis={analysis}
+              sessionType={sessionType}
+              focusedDriver={focusedDriver?.code ?? null}
+              onDriverClick={handleDriverFocus}
+              onSwitchToData={() => setAnalysisMode('data')}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="data"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <DataViewTables
+              analysis={analysis}
+              sessionType={sessionType}
+              focusedDriver={focusedDriver?.code ?? null}
+              visibleNotes={visibleNotes}
+              onDriverClick={handleDriverFocus}
+              onBackToStrategy={() => setAnalysisMode('strategy')}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── Data View ─────────────────────────────────────────────────────── */}
-      {analysisMode === 'data' && (
-        <DataViewTables
-          analysis={analysis}
-          focusedDriver={focusedDriver?.code ?? null}
-          visibleNotes={visibleNotes}
-          onDriverClick={handleDriverFocus}
-          onBackToStrategy={() => setAnalysisMode('strategy')}
-        />
-      )}
-
-      {/* ── Driver card modal ────────────────────────────────────────────── */}
+      {/* Driver card modal */}
       {focusedDriverRow && (
         <DriverCard
           driver={focusedDriverRow}
-          stints={analysis.tyre_degradation.filter(
-            (s) => s.driver_number === focusedDriverRow.driver_number
-          )}
-          pits={analysis.pit_impact.filter(
-            (p) => p.driver_number === focusedDriverRow.driver_number
-          )}
+          stints={analysis.tyre_degradation.filter((s) => s.driver_number === focusedDriverRow.driver_number)}
+          pits={analysis.pit_impact.filter((p) => p.driver_number === focusedDriverRow.driver_number)}
           raceName={analysis.race.meeting_name}
           onClose={clearFocusedDriver}
         />
       )}
 
-      {/* ── Radio overlay ─────────────────────────────────────────────────── */}
-      {radioOpen && (
-        <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} />
-      )}
+      {radioOpen && <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} />}
     </div>
   )
 }
