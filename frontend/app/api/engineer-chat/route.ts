@@ -6,7 +6,7 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-function buildSystemPrompt(ctx: FullRaceAnalysis): string {
+function buildSystemPrompt(ctx: FullRaceAnalysis, focusedDriver?: string | null): string {
   const race = ctx.race
   const chaos = ctx.chaos
 
@@ -93,7 +93,7 @@ ${noteLines || '  No notes generated.'}
 KEY DECISIONS:
 ${decisionLines}
 
-INSTRUCTION: Answer in 2–4 sentences. Be direct. Cite laps and driver codes. No markdown. If no relevant data exists, say "No data for that in this session."`
+INSTRUCTION: Answer in 2–4 sentences. Be direct. Cite laps and driver codes. No markdown. If no relevant data exists, say "No data for that in this session."${focusedDriver ? `\n\nDRIVER FOCUS: The user is specifically asking about ${focusedDriver}. Prioritise data for ${focusedDriver} in your answer.` : ''}`
 }
 
 export async function POST(req: NextRequest) {
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
       question: string
       session_key: number
       race_context: FullRaceAnalysis
+      focused_driver?: string | null
     }
 
     if (!body.question?.trim()) {
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const systemPrompt = buildSystemPrompt(body.race_context)
+    const systemPrompt = buildSystemPrompt(body.race_context, body.focused_driver ?? null)
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',

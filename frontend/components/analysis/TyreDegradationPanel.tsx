@@ -4,10 +4,12 @@ import { COMPOUND_COLORS } from '@/lib/constants'
 
 type Props = {
   rows: TyreDegradationRow[]
+  onDriverClick?: (code: string) => void
+  focusedDriver?: string | null
 }
 
 const CLIFF_STYLES = {
-  High:   { bar: 'bg-signal-red', text: 'text-signal-red border-signal-red/30 bg-signal-red/10' },
+  High:   { bar: 'bg-signal-red',   text: 'text-signal-red border-signal-red/30 bg-signal-red/10' },
   Medium: { bar: 'bg-signal-amber', text: 'text-signal-amber border-signal-amber/30 bg-signal-amber/10' },
   Low:    { bar: 'bg-signal-green', text: 'text-signal-green border-signal-green/30 bg-signal-green/10' },
 }
@@ -20,7 +22,7 @@ const CONF_TEXT = {
 
 const MAX_SLOPE = 0.10
 
-export function TyreDegradationPanel({ rows }: Props) {
+export function TyreDegradationPanel({ rows, onDriverClick, focusedDriver }: Props) {
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
@@ -38,12 +40,22 @@ export function TyreDegradationPanel({ rows }: Props) {
           const barWidth = Math.min((row.degradation_slope / MAX_SLOPE) * 100, 100)
           const compoundColor = COMPOUND_COLORS[row.compound] ?? '#8A94A6'
           const lapCount = row.lap_end - row.lap_start + 1
+          const isFocused = focusedDriver === row.driver_code
+          const isDefocused = focusedDriver != null && !isFocused
 
           return (
-            <div key={i} className="px-3 py-2.5">
-              {/* Row header */}
+            <div
+              key={i}
+              className={[
+                'px-3 py-2.5 transition-all',
+                onDriverClick ? 'cursor-pointer' : '',
+                isFocused ? 'bg-bg-elevated' : '',
+                isDefocused ? 'opacity-40' : '',
+                onDriverClick && !isDefocused ? 'hover:bg-bg-elevated' : '',
+              ].join(' ')}
+              onClick={() => onDriverClick?.(row.driver_code)}
+            >
               <div className="flex items-center gap-2 mb-1.5">
-                {/* Compound circle */}
                 <div
                   className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[8px] font-display font-black"
                   style={{
@@ -55,7 +67,6 @@ export function TyreDegradationPanel({ rows }: Props) {
                   {row.compound.slice(0, 1)}
                 </div>
 
-                {/* Driver + stint */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-display font-bold text-[11px] uppercase tracking-[0.5px] text-text-primary">
@@ -67,12 +78,10 @@ export function TyreDegradationPanel({ rows }: Props) {
                   </div>
                 </div>
 
-                {/* Slope value */}
                 <span className="font-mono font-bold text-[12px] tabular-nums text-text-primary">
                   {formatSlope(row.degradation_slope)}
                 </span>
 
-                {/* Cliff risk pill */}
                 <span
                   className={`px-2 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${cliffStyle.text}`}
                 >
@@ -80,7 +89,6 @@ export function TyreDegradationPanel({ rows }: Props) {
                 </span>
               </div>
 
-              {/* Slope bar */}
               <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden mb-1.5">
                 <div
                   className={`h-full rounded-full transition-all ${cliffStyle.bar}`}
@@ -88,7 +96,6 @@ export function TyreDegradationPanel({ rows }: Props) {
                 />
               </div>
 
-              {/* Meta row */}
               <div className="flex items-center gap-3">
                 <span className="font-mono text-[9px] text-text-muted">
                   L{row.lap_start}–{row.lap_end} ({lapCount} laps)

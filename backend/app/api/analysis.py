@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 import httpx
 
 from app.core.config import settings
+from app.core import cache as analysis_cache
 from app.domain.models import FullRaceAnalysis, RaceMeta, RaceBrain
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
@@ -179,7 +180,7 @@ async def get_analysis(session_key: int) -> FullRaceAnalysis:
     )
     decisions        = compute_decisions(pit_impact, tyre_degradation, chaos, len(true_pace))
 
-    return FullRaceAnalysis(
+    result = FullRaceAnalysis(
         race=race_meta,
         race_brain=race_brain,
         true_pace=true_pace[:20],
@@ -189,3 +190,8 @@ async def get_analysis(session_key: int) -> FullRaceAnalysis:
         engineer_notes=engineer_notes,
         decisions=decisions,
     )
+
+    # Persist computed analysis for /chat endpoint to load without re-running pipeline
+    analysis_cache.set_analysis(session_key, result.model_dump())
+
+    return result

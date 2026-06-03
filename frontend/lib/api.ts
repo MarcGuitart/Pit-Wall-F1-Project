@@ -34,16 +34,40 @@ export async function clearCache(sessionKey: number): Promise<{ cleared: boolean
   return res.json()
 }
 
-export async function engineerChat(payload: {
-  question: string
+/**
+ * Send a question to the backend /chat endpoint (Ollama-backed).
+ * The race context lives in the backend cache — only session_key is needed.
+ */
+export async function sendToEngineer(payload: {
   session_key: number
-  race_context: FullRaceAnalysis
-}): Promise<{ answer: string }> {
-  const res = await fetch('/api/engineer-chat', {
+  question: string
+  focused_driver?: string | null
+}): Promise<{ answer: string; cited_signals?: string[]; confidence?: string }> {
+  const res = await fetch(`${BASE_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Chat error: ${res.status}`)
+  if (!res.ok) {
+    // Graceful degradation: return a friendly error message
+    throw new Error(`Chat error ${res.status}`)
+  }
   return res.json()
+}
+
+/**
+ * Legacy alias — kept for backward compat during migration.
+ * Calls backend /chat directly (no longer uses Anthropic API via Next.js).
+ */
+export async function engineerChat(payload: {
+  question: string
+  session_key: number
+  race_context?: FullRaceAnalysis
+  focused_driver?: string | null
+}): Promise<{ answer: string }> {
+  return sendToEngineer({
+    session_key: payload.session_key,
+    question: payload.question,
+    focused_driver: payload.focused_driver,
+  })
 }

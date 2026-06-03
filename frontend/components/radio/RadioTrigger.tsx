@@ -6,7 +6,7 @@ import { useRaceStore } from '@/stores/raceStore'
 const NUM_BARS = 9
 
 export function RadioTrigger() {
-  const { setRadioOpen, analysis } = useRaceStore()
+  const { setRadioOpen, analysis, focusedDriver } = useRaceStore()
   const [heights, setHeights] = useState<number[]>(() =>
     Array.from({ length: NUM_BARS }, () => 4)
   )
@@ -17,6 +17,8 @@ export function RadioTrigger() {
     }, 300)
     return () => clearInterval(id)
   }, [])
+
+  const label = focusedDriver ? `Ask about ${focusedDriver.code} →` : 'Engineer'
 
   return (
     <button
@@ -41,7 +43,7 @@ export function RadioTrigger() {
         ))}
       </div>
       <span className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary group-hover:text-text-primary transition-colors whitespace-nowrap">
-        Engineer
+        {label}
       </span>
     </button>
   )

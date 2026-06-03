@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     cache_dir: str = "./cache"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
+    # Ollama local AI
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1:8b"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property

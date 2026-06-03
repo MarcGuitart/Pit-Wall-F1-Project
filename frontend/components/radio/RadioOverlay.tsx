@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { FullRaceAnalysis } from '@/types'
-import { engineerChat } from '@/lib/api'
+import { sendToEngineer } from '@/lib/api'
+import { useRaceStore } from '@/stores/raceStore'
 
 type Message = {
   role: 'engineer' | 'user'
@@ -67,6 +68,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   const [isSending, setIsSending] = useState(false)
   const feedRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { focusedDriver } = useRaceStore()
 
   // Opening animation: 2.1s then transition to chat
   useEffect(() => {
@@ -96,10 +98,10 @@ export function RadioOverlay({ analysis, onClose }: Props) {
       setMessages((prev) => [...prev, { role: 'user', content: question }])
       setIsSending(true)
       try {
-        const res = await engineerChat({
-          question,
+        const res = await sendToEngineer({
           session_key: analysis.race.session_key,
-          race_context: analysis,
+          question,
+          focused_driver: focusedDriver?.code ?? null,
         })
         setMessages((prev) => [...prev, { role: 'engineer', content: res.answer }])
       } catch {

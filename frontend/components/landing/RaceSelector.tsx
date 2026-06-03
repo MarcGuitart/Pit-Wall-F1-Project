@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { DEMO_RACES } from '@/lib/constants'
+import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import type { RaceListItem, SessionInfo } from '@/types'
 
 const CHAOS_LEVEL = (score: number) => {
@@ -14,6 +15,11 @@ const CHAOS_LEVEL = (score: number) => {
 }
 
 const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Practice 2', 'Practice 1']
+
+const YEAR_OPTIONS = [2025, 2024, 2023, 2022].map((y) => ({
+  value: String(y),
+  label: String(y),
+}))
 
 export function RaceSelector() {
   const router = useRouter()
@@ -37,26 +43,16 @@ export function RaceSelector() {
     setBackendError(null)
 
     fetchRaces(year)
-      .then((data) => {
-        if (!cancelled) setRaces(data)
-      })
-      .catch(() => {
-        if (!cancelled) setBackendError('Backend offline — using demo races')
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingRaces(false)
-      })
+      .then((data) => { if (!cancelled) setRaces(data) })
+      .catch(() => { if (!cancelled) setBackendError('Backend offline — use featured races below') })
+      .finally(() => { if (!cancelled) setLoadingRaces(false) })
 
     return () => { cancelled = true }
   }, [year])
 
   // Load sessions when meeting changes
   useEffect(() => {
-    if (!selectedMeetingKey) {
-      setSessions([])
-      setSelectedSessionKey(null)
-      return
-    }
+    if (!selectedMeetingKey) { setSessions([]); setSelectedSessionKey(null); return }
     let cancelled = false
     setLoadingSessions(true)
 
@@ -69,29 +65,22 @@ export function RaceSelector() {
             return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
           })
           setSessions(sorted)
-          // Auto-select Race session
           const raceSession = sorted.find((s) => s.session_type === 'Race')
           if (raceSession) setSelectedSessionKey(raceSession.session_key)
         }
       })
-      .catch(() => {
-        if (!cancelled) setSessions([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSessions(false)
-      })
+      .catch(() => { if (!cancelled) setSessions([]) })
+      .finally(() => { if (!cancelled) setLoadingSessions(false) })
 
     return () => { cancelled = true }
   }, [selectedMeetingKey])
 
-  const handleAnalyze = () => {
-    const key = selectedSessionKey
-    if (key) router.push(`/race/${key}`)
-  }
+  const raceOptions = [
+    { value: '', label: loadingRaces ? 'Loading races…' : races.length === 0 ? 'No races available' : 'Select a race…', disabled: true },
+    ...races.map((r) => ({ value: String(r.meeting_key), label: `${r.meeting_name} — ${r.circuit_short_name ?? ''}` })),
+  ]
 
-  const handleDemoRace = (sessionKey: number) => {
-    router.push(`/race/${sessionKey}`)
-  }
+  const sessionChips = sessions.length > 0 ? sessions : []
 
   return (
     <div className="w-full">
@@ -105,65 +94,42 @@ export function RaceSelector() {
         )}
         <div className="flex items-end gap-3 flex-wrap">
           {/* Season */}
-          <div className="flex flex-col gap-1">
-            <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-              Season
-            </label>
-            <select
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-bg-elevated border border-border-default text-text-primary font-mono text-[12px] px-3 py-2 rounded-[3px] focus:outline-none focus:border-signal-blue min-w-[90px]"
-            >
-              {[2025, 2024, 2023, 2022].map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
+          <PitWallSelect
+            label="Season"
+            value={String(year)}
+            options={YEAR_OPTIONS}
+            onChange={(v) => setYear(Number(v))}
+            width="90px"
+          />
 
           {/* Grand Prix */}
-          <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-            <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-              Grand Prix
-              {loadingRaces && (
-                <span className="ml-2 text-text-muted normal-case tracking-normal">loading…</span>
-              )}
-            </label>
-            <select
-              value={selectedMeetingKey ?? ''}
-              onChange={(e) => setSelectedMeetingKey(e.target.value ? Number(e.target.value) : null)}
-              className="bg-bg-elevated border border-border-default text-text-primary font-mono text-[12px] px-3 py-2 rounded-[3px] focus:outline-none focus:border-signal-blue"
-              disabled={loadingRaces || races.length === 0}
-            >
-              <option value="">
-                {loadingRaces ? 'Loading races…' : races.length === 0 ? 'No races (backend offline)' : 'Select a race…'}
-              </option>
-              {races.map((r) => (
-                <option key={r.meeting_key} value={r.meeting_key}>
-                  {r.meeting_name} — {r.circuit_short_name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PitWallSelect
+            label={loadingRaces ? 'Grand Prix — loading…' : 'Grand Prix'}
+            value={selectedMeetingKey ? String(selectedMeetingKey) : ''}
+            options={raceOptions}
+            onChange={(v) => setSelectedMeetingKey(v ? Number(v) : null)}
+            disabled={loadingRaces || races.length === 0}
+            width="280px"
+          />
 
           {/* Session chips */}
           <div className="flex flex-col gap-1">
             <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
               Session
-              {loadingSessions && (
-                <span className="ml-2 text-text-muted normal-case tracking-normal">loading…</span>
-              )}
+              {loadingSessions && <span className="ml-2 text-text-muted normal-case tracking-normal">loading…</span>}
             </label>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {sessions.length > 0
-                ? sessions.map((s) => (
+              {sessionChips.length > 0
+                ? sessionChips.map((s) => (
                     <button
                       key={s.session_key}
                       onClick={() => setSelectedSessionKey(s.session_key)}
-                      className={`px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border ${
+                      className={[
+                        'px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border',
                         selectedSessionKey === s.session_key
                           ? 'bg-signal-red border-signal-red text-white'
-                          : 'border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary'
-                      }`}
+                          : 'border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
+                      ].join(' ')}
                     >
                       {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
                     </button>
@@ -181,9 +147,9 @@ export function RaceSelector() {
 
           {/* Analyze button */}
           <button
-            onClick={handleAnalyze}
+            onClick={() => selectedSessionKey && router.push(`/race/${selectedSessionKey}`)}
             disabled={!selectedSessionKey}
-            className="px-6 py-2 bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end mb-[1px]"
+            className="px-6 py-[9px] bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end"
           >
             Analyze →
           </button>
@@ -201,7 +167,7 @@ export function RaceSelector() {
             return (
               <button
                 key={race.session_key}
-                onClick={() => handleDemoRace(race.session_key)}
+                onClick={() => router.push(`/race/${race.session_key}`)}
                 className="bg-bg-panel border border-border-subtle rounded-[4px] p-4 text-left hover:border-border-default hover:bg-bg-elevated transition-all group"
               >
                 <div className="flex items-start justify-between mb-3">

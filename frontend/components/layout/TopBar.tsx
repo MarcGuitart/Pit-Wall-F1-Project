@@ -24,7 +24,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
           PIT WALL&nbsp;
         </span>
         <span className="font-display font-black text-[18px] uppercase tracking-[1px] text-signal-red">
-          IQ
+          ENGINEER
         </span>
       </Link>
 

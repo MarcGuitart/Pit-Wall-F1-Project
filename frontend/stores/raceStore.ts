@@ -2,28 +2,48 @@ import { create } from 'zustand'
 import type { FullRaceAnalysis } from '@/types'
 
 type AppMode = 'historical' | 'live'
+type AnalysisMode = 'strategy' | 'data'
+
+type FocusedDriver = {
+  code: string
+  name: string
+} | null
 
 type RaceStore = {
+  // App-level
   mode: AppMode
   setMode: (mode: AppMode) => void
 
+  // Current session
   currentSessionKey: number | null
   setCurrentSessionKey: (key: number | null) => void
 
+  // Analysis data
   analysis: FullRaceAnalysis | null
   setAnalysis: (data: FullRaceAnalysis | null) => void
 
+  // Loading state
   isLoading: boolean
   setIsLoading: (loading: boolean) => void
-
   loadingStep: number
   setLoadingStep: (stepOrUpdater: number | ((prev: number) => number)) => void
 
+  // Error
   error: string | null
   setError: (error: string | null) => void
 
+  // Radio overlay
   radioOpen: boolean
   setRadioOpen: (open: boolean) => void
+
+  // V2: analysis view mode (Strategy = default, Data = full tables)
+  analysisMode: AnalysisMode
+  setAnalysisMode: (mode: AnalysisMode) => void
+
+  // V2: driver focus
+  focusedDriver: FocusedDriver
+  setFocusedDriver: (code: string, name: string) => void
+  clearFocusedDriver: () => void
 }
 
 export const useRaceStore = create<RaceStore>((set, get) => ({
@@ -53,4 +73,11 @@ export const useRaceStore = create<RaceStore>((set, get) => ({
 
   radioOpen: false,
   setRadioOpen: (open) => set({ radioOpen: open }),
+
+  analysisMode: 'strategy',
+  setAnalysisMode: (mode) => set({ analysisMode: mode }),
+
+  focusedDriver: null,
+  setFocusedDriver: (code, name) => set({ focusedDriver: { code, name } }),
+  clearFocusedDriver: () => set({ focusedDriver: null }),
 }))
