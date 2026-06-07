@@ -2,25 +2,24 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { FullRaceAnalysis } from '@/types'
-import { sendToEngineer } from '@/lib/api'
+import { sendToEngineer, fetchChatHealth } from '@/lib/api'
 import { useRaceStore } from '@/stores/raceStore'
+import { playRadioOpen, playRadioClose, playMessageReceived } from '@/lib/audio/radioFx'
+import { AudioToggle } from './AudioToggle'
+import { EngineerOfflineState } from './EngineerOfflineState'
+import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
 
 type Message = {
   role: 'engineer' | 'user'
   content: string
 }
 
+type OllamaStatus = 'checking' | 'online' | 'offline'
+
 type Props = {
   analysis: FullRaceAnalysis
   onClose: () => void
 }
-
-const SUGGESTED_QUESTIONS = [
-  'Why did Norris lose the race lead at lap 23?',
-  "What was Verstappen's tyre strategy decision?",
-  'Which pit stop had the biggest impact on the result?',
-  'How did the rain affect the top 5 drivers differently?',
-]
 
 const NUM_BARS = 35
 
@@ -35,9 +34,7 @@ function WaveformBars({ active }: { active: boolean }) {
       return
     }
     const id = setInterval(() => {
-      setHeights(
-        Array.from({ length: NUM_BARS }, () => Math.random() * 40 + 4)
-      )
+      setHeights(Array.from({ length: NUM_BARS }, () => Math.random() * 40 + 4))
     }, 160)
     return () => clearInterval(id)
   }, [active])
@@ -63,6 +60,8 @@ function WaveformBars({ active }: { active: boolean }) {
 
 export function RadioOverlay({ analysis, onClose }: Props) {
   const [phase, setPhase] = useState<'opening' | 'chat'>('opening')
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>('checking')
+  const [showOffline, setShowOffline] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -70,25 +69,83 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { focusedDriver } = useRaceStore()
 
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(() =>
+    generateSuggestedQuestions(analysis, focusedDriver)
+  )
+
+  // Re-generate when focusedDriver changes while overlay is open
+  useEffect(() => {
+    setSuggestedQuestions(generateSuggestedQuestions(analysis, focusedDriver))
+  }, [focusedDriver, analysis])
+
+  // Play open sound on mount (user has just clicked — autoplay compliant)
+  useEffect(() => {
+    playRadioOpen()
+  }, [])
+
+  // Check Ollama health on open
+  useEffect(() => {
+    let cancelled = false
+    fetchChatHealth()
+      .then((health) => {
+        if (cancelled) return
+        setOllamaStatus(health.ollama_reachable ? 'online' : 'offline')
+      })
+      .catch(() => {
+        if (!cancelled) setOllamaStatus('offline')
+      })
+    return () => { cancelled = true }
+  }, [])
+
   // Opening animation: 2.1s then transition to chat
   useEffect(() => {
-    const timer = setTimeout(() => setPhase('chat'), 2100)
+    const timer = setTimeout(() => {
+      setPhase('chat')
+      if (ollamaStatus === 'offline') setShowOffline(true)
+    }, 2100)
     return () => clearTimeout(timer)
-  }, [])
+  }, [ollamaStatus])
+
+  // After animation, react to late-resolving status
+  useEffect(() => {
+    if (phase !== 'chat') return
+    if (ollamaStatus === 'offline') setShowOffline(true)
+    if (ollamaStatus === 'online') setShowOffline(false)
+  }, [phase, ollamaStatus])
 
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') handleClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to bottom on new messages
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
+
+  const handleClose = useCallback(() => {
+    playRadioClose()
+    onClose()
+  }, [onClose])
+
+  const checkConnection = useCallback(async () => {
+    setOllamaStatus('checking')
+    try {
+      const health = await fetchChatHealth()
+      if (health.ollama_reachable) {
+        setOllamaStatus('online')
+        setShowOffline(false)
+      } else {
+        setOllamaStatus('offline')
+      }
+    } catch {
+      setOllamaStatus('offline')
+    }
+  }, [])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -104,26 +161,26 @@ export function RadioOverlay({ analysis, onClose }: Props) {
           focused_driver: focusedDriver?.code ?? null,
         })
         setMessages((prev) => [...prev, { role: 'engineer', content: res.answer }])
+        playMessageReceived()
       } catch {
         setMessages((prev) => [
           ...prev,
-          {
-            role: 'engineer',
-            content: 'Comms interference. Unable to reach pit wall. Try again.',
-          },
+          { role: 'engineer', content: 'Comms interference. Unable to reach pit wall. Try again.' },
         ])
       } finally {
         setIsSending(false)
       }
     },
-    [analysis, isSending]
+    [analysis, isSending, focusedDriver]
   )
 
+  // Opening line varies when a driver is focused
+  const channelLine = focusedDriver
+    ? `Pit wall comms · ${focusedDriver.code} focus`
+    : `Pit wall comms · channel ${analysis.race.session_key}`
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={handleClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
 
@@ -136,12 +193,9 @@ export function RadioOverlay({ analysis, onClose }: Props) {
         {/* === OPENING PHASE === */}
         {phase === 'opening' && (
           <div className="flex flex-col items-center justify-center px-8 py-10 gap-6 min-h-[320px]">
-            {/* Channel ID */}
             <div className="font-mono text-[10px] text-text-muted tracking-[2px]">
-              Pit wall comms · channel {analysis.race.session_key}
+              {channelLine}
             </div>
-
-            {/* Title */}
             <div className="text-center">
               <span className="font-display font-black text-[36px] uppercase tracking-[-0.5px] text-text-primary">
                 Race{' '}
@@ -150,24 +204,32 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                 Engineer
               </span>
             </div>
-
-            {/* Waveform */}
             <WaveformBars active={true} />
-
-            {/* Status */}
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
               <span className="font-mono text-[11px] text-text-secondary">
-                Establishing session context…
+                {ollamaStatus === 'checking'
+                  ? 'Checking engineer connection…'
+                  : 'Establishing session context…'}
               </span>
             </div>
           </div>
         )}
 
-        {/* === CHAT PHASE === */}
-        {phase === 'chat' && (
+        {/* === CHAT PHASE — OFFLINE === */}
+        {phase === 'chat' && showOffline && (
+          <div className="relative">
+            <EngineerOfflineState
+              onCheckConnection={checkConnection}
+              onContinueAnyway={() => setShowOffline(false)}
+            />
+          </div>
+        )}
+
+        {/* === CHAT PHASE — CHAT UI === */}
+        {phase === 'chat' && !showOffline && (
           <div className="flex flex-col" style={{ maxHeight: '85vh' }}>
-            {/* Chat header */}
+            {/* Header */}
             <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-[3px] bg-signal-green/20 border border-signal-green/40 flex items-center justify-center">
@@ -183,6 +245,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <AudioToggle />
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
                   <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-signal-green">
@@ -190,7 +253,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                   </span>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="w-6 h-6 flex items-center justify-center rounded-[2px] hover:bg-bg-elevated text-text-muted hover:text-text-primary font-mono text-[14px] transition-colors"
                 >
                   ×
@@ -210,10 +273,18 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                   {analysis.tyre_degradation.length} stints loaded
                 </span>
               </span>
+              {/* Focused driver pill */}
+              {focusedDriver && (
+                <span className="flex items-center gap-1 px-2 py-1 bg-signal-blue/10 border border-signal-blue/30 rounded-[2px]">
+                  <span className="font-mono font-bold text-[10px] text-signal-blue">
+                    {focusedDriver.code} focus
+                  </span>
+                </span>
+              )}
               {[
-                { label: 'Tyres loaded', color: 'signal-green' },
-                { label: 'Pit mapped', color: 'signal-green' },
-                { label: 'Race ctrl parsed', color: 'signal-green' },
+                { label: 'Tyres loaded' },
+                { label: 'Pit mapped' },
+                { label: 'Race ctrl parsed' },
               ].map(({ label }) => (
                 <span
                   key={label}
@@ -226,11 +297,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
             </div>
 
             {/* Message feed */}
-            <div
-              ref={feedRef}
-              className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[160px]"
-            >
-              {/* Welcome message */}
+            <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[160px]">
               {messages.length === 0 && (
                 <div className="flex gap-2">
                   <div className="w-6 h-6 rounded-[2px] bg-signal-green/20 border border-signal-green/40 flex items-center justify-center shrink-0 mt-0.5">
@@ -244,8 +311,11 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                       Ready. I have full context for{' '}
                       <span className="text-text-primary">{analysis.race.meeting_name}</span> —
                       chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
-                      analysed, {analysis.tyre_degradation.length} stints mapped. Ask me
-                      anything about race strategy.
+                      analysed, {analysis.tyre_degradation.length} stints mapped.
+                      {focusedDriver && (
+                        <> Focused on <span className="text-signal-blue">{focusedDriver.code}</span>.</>
+                      )}{' '}
+                      Ask me anything about race strategy.
                     </p>
                   </div>
                 </div>
@@ -260,11 +330,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                         : 'bg-signal-red/20 border border-signal-red/40'
                     }`}
                   >
-                    <span
-                      className={`font-display font-bold text-[7px] ${
-                        msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'
-                      }`}
-                    >
+                    <span className={`font-display font-bold text-[7px] ${msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'}`}>
                       {msg.role === 'engineer' ? 'ENG' : 'YOU'}
                     </span>
                   </div>
@@ -275,11 +341,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                         : 'bg-signal-red/10 border-l-2 border-l-signal-red'
                     }`}
                   >
-                    <div
-                      className={`font-display font-bold text-[9px] uppercase tracking-[1px] mb-1 ${
-                        msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'
-                      }`}
-                    >
+                    <div className={`font-display font-bold text-[9px] uppercase tracking-[1px] mb-1 ${msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'}`}>
                       {msg.role === 'engineer' ? 'Race Engineer' : 'You'}
                     </div>
                     <p className="font-mono text-[11px] text-text-secondary leading-relaxed">
@@ -297,11 +359,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                   <div className="bg-bg-panel border-l-2 border-l-signal-green px-3 py-2 rounded-r-[3px]">
                     <div className="flex gap-1 items-center h-5">
                       {[0, 1, 2].map((i) => (
-                        <div
-                          key={i}
-                          className="w-1.5 h-1.5 rounded-full bg-signal-green animate-bounce"
-                          style={{ animationDelay: `${i * 0.15}s` }}
-                        />
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-signal-green animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                       ))}
                     </div>
                   </div>
@@ -309,10 +367,10 @@ export function RadioOverlay({ analysis, onClose }: Props) {
               )}
             </div>
 
-            {/* Suggested questions (shown when no messages yet) */}
+            {/* Suggested questions */}
             {messages.length === 0 && (
               <div className="px-4 pb-3 grid grid-cols-2 gap-2 shrink-0">
-                {SUGGESTED_QUESTIONS.map((q) => (
+                {suggestedQuestions.map((q) => (
                   <button
                     key={q}
                     onClick={() => sendMessage(q)}
@@ -354,9 +412,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                 <span className="font-mono text-[9px] text-text-muted">
                   Grounded mode · answers cite session signals
                 </span>
-                <span className="font-mono text-[9px] text-text-muted">
-                  Shift+Enter newline
-                </span>
+                <span className="font-mono text-[9px] text-text-muted">Shift+Enter newline</span>
               </div>
             </div>
           </div>

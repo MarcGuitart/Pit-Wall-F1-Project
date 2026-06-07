@@ -2,171 +2,222 @@
 
 **Watch F1 like an engineer, not like a spectator.**
 
-Race strategy intelligence dashboard. Every screen answers a strategic question.
+An unofficial post-race strategy intelligence dashboard that converts raw OpenF1 timing data into strategic race interpretation — pace rankings, tyre degradation analysis, pit stop impact scoring, DRS train detection, weather crossover windows, and an AI race engineer powered by a local LLM. Every module answers a strategic question. No raw data dumps.
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-custom--tokens-38BDF8?logo=tailwindcss&logoColor=white)
+![Ollama](https://img.shields.io/badge/AI-Ollama%20%2B%20llama3.1%3A8b-black)
+![Data](https://img.shields.io/badge/Data-OpenF1-E10600)
 
 ---
 
-## Stack
+## What it does
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 14 (App Router) · TypeScript · TailwindCSS · Framer Motion · Recharts · Zustand |
-| Backend | FastAPI · Pydantic v2 · httpx · Polars · NumPy |
-| AI chat | Ollama (`llama3.1:8b`) — local, no API key required |
-| Data | OpenF1 REST API (historical, free) |
+A Formula 1 race analysis tool with two views:
+
+**Strategy View** (default) — six curated panels that answer the race's central strategic question in under 30 seconds. Designed for someone who watched the race but wants to understand *why* the finishing order is what it is.
+
+**Data View** — complete analytical tables: every driver's clean lap samples and exclusion log, per-stint degradation slopes, each pit stop with position delta and verdict, and full engineer signals.
+
+The Race Wall Engineer chat uses a local Ollama LLM with a compact (~1000-token) session context injected as the system prompt. It answers questions about that specific race, not F1 in general.
 
 ---
 
-## Quick start
+## Analysis modules
+
+### True Pace Ranking
+Filters to clean laps — excludes pit in/out laps, SC/VSC neutralisation periods, and statistical outliers (>2.5× IQR). Reports median clean pace per driver with an exclusion log explaining why the ranking diverges from broadcast pace. Confidence levels: Low / Medium / High based on sample size.
+
+### Tyre Cliff Map
+Per-stint linear regression slope (s/lap) fitted to clean lap times. Classifies degradation as High cliff (≥0.08 s/lap), Medium, or Stable. Groups drivers by risk level and highlights which compound had the lowest average slope.
+
+### Pit Stop Impact
+Position delta = position at `pit_lap − 1` vs `pit_lap + 3`, reconstructed from timestamp-interpolated OpenF1 position data (not lap-number-based). Verdict labels: SC Winner, Undercut, Gained, Neutral, Costly, Lost.
+
+### Race Phase Timeline
+Classifies each lap range into a named phase — Safety Car Reset, VSC Period, Weather Crossover, DRS Train Compression, Pit Window, Start/Sorting, Degradation Phase, Final Push, Racing. Phases are priority-resolved when they overlap (SC beats Weather, Weather beats DRS, DRS beats Degradation).
+
+### Race DNA Card
+Eight-point strategic fingerprint: primary factor, secondary factor, strategy type, overtaking difficulty, pit timing sensitivity, tyre degradation impact, chaos level. Fully deterministic — no LLM involvement.
+
+### DRS Train Aggregation
+Converts raw 4-second interval snapshots into sustained meaningful trains by merging consecutive windows with ≥50% driver overlap. SC/VSC laps are filtered before merging. For Brazil 2024: 68 raw windows → 7 meaningful trains.
+
+### Weather Crossover Windows
+Detects DRY → DAMP → WET transitions and classifies drivers as best-timed, late, or early based on pit timing relative to the window. **Attribution guard**: if a safety car was active during the window, the summary explicitly states that position changes cannot be attributed to tyre choice alone — protecting against false attribution.
+
+### Chaos Index
+Score 0–100 from a weighted sum: SC events (×15, cap 30), yellow flags (×3, cap 20), investigations (×5, cap 20), time penalties (×4, cap 15), rain periods (×10, cap 15), position volatility (÷5, cap 20). Peak chaos lap detection included.
+
+### Race Wall Engineer
+RadioOverlay with F1 team radio UX: animated waveform on open, synthetic radio sounds via Web Audio API, grounded answers via Ollama. Context passed to the model is a compact JSON summary of the race — top-3 pace, tyre cliffs, pit winners/losers, key decisions, race DNA, phase summary, DRS peak train. Dynamic suggested questions are generated from the session data (weather impact, DRS train presence, focused driver, chaos score). Alternate implementation using Anthropic Claude API is available at `frontend/app/api/engineer-chat/route.ts`.
+
+---
+
+## Architecture
+
+```
+OpenF1 REST API
+    │
+    ▼
+httpx AsyncClient
+  · Semaphore(2) — max concurrent fetches
+  · Jitter 0.2–0.6s between requests
+  · 429 retry with Retry-After header, 4 attempts max
+  · Per-endpoint file cache (immutable for historical sessions)
+    │
+    ▼
+RaceTimeline  ←── built ONCE per session from all raw data
+  · Canonical per-lap signal object (SC/VSC active, weather
+    condition, pits this lap, min gap, leader, clean laps)
+  · All services read from this — no repeated timestamp resolution
+    │
+    ├── pace_service      → TruePaceRow[]
+    ├── tyre_service      → TyreDegradationRow[]
+    ├── pit_service       → PitImpactRow[]
+    ├── chaos_service     → ChaosIndex
+    ├── weather_service   → WeatherAnalysis
+    ├── drs_service       → DRSAnalysisAggregated
+    ├── crossover_service → CrossoverWindow[], WeatherWinnersLosers
+    ├── race_phase_service→ RacePhase[]
+    ├── race_dna_service  → RaceDNA
+    ├── clean_air_service → CleanAirValue
+    ├── notes_service     → EngineerNote[]
+    └── decisions_service → RaceDecision[]
+         │
+         ▼
+    FullRaceAnalysis (Pydantic v2)
+    cached as _analysis.json per session — repeat loads are instant
+         │
+         ▼
+    Next.js 14 frontend
+    · Zustand global store (analysis, focused driver, view mode)
+    · Single hook (useRaceAnalysis) owns all fetching — in-flight
+      deduplication, single-flight backend lock prevent duplicates
+```
+
+The `RaceTimeline` object is the central V4 architectural decision. Before it existed, each service resolved OpenF1 timestamps independently. Now they share a single canonical per-lap signal map, which makes the services testable in isolation and eliminates drift.
+
+---
+
+## Setup
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- [Ollama](https://ollama.ai) for AI chat (optional — app runs without it)
+
+### Backend
 
 ```bash
-# 1. Backend
 cd backend
-python3 -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env          # edit if needed
 uvicorn app.main:app --reload
+# → http://localhost:8000
+# → http://localhost:8000/docs  (Swagger UI)
+```
 
-# 2. Frontend
+### Frontend
+
+```bash
 cd frontend
 npm install
-cp .env.local.example .env.local
+cp .env.example .env.local    # set NEXT_PUBLIC_API_URL=http://localhost:8000
 npm run dev
-
-# 3. Ollama (for AI chat)
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3.1:8b
-ollama serve
+# → http://localhost:3000
 ```
 
-Open http://localhost:3000
-
----
-
-## V2 Architecture
-
-### Strategy View vs Data View
-
-Every analysis page has two modes controlled by a toggle in the top bar:
-
-| Mode | Purpose | Default? |
-|------|---------|---------|
-| **Strategy View** | Visual, editorial — 7 curated modules answering the key strategic question | ✓ Yes |
-| **Data View** | Full analytical tables — every driver, every stint, every stop, exclusion log | No |
-
-Strategy View is always the default. Data View is one click away.
-
-### Session-aware modules
-
-Modules render based on session type. Race-only modules never appear in Qualifying or Practice views.
-
-| Module | Race | Qualifying | Practice |
-|--------|------|------------|----------|
-| RaceBrainV2 | ✓ | ✓ | ✓ |
-| TruePacePodium | ✓ | ✓ | ✓ |
-| TyreCliffMap | ✓ | — | — |
-| PitSequenceSummary | ✓ | — | — |
-| ChaosProfile | ✓ | ✓ | — |
-| TrackEvolutionPanel | — | ✓ | ✓ |
-| SectorStrengthMap | — | ✓ (stub) | — |
-| RunTimingPanel | — | ✓ (stub) | — |
-| EngineerSignalSummary | ✓ | ✓ | ✓ |
-| KeyDecisionCards | ✓ | ✓ | — |
-| DRSTrainDetector | ✓ (stub) | — | — |
-| WeatherOverlay | ✓ (stub) | — | — |
-
-### Driver Focus Mode
-
-Click any driver in any panel (pace podium, cliff map, pit summary) to activate focus mode.
-
-A blue strip appears at the top of the analysis area. Engineer signals filter to that driver's events. The chat button changes to "Ask about {CODE} →".
-
-State is global (Zustand). Any panel can activate focus. Click "✕ Clear focus" to reset.
-
-### Data credibility affordances
-
-Every derived metric carries:
-- **MethodologyBadge** (⚙) — shows how the metric is calculated
-- **EstimatedLabel** — italic "estimated from OpenF1 data" below derived values
-
-Raw OpenF1 values (`lane_duration`, `lap_duration`) do not get these labels.
-
----
-
-## AI Chat — Ollama architecture
-
-```
-RadioOverlay
-  → POST /chat (FastAPI)
-  → ChatService.build_chat_context(session_key, focused_driver)
-      → compact JSON ≤800 tokens (never raw OpenF1 arrays)
-  → Ollama /api/chat (llama3.1:8b, temperature=0.3)
-  → Grounded answer citing specific laps and data
-  → Response to frontend
-```
-
-The `/chat` endpoint requires that `/analysis/{session_key}` has been called first — it loads from the local `_analysis.json` cache. No re-running the pipeline per question.
-
-**Ollama setup:**
+### AI chat (Ollama)
 
 ```bash
-# macOS / Linux
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Pull model (~4.7 GB)
-ollama pull llama3.1:8b
-
-# Start server (runs on :11434 by default)
 ollama serve
+ollama pull llama3.1:8b       # ~4.7 GB
+
+# Lighter alternatives: phi3:mini, mistral:7b
+# Set OLLAMA_MODEL in backend/.env to use a different model
 ```
 
-Alternative models (lighter): `phi3:mini`, `mistral:7b`
+The app works without Ollama — the Radio Overlay shows an offline state with setup instructions.
 
-Set in `backend/.env`:
-```
-OLLAMA_MODEL=phi3:mini
-```
+### Environment variables
 
-**Fallback:** If Ollama is not running, the chat returns: `"Engineer radio unavailable. Check that Ollama is running: ollama serve"` — the app does not crash.
+**`backend/.env`**
+
+| Variable | Purpose |
+|----------|---------|
+| `OPENF1_BASE_URL` | OpenF1 API endpoint (default: `https://api.openf1.org/v1`) |
+| `CACHE_DIR` | Directory for per-session JSON cache files (default: `./cache`) |
+| `OLLAMA_BASE_URL` | Ollama server address (default: `http://127.0.0.1:11434`) |
+| `OLLAMA_MODEL` | Model to use for the race engineer (default: `llama3.1:8b`) |
+
+**`frontend/.env.local`**
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_API_URL` | Backend URL the frontend calls |
+| `ANTHROPIC_API_KEY` | Optional — only needed if using the Claude API chat route |
 
 ---
 
-## Demo races
+## Demo sessions
 
-| Session Key | Race | Why it's a good demo |
-|------------|------|---------------------|
-| 9636 | Brazilian GP 2024 | Chaos 100/Extreme — rain, SC×2, VSC, red flag |
-| 9539 | Spanish GP 2024 | Clean strategic race — undercut showcase |
-| 9566 | Hungarian GP 2024 | High tyre degradation — cliff map showcase |
+| Race | Year | session_key | Why it's useful for testing |
+|------|------|-------------|----------------------------|
+| Brazilian GP | 2024 | `9636` | Extreme chaos (100/100), rain + SC×2 + VSC, all V4 modules active |
+| Spanish GP | 2024 | `9539` | Clean strategic race, undercut sequence, DRS trains, no weather |
+| Hungarian GP | 2024 | `9566` | High tyre degradation, cliff map showcase |
+| US GP (Austin) | 2024 | `9617` | Earliest session with `stop_duration` field in pit data |
 
----
+First load fetches from OpenF1 and caches per-endpoint. Subsequent loads return from `_analysis.json` in milliseconds. To force a recompute: `POST /admin/clear-cache/{session_key}`.
 
-## Environment variables
+### Validated reference values
 
-**Backend** (`backend/.env`):
-```
-OPENF1_BASE_URL=https://api.openf1.org/v1
-CACHE_DIR=./cache
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1:8b
-```
-
-**Frontend** (`frontend/.env.local`):
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+| | Brazil 2024 | Spain 2024 |
+|-|-------------|------------|
+| Chaos | 100 / Extreme | 62 / High |
+| Primary factor | Weather + Safety Car | Track Position / DRS |
+| Race phases | 10 | 4 |
+| Crossover windows | 3 (all with concurrent SC) | 2 (no SC) |
+| Meaningful DRS trains | 7 (from 68 raw, 16 SC-filtered) | 3 (from 24 raw) |
+| Clean air value | 1.06 s/lap, Medium confidence | 1.33 s/lap, Medium confidence |
 
 ---
 
-## Key technical rules
+## API endpoints
 
-1. Backend calculates everything. Frontend only renders.
-2. Never use `pit_duration` — use `lane_duration` (deprecated field).
-3. Never use `segments_sector_*` for race data — not available during races.
-4. `position_at_lap()` uses timestamp interpolation, not lap-number lookup.
-5. Cache raw OpenF1 responses forever for historical sessions (no TTL).
-6. `asyncio.Semaphore(3)` on all concurrent OpenF1 requests.
-7. EngineerNotes are deterministic templates — no LLM generation.
-8. Context sent to Ollama is always the compact `build_chat_context()` output.
-9. Strategy View is always the default. Never open on Data View.
-10. Race-only modules MUST NOT render for Qualifying or Practice sessions.
+```
+GET  /health                            → {"status": "ok"}
+GET  /races?year=2024                   → list[RaceMeta]
+GET  /races/{meeting_key}/sessions      → list[SessionInfo]
+GET  /analysis/{session_key}            → FullRaceAnalysis
+GET  /analysis/{session_key}?force_refresh=true  → recomputes, bypasses cache
+POST /admin/clear-cache/{session_key}   → clears cached analysis + raw endpoints
+GET  /chat/health                       → Ollama reachability + model status
+POST /chat                              → race engineer answer (Ollama-backed)
+```
+
+Interactive docs at `http://localhost:8000/docs` when the backend is running.
+
+---
+
+## Tech stack
+
+**Backend:** Python 3.11 · FastAPI 0.111 · Pydantic v2 · httpx · Polars · NumPy · Ollama
+
+**Frontend:** Next.js 14 (App Router) · TypeScript (strict) · Tailwind CSS · Framer Motion · Zustand · Recharts
+
+**Typography:** Barlow Condensed (display) · Barlow (body) · JetBrains Mono (data)
+
+**Data:** [OpenF1](https://openf1.org) REST API — free and unauthenticated for historical sessions
+
+---
+
+## Disclaimer
+
+This is an unofficial personal project. It is not affiliated with, endorsed by, or connected to Formula 1, the FIA, or any F1 team. All data is sourced from [OpenF1](https://openf1.org), which is also an unofficial community project. Driver names, team names, and race results are factual information, not trademarks being claimed.

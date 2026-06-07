@@ -5,6 +5,39 @@ We use laps.date_start as the temporal anchor for each lap.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone, timedelta
+
+
+# ── Historical session guard ───────────────────────────────────────────────
+
+SESSION_DURATION_ESTIMATE: dict[str, timedelta] = {
+    "Race": timedelta(hours=3),
+    "Qualifying": timedelta(hours=2),
+    "Practice": timedelta(hours=1, minutes=30),
+    "Sprint Qualifying": timedelta(hours=1),
+    "Sprint": timedelta(hours=1, minutes=30),
+}
+
+LIVE_WINDOW_BUFFER = timedelta(minutes=30)
+
+
+def estimate_session_end(date_start: str, session_type: str) -> datetime:
+    start = datetime.fromisoformat(date_start.replace("Z", "+00:00"))
+    duration = SESSION_DURATION_ESTIMATE.get(session_type, timedelta(hours=3))
+    return start + duration
+
+
+def is_session_historical(date_start: str, session_type: str) -> tuple[bool, datetime]:
+    """
+    Returns (is_historical, unlock_at).
+    Historical = now > estimated_end + 30min buffer.
+    """
+    unlock_at = estimate_session_end(date_start, session_type) + LIVE_WINDOW_BUFFER
+    now = datetime.now(timezone.utc)
+    return now >= unlock_at, unlock_at
+
+
+# ── Position lookup ────────────────────────────────────────────────────────
 
 def position_at_lap(
     driver_number: int,
@@ -34,11 +67,6 @@ def position_at_lap(
     lap_ts: str | None = driver_laps[0].get("date_start")
     if not lap_ts:
         # date_start can be None for lap 1 — fall back to lap_number order
-        all_driver_laps = sorted(
-            [l for l in laps_data if l.get("driver_number") == driver_number],
-            key=lambda l: l.get("lap_number", 0),
-        )
-        # For lap 1 with no timestamp, try the very first position record
         driver_positions = [
             p for p in position_data if p.get("driver_number") == driver_number
         ]
@@ -53,7 +81,6 @@ def position_at_lap(
     ]
     eligible = [p for p in driver_positions if p["date"] <= lap_ts]
     if not eligible:
-        # No earlier record — take the earliest available
         all_sorted = sorted(driver_positions, key=lambda p: p.get("date", ""))
         return all_sorted[0].get("position") if all_sorted else None
 
@@ -88,12 +115,10 @@ def sc_vsc_laps(race_control: list[dict]) -> set[int]:
             deploy_lap = lap
             affected.add(lap)
         elif is_ending and deploy_lap and lap:
-            # Mark the full SC window including the ending lap
             for l in range(deploy_lap, lap + 2):
                 affected.add(l)
             deploy_lap = None
         elif deploy_lap and lap:
-            # Still under SC — mark this lap too
             affected.add(lap)
 
     return affected

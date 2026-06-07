@@ -1,95 +1,27 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useRaceStore } from '@/stores/raceStore'
-import { fetchAnalysis } from '@/lib/api'
+import { useRaceAnalysis } from '@/hooks/useRaceAnalysis'
 import { AppShell } from '@/components/layout/AppShell'
 import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
 import { AnalysisPage } from '@/components/analysis/AnalysisPage'
-import { LOADING_STEPS } from '@/lib/constants'
-
-const STEP_INTERVAL_MS = 1400
+import { SessionUnavailableState } from '@/components/analysis/SessionUnavailableState'
 
 export default function RacePage() {
   const params = useParams()
   const router = useRouter()
   const sessionKey = Number(params.sessionKey)
 
-  const {
-    analysis,
-    setAnalysis,
-    isLoading,
-    setIsLoading,
-    loadingStep,
-    setLoadingStep,
-    setCurrentSessionKey,
-    error,
-    setError,
-  } = useRaceStore()
+  const { loadingStep } = useRaceStore()
+  const { loading, data: analysis, error, retry } = useRaceAnalysis(
+    isNaN(sessionKey) ? null : sessionKey,
+  )
 
-  const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const stopStepTimer = useCallback(() => {
-    if (stepTimerRef.current) {
-      clearInterval(stepTimerRef.current)
-      stepTimerRef.current = null
-    }
-  }, [])
-
-  const startStepTimer = useCallback(() => {
-    setLoadingStep(0)
-    stepTimerRef.current = setInterval(() => {
-      setLoadingStep((prev: number) => Math.min(prev + 1, LOADING_STEPS.length - 1))
-    }, STEP_INTERVAL_MS)
-  }, [setLoadingStep])
-
-  const loadAnalysis = useCallback(async () => {
-    if (!sessionKey || isNaN(sessionKey)) {
-      router.push('/')
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    setCurrentSessionKey(sessionKey)
-    startStepTimer()
-
-    try {
-      const data = await fetchAnalysis(sessionKey)
-      stopStepTimer()
-      setLoadingStep(LOADING_STEPS.length - 1)
-      // Brief pause to show "done" state on last step
-      await new Promise((r) => setTimeout(r, 400))
-      setAnalysis(data)
-    } catch (e) {
-      stopStepTimer()
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'Failed to load race analysis. Check that the backend is running.'
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [
-    sessionKey,
-    router,
-    setAnalysis,
-    setCurrentSessionKey,
-    setError,
-    setIsLoading,
-    setLoadingStep,
-    startStepTimer,
-    stopStepTimer,
-  ])
-
-  useEffect(() => {
-    if (!analysis || analysis.race.session_key !== sessionKey) {
-      loadAnalysis()
-    }
-    return () => stopStepTimer()
-  }, [sessionKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (isNaN(sessionKey)) {
+    router.push('/')
+    return null
+  }
 
   const raceName = analysis
     ? `${analysis.race.meeting_name} ${analysis.race.year}`
@@ -103,7 +35,29 @@ export default function RacePage() {
       ]
     : [{ label: `Session ${sessionKey}` }]
 
+  // Error states — map to SessionUnavailableState for structured errors
   if (error) {
+    if (
+      error.code === 'SESSION_NOT_HISTORICAL_YET' ||
+      error.code === 'OPENF1_RATE_LIMIT' ||
+      error.code === 'OPENF1_ERROR'
+    ) {
+      return (
+        <AppShell>
+          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
+            <SessionUnavailableState
+              code={error.code}
+              message={error.message}
+              unlockAtUtc={error.unlockAtUtc}
+              retryAfterMinutes={error.retryAfterMinutes}
+              onRetry={() => retry()}
+            />
+          </div>
+        </AppShell>
+      )
+    }
+
+    // ANALYSIS_FAILED or UNKNOWN — show generic error with retry
     return (
       <AppShell>
         <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
@@ -112,11 +66,11 @@ export default function RacePage() {
               Analysis Failed
             </div>
             <p className="font-mono text-[13px] text-text-secondary mb-4 leading-relaxed">
-              {error}
+              {error.message}
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => loadAnalysis()}
+                onClick={() => retry()}
                 className="px-4 py-2 bg-signal-red text-white font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:bg-red-600 transition-colors"
               >
                 Retry
@@ -134,7 +88,7 @@ export default function RacePage() {
     )
   }
 
-  if (isLoading || !analysis) {
+  if (loading || !analysis) {
     return (
       <AppShell>
         <AnalysisLoadingScreen

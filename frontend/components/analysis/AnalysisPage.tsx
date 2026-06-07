@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { FullRaceAnalysis } from '@/types'
 import { useRaceStore } from '@/stores/raceStore'
@@ -7,6 +8,7 @@ import { getSessionType } from '@/lib/utils'
 
 import { AnalysisModeToggle } from './AnalysisModeToggle'
 import { SessionTimelineBar } from './SessionTimelineBar'
+import { RacePhaseTimeline } from './RacePhaseTimeline'
 import { DriverFocusStrip } from './DriverFocusStrip'
 import { DriverCard } from './DriverCard'
 import { StrategyViewGrid } from './StrategyViewGrid'
@@ -30,6 +32,10 @@ export function AnalysisPage({ analysis }: Props) {
     focusedDriver, setFocusedDriver, clearFocusedDriver,
   } = useRaceStore()
 
+  // Separate state controls whether the DriverCard modal is visible.
+  // focusedDriver stays set when user clicks "Ask engineer" (radio needs it).
+  const [driverCardOpen, setDriverCardOpen] = useState(false)
+
   const totalLaps = inferTotalLaps(analysis)
   const sessionType = getSessionType(analysis.race.session_name)
 
@@ -37,7 +43,21 @@ export function AnalysisPage({ analysis }: Props) {
     ? analysis.true_pace.find((d) => d.driver_code === focusedDriver.code)
     : null
 
-  const handleDriverFocus = (code: string, name: string) => setFocusedDriver(code, name)
+  const handleDriverFocus = (code: string, name: string) => {
+    setFocusedDriver(code, name)
+    setDriverCardOpen(true)
+  }
+
+  const handleCloseDriverCard = () => {
+    clearFocusedDriver()
+    setDriverCardOpen(false)
+  }
+
+  const handleAskEngineerAboutDriver = () => {
+    // Keep focusedDriver in store so RadioOverlay shows the focused-driver context
+    setDriverCardOpen(false)
+    setRadioOpen(true)
+  }
 
   const visibleNotes = focusedDriver
     ? analysis.engineer_notes.filter(
@@ -80,14 +100,23 @@ export function AnalysisPage({ analysis }: Props) {
         </div>
       </div>
 
-      {/* Always-visible chrome */}
-      <SessionTimelineBar
-        totalLaps={totalLaps}
-        sessionType={sessionType}
-        engineerNotes={analysis.engineer_notes}
-        pitEvents={analysis.pit_impact}
-        chaosIndex={analysis.chaos}
-      />
+      {/* Always-visible timeline — Race gets phase timeline, others get classic */}
+      {sessionType === 'Race' && (analysis.race_phases ?? []).length > 0
+        ? (
+          <RacePhaseTimeline
+            phases={analysis.race_phases}
+            totalLaps={totalLaps}
+          />
+        ) : (
+          <SessionTimelineBar
+            totalLaps={totalLaps}
+            sessionType={sessionType}
+            engineerNotes={analysis.engineer_notes}
+            pitEvents={analysis.pit_impact}
+            chaosIndex={analysis.chaos}
+          />
+        )
+      }
       <AnalysisModeToggle
         mode={analysisMode}
         sessionType={sessionType}
@@ -97,7 +126,7 @@ export function AnalysisPage({ analysis }: Props) {
       <DriverFocusStrip
         driverCode={focusedDriver?.code ?? null}
         driverName={focusedDriver?.name ?? null}
-        onClear={clearFocusedDriver}
+        onClear={handleCloseDriverCard}
       />
 
       {/* Animated view switch */}
@@ -138,14 +167,15 @@ export function AnalysisPage({ analysis }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Driver card modal */}
-      {focusedDriverRow && (
+      {/* Driver card modal — shown only when driverCardOpen AND we have a row */}
+      {focusedDriverRow && driverCardOpen && (
         <DriverCard
           driver={focusedDriverRow}
           stints={analysis.tyre_degradation.filter((s) => s.driver_number === focusedDriverRow.driver_number)}
           pits={analysis.pit_impact.filter((p) => p.driver_number === focusedDriverRow.driver_number)}
           raceName={analysis.race.meeting_name}
-          onClose={clearFocusedDriver}
+          onClose={handleCloseDriverCard}
+          onAskEngineer={handleAskEngineerAboutDriver}
         />
       )}
 

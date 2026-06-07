@@ -99,6 +99,59 @@ def build_chat_context(
         ],
     }
 
+    # ── V4 optional context (added only when available) ─────────────────────
+
+    if analysis.race_dna:
+        ctx["race_dna"] = {
+            "primary_factor": analysis.race_dna.primary_factor,
+            "secondary_factor": analysis.race_dna.secondary_factor,
+            "strategy_type": analysis.race_dna.strategy_type,
+        }
+
+    if analysis.race_phases:
+        priority_order = {"High": 0, "Medium": 1, "Low": 2}
+        top_phases = sorted(analysis.race_phases, key=lambda p: priority_order.get(p.impact, 3))[:3]
+        ctx["phase_summary"] = [
+            {
+                "laps": f"L{p.lap_start}–{p.lap_end}",
+                "phase": p.phase,
+                "impact": p.impact,
+            }
+            for p in top_phases
+        ]
+
+    if analysis.crossover_windows:
+        cw = analysis.crossover_windows[0]
+        ctx["crossover_summary"] = {
+            "laps": f"L{cw.lap_start}–{cw.lap_end}",
+            "transition": f"{cw.from_condition} → {cw.to_condition}",
+            "impact": cw.impact,
+            "concurrent_sc": cw.concurrent_sc,
+            "best_timed": cw.best_timed_drivers[:3],
+            "late": cw.late_drivers[:3],
+        }
+
+    # Weather attribution note — critical for credibility when SC and rain co-occurred
+    if analysis.weather_winners_losers and analysis.weather_winners_losers.attribution_note:
+        ctx["weather_attribution_note"] = analysis.weather_winners_losers.attribution_note
+    elif analysis.crossover_windows and all(w.concurrent_sc for w in analysis.crossover_windows):
+        ctx["weather_attribution_note"] = (
+            "All weather transitions in this session coincided with safety car periods. "
+            "Position changes cannot be attributed to tyre choice alone — "
+            "SC timing was the primary driver of the order changes."
+        )
+
+    if analysis.drs_trains and analysis.drs_trains.peak_train:
+        pt = analysis.drs_trains.peak_train
+        ctx["drs_summary"] = {
+            "peak_train_laps": f"L{pt.lap_start}–{pt.lap_end}",
+            "peak_length": pt.peak_length,
+            "duration_s": pt.duration_seconds,
+            "leader": pt.leader,
+            "trapped": pt.trapped_drivers[:3],
+            "impact": pt.impact,
+        }
+
     if focused_driver:
         ctx["focused_driver"] = focused_driver
         driver_pace = next(

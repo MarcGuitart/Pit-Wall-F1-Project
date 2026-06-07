@@ -21,6 +21,7 @@ type RaceStore = {
   // Analysis data
   analysis: FullRaceAnalysis | null
   setAnalysis: (data: FullRaceAnalysis | null) => void
+  clearAnalysis: () => void
 
   // Loading state
   isLoading: boolean
@@ -55,6 +56,7 @@ export const useRaceStore = create<RaceStore>((set, get) => ({
 
   analysis: null,
   setAnalysis: (data) => set({ analysis: data }),
+  clearAnalysis: () => set({ analysis: null }),
 
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),

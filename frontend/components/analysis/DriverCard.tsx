@@ -11,9 +11,10 @@ type Props = {
   pits: PitImpactRow[]
   raceName: string
   onClose: () => void
+  onAskEngineer?: () => void
 }
 
-export function DriverCard({ driver, stints, pits, raceName, onClose }: Props) {
+export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngineer }: Props) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -46,7 +47,7 @@ export function DriverCard({ driver, stints, pits, raceName, onClose }: Props) {
           }}
         >
           <div className="flex items-center gap-4">
-            {/* Driver number watermark style */}
+            {/* Driver number watermark */}
             <div
               className="font-display font-black text-[56px] leading-none select-none tabular-nums"
               style={{ color: teamColor + '44', WebkitTextStroke: `1px ${teamColor}66` }}
@@ -230,6 +231,16 @@ export function DriverCard({ driver, stints, pits, raceName, onClose }: Props) {
                 {driver.verdict}
               </p>
             </div>
+
+            {/* Ask engineer button */}
+            {onAskEngineer && (
+              <button
+                onClick={onAskEngineer}
+                className="w-full px-3 py-2 bg-transparent border border-dashed border-border-default text-text-muted font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:border-signal-blue hover:text-signal-blue transition-colors"
+              >
+                Ask engineer about {driver.driver_code} →
+              </button>
+            )}
           </div>
         </div>
       </div>

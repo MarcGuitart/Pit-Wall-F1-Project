@@ -98,16 +98,185 @@ export type RaceDecision = {
   confidence: 'Low' | 'Medium' | 'High'
 }
 
+export type WeatherEvent = {
+  lap_number: number | null
+  event_type: 'RAIN_ONSET' | 'RAIN_END' | 'TEMP_SPIKE' | 'TEMP_DROP' | 'PEAK_RAIN'
+  track_temp: number
+  air_temp: number
+  rainfall: number
+  message: string
+}
+
+export type WeatherLap = {
+  lap_number: number
+  track_temp: number
+  air_temp: number
+  rainfall: number
+  condition: 'DRY' | 'DAMP' | 'WET'
+}
+
+export type WeatherAnalysis = {
+  dry_laps: number
+  damp_laps: number
+  wet_laps: number
+  avg_track_temp: number
+  min_track_temp: number
+  max_track_temp: number
+  peak_rainfall_lap: number | null
+  events: WeatherEvent[]
+  lap_conditions: WeatherLap[]
+  strategy_impact: 'None' | 'Low' | 'Medium' | 'High'
+  summary: string
+}
+
+// ── V4: Race Phase Timeline ───────────────────────────────────────────────────
+
+export type RacePhase = {
+  lap_start: number
+  lap_end: number
+  phase: string
+  impact: 'Low' | 'Medium' | 'High'
+  reason: string
+  color_token: 'green' | 'amber' | 'red' | 'blue' | 'purple' | 'muted'
+}
+
+// ── V4: Race DNA ──────────────────────────────────────────────────────────────
+
+export type RaceDNA = {
+  primary_factor: string
+  secondary_factor: string
+  strategy_type: string
+  overtaking_difficulty: 'Low' | 'Medium' | 'High'
+  pit_timing_sensitivity: 'Medium' | 'High' | 'Extreme'
+  tyre_degradation_impact: 'Low' | 'Medium' | 'High'
+  chaos_level: 'Low' | 'Medium' | 'High' | 'Extreme'
+}
+
+// ── V4: Crossover Windows ─────────────────────────────────────────────────────
+
+export type CrossoverWindow = {
+  lap_start: number
+  lap_end: number
+  from_condition: string
+  to_condition: string
+  impact: 'Low' | 'Medium' | 'High'
+  best_timed_drivers: string[]
+  late_drivers: string[]
+  early_drivers: string[]
+  concurrent_sc: boolean
+  summary: string
+}
+
+// ── V4: Weather Winners & Losers ──────────────────────────────────────────────
+
+export type WeatherWinner = {
+  driver_code: string
+  gain: string
+  reason: string
+  confidence: 'Low' | 'Medium' | 'High'
+}
+
+export type WeatherLoser = {
+  driver_code: string
+  loss: string
+  reason: string
+  confidence: 'Low' | 'Medium' | 'High'
+}
+
+export type WeatherWinnersLosers = {
+  winners: WeatherWinner[]
+  losers: WeatherLoser[]
+  confidence: 'Low' | 'Medium' | 'High'
+  attribution_note: string | null
+}
+
+// ── V4: DRS Aggregated Trains ─────────────────────────────────────────────────
+
+export type TrainDynamics = {
+  train_breaker: string | null
+  breaker_lap: number | null
+  breaker_gap_opened: number | null
+  dropped_drivers: string[]
+  dynamics_confidence: 'Low' | 'Medium' | 'High'
+  dynamics_note: string | null
+}
+
+export type MeaningfulDRSTrain = {
+  lap_start: number
+  lap_end: number
+  duration_seconds: number
+  peak_length: number
+  leader: string | null
+  trapped_drivers: string[]
+  average_gap: number | null
+  impact: 'Low' | 'Medium' | 'High'
+  summary: string
+  dynamics: TrainDynamics | null
+}
+
+export type DRSAnalysisAggregated = {
+  meaningful_trains: MeaningfulDRSTrain[]
+  total_raw_snapshots: number
+  suppressed_by_sc: number
+  peak_train: MeaningfulDRSTrain | null
+}
+
+// Legacy type — kept for stubs
+export type DRSTrainSnapshot = {
+  lap_number: number
+  driver_codes: string[]
+  gaps: number[]
+  train_length: number
+}
+
+export type DRSTrainAnalysis = {
+  trains_detected: number
+  peak_train_length: number
+  peak_train_lap: number | null
+  most_affected_drivers: string[]
+  snapshots: DRSTrainSnapshot[]
+  summary: string
+}
+
+// ── V4: Clean Air Value ───────────────────────────────────────────────────────
+
+export type DriverCleanAirEstimate = {
+  driver_code: string
+  gain: number
+  context: string
+  sample_in_train: number
+  sample_post_train: number
+  confidence: 'Low' | 'Medium' | 'High'
+}
+
+export type CleanAirValue = {
+  estimated_gain: number | null
+  confidence: 'Low' | 'Medium' | 'High'
+  drivers: DriverCleanAirEstimate[]
+  strategic_implication: string
+}
+
+// ── FullRaceAnalysis ──────────────────────────────────────────────────────────
+
 export type FullRaceAnalysis = {
   race: RaceMeta
   race_brain: RaceBrain
+  race_dna: RaceDNA | null
+  race_phases: RacePhase[]
   true_pace: TruePaceRow[]
   tyre_degradation: TyreDegradationRow[]
   pit_impact: PitImpactRow[]
   chaos: ChaosIndex
   engineer_notes: EngineerNote[]
   decisions: RaceDecision[]
+  weather_analysis: WeatherAnalysis | null
+  crossover_windows: CrossoverWindow[]
+  weather_winners_losers: WeatherWinnersLosers | null
+  drs_trains: DRSAnalysisAggregated | null
+  clean_air_value: CleanAirValue | null
 }
+
+// ── Race selector types ───────────────────────────────────────────────────────
 
 export type RaceListItem = {
   meeting_key: number

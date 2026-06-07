@@ -105,15 +105,177 @@ class RaceDecision(BaseModel):
     confidence: Literal["Low", "Medium", "High"]
 
 
+class WeatherEvent(BaseModel):
+    lap_number: Optional[int] = None
+    event_type: Literal["RAIN_ONSET", "RAIN_END", "TEMP_SPIKE", "TEMP_DROP", "PEAK_RAIN"]
+    track_temp: float
+    air_temp: float
+    rainfall: float
+    message: str
+
+
+class WeatherLap(BaseModel):
+    lap_number: int
+    track_temp: float
+    air_temp: float
+    rainfall: float
+    condition: Literal["DRY", "DAMP", "WET"]
+
+
+class WeatherAnalysis(BaseModel):
+    dry_laps: int
+    damp_laps: int
+    wet_laps: int
+    avg_track_temp: float
+    min_track_temp: float
+    max_track_temp: float
+    peak_rainfall_lap: Optional[int] = None
+    events: list[WeatherEvent]
+    lap_conditions: list[WeatherLap]
+    strategy_impact: Literal["None", "Low", "Medium", "High"]
+    summary: str
+
+
+class DRSTrainSnapshot(BaseModel):
+    lap_number: int
+    driver_codes: list[str]
+    gaps: list[float]          # gap between consecutive cars in the chain
+    train_length: int
+
+
+
+# ── V4: Race phases ────────────────────────────────────────────────────────
+
+class RacePhase(BaseModel):
+    lap_start: int
+    lap_end: int
+    phase: str
+    impact: Literal["Low", "Medium", "High"]
+    reason: str
+    color_token: str  # "green"|"amber"|"red"|"blue"|"purple"|"muted"
+
+
+# ── V4: Race DNA ───────────────────────────────────────────────────────────
+
+class RaceDNA(BaseModel):
+    primary_factor: str
+    secondary_factor: str
+    strategy_type: str
+    overtaking_difficulty: Literal["Low", "Medium", "High"]
+    pit_timing_sensitivity: Literal["Medium", "High", "Extreme"]
+    tyre_degradation_impact: Literal["Low", "Medium", "High"]
+    chaos_level: Literal["Low", "Medium", "High", "Extreme"]
+
+
+# ── V4: DRS aggregation ────────────────────────────────────────────────────
+
+class TrainDynamics(BaseModel):
+    train_breaker: Optional[str] = None
+    breaker_lap: Optional[int] = None
+    breaker_gap_opened: Optional[float] = None
+    dropped_drivers: list[str] = []
+    dynamics_confidence: Literal["Low", "Medium", "High"] = "Low"
+    dynamics_note: Optional[str] = None
+
+
+class MeaningfulDRSTrain(BaseModel):
+    lap_start: int
+    lap_end: int
+    duration_seconds: int
+    peak_length: int
+    leader: Optional[str] = None
+    trapped_drivers: list[str] = []
+    average_gap: Optional[float] = None
+    impact: Literal["Low", "Medium", "High"]
+    summary: str
+    dynamics: Optional[TrainDynamics] = None
+
+
+class DRSAnalysisAggregated(BaseModel):
+    meaningful_trains: list[MeaningfulDRSTrain]
+    total_raw_snapshots: int
+    suppressed_by_sc: int
+    peak_train: Optional[MeaningfulDRSTrain] = None
+
+
+# ── V4: Crossover windows ──────────────────────────────────────────────────
+
+class CrossoverWindow(BaseModel):
+    lap_start: int
+    lap_end: int
+    from_condition: str
+    to_condition: str
+    impact: Literal["Low", "Medium", "High"]
+    best_timed_drivers: list[str]
+    late_drivers: list[str]
+    early_drivers: list[str]
+    concurrent_sc: bool
+    summary: str
+
+
+class WeatherWinner(BaseModel):
+    driver_code: str
+    gain: str
+    reason: str
+    confidence: Literal["Low", "Medium", "High"]
+
+
+class WeatherLoser(BaseModel):
+    driver_code: str
+    loss: str
+    reason: str
+    confidence: Literal["Low", "Medium", "High"]
+
+
+class WeatherWinnersLosers(BaseModel):
+    winners: list[WeatherWinner]
+    losers: list[WeatherLoser]
+    confidence: Literal["Low", "Medium", "High"]
+    attribution_note: Optional[str] = None
+
+
+# ── V4: Clean air value ────────────────────────────────────────────────────
+
+class DriverCleanAirEstimate(BaseModel):
+    driver_code: str
+    gain: float
+    context: str
+    sample_in_train: int
+    sample_post_train: int
+    confidence: Literal["Low", "Medium"]    # never "High"
+
+
+class CleanAirValue(BaseModel):
+    estimated_gain: Optional[float] = None  # None if data insufficient
+    confidence: Literal["Low", "Medium"]    # never "High"
+    drivers: list[DriverCleanAirEstimate] = []
+    strategic_implication: str
+
+
+# ── Updated FullRaceAnalysis ───────────────────────────────────────────────
+
 class FullRaceAnalysis(BaseModel):
     race: RaceMeta
     race_brain: RaceBrain
+    # V4 — deterministic race fingerprint
+    race_dna: Optional[RaceDNA] = None
+    race_phases: list[RacePhase] = []
+    # Core services
     true_pace: list[TruePaceRow]
     tyre_degradation: list[TyreDegradationRow]
     pit_impact: list[PitImpactRow]
     chaos: ChaosIndex
     engineer_notes: list[EngineerNote]
     decisions: list[RaceDecision]
+    # V3 — weather, enhanced in V4
+    weather_analysis: Optional[WeatherAnalysis] = None
+    # V4 — crossover windows and weather winners/losers
+    crossover_windows: list[CrossoverWindow] = []
+    weather_winners_losers: Optional[WeatherWinnersLosers] = None
+    # V4 — DRS aggregated (replaces old DRSTrainAnalysis)
+    drs_trains: Optional[DRSAnalysisAggregated] = None
+    # V4 — clean air value
+    clean_air_value: Optional[CleanAirValue] = None
 
 
 class RaceListItem(BaseModel):

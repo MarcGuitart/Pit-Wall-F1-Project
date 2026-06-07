@@ -17,6 +17,19 @@ type Props = {
   onBackToStrategy: () => void
 }
 
+const NAV_SECTIONS = [
+  { id: 'pace',       label: 'Pace' },
+  { id: 'exclusions', label: 'Exclusions' },
+  { id: 'tyres',      label: 'Tyres' },
+  { id: 'pit',        label: 'Pit' },
+  { id: 'signals',    label: 'Signals' },
+  { id: 'decisions',  label: 'Decisions' },
+]
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
 export function DataViewTables({
   analysis, sessionType, focusedDriver, visibleNotes, onDriverClick, onBackToStrategy,
 }: Props) {
@@ -43,40 +56,67 @@ export function DataViewTables({
         ← Back to Strategy View
       </button>
 
+      {/* Sticky section nav */}
+      <div
+        className="sticky top-0 z-[5] bg-bg-secondary border-b border-border-subtle flex items-center gap-1 px-2 py-1.5 -mx-2"
+      >
+        {NAV_SECTIONS.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => scrollToSection(id)}
+            className="px-3 py-1 font-display font-bold text-[10px] uppercase tracking-[0.5px] text-text-muted hover:text-text-primary transition-colors rounded-[2px] hover:bg-bg-elevated"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* a. Full pace table */}
-      <TruePaceTable
-        rows={analysis.true_pace}
-        onDriverClick={clickByNumber}
-        selectedDriver={focusedRow?.driver_number ?? null}
-      />
+      <div id="pace">
+        <TruePaceTable
+          rows={analysis.true_pace}
+          onDriverClick={clickByNumber}
+          selectedDriver={focusedRow?.driver_number ?? null}
+        />
+      </div>
 
       {/* b. Exclusion log */}
-      <ExclusionLogPanel rows={analysis.true_pace} />
+      <div id="exclusions">
+        <ExclusionLogPanel rows={analysis.true_pace} />
+      </div>
 
       {/* c. Tyre degradation */}
-      <TyreDegradationPanel
-        rows={analysis.tyre_degradation}
-        onDriverClick={clickByCode}
-        focusedDriver={focusedDriver}
-      />
-
-      {/* d. Pit impact — Race only */}
-      {sessionType === 'Race' && (
-        <PitImpactPanel
-          rows={analysis.pit_impact}
+      <div id="tyres">
+        <TyreDegradationPanel
+          rows={analysis.tyre_degradation}
           onDriverClick={clickByCode}
           focusedDriver={focusedDriver}
         />
-      )}
+      </div>
 
-      {/* e. Full engineer notes — unfiltered */}
-      <EngineerNotes notes={analysis.engineer_notes} focusedDriver={null} />
+      {/* d. Pit impact — Race only */}
+      <div id="pit">
+        {sessionType === 'Race' && (
+          <PitImpactPanel
+            rows={analysis.pit_impact}
+            onDriverClick={clickByCode}
+            focusedDriver={focusedDriver}
+          />
+        )}
+      </div>
+
+      {/* e. Full engineer notes */}
+      <div id="signals">
+        <EngineerNotes notes={analysis.engineer_notes} focusedDriver={null} />
+      </div>
 
       {/* f. ChaosIndexCard */}
       <ChaosIndexCard chaos={analysis.chaos} />
 
       {/* g. Decisions */}
-      <DecisionsTimeline decisions={analysis.decisions} />
+      <div id="decisions">
+        <DecisionsTimeline decisions={analysis.decisions} />
+      </div>
     </div>
   )
 }

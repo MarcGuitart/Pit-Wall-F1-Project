@@ -1,14 +1,22 @@
 import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
+import { ApiError } from '@/lib/errors'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     next: { revalidate: 0 },
+    ...options,
   })
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${path}`)
+    let detail: unknown
+    try {
+      detail = await res.json()
+    } catch {
+      detail = undefined
+    }
+    throw new ApiError(res.status, `API error ${res.status}: ${path}`, detail)
   }
   return res.json() as Promise<T>
 }
@@ -18,19 +26,41 @@ export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   return apiFetch<RaceListItem[]>(`/races${query}`)
 }
 
-export async function fetchSessions(meetingKey: number): Promise<SessionInfo[]> {
-  return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`)
+export async function fetchSessions(
+  meetingKey: number,
+  signal?: AbortSignal,
+): Promise<SessionInfo[]> {
+  return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
 }
 
 export async function fetchAnalysis(sessionKey: number): Promise<FullRaceAnalysis> {
   return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`)
 }
 
+export async function fetchAnalysisForceRefresh(sessionKey: number): Promise<FullRaceAnalysis> {
+  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}?force_refresh=true`)
+}
+
 export async function clearCache(sessionKey: number): Promise<{ cleared: boolean }> {
   const res = await fetch(`${BASE_URL}/admin/clear-cache/${sessionKey}`, {
     method: 'POST',
   })
-  if (!res.ok) throw new Error(`Cache clear failed: ${res.status}`)
+  if (!res.ok) throw new ApiError(res.status, `Cache clear failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchChatHealth(): Promise<{
+  ollama_reachable: boolean
+  base_url: string
+  model: string
+  model_available?: boolean
+  available_models?: string[]
+  error?: string
+}> {
+  const res = await fetch(`${BASE_URL}/chat/health`)
+  if (!res.ok) {
+    return { ollama_reachable: false, base_url: BASE_URL, model: 'unknown', error: `HTTP ${res.status}` }
+  }
   return res.json()
 }
 
@@ -49,15 +79,13 @@ export async function sendToEngineer(payload: {
     body: JSON.stringify(payload),
   })
   if (!res.ok) {
-    // Graceful degradation: return a friendly error message
-    throw new Error(`Chat error ${res.status}`)
+    throw new ApiError(res.status, `Chat error ${res.status}`)
   }
   return res.json()
 }
 
 /**
  * Legacy alias — kept for backward compat during migration.
- * Calls backend /chat directly (no longer uses Anthropic API via Next.js).
  */
 export async function engineerChat(payload: {
   question: string

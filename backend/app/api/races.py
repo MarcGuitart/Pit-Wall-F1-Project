@@ -2,6 +2,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings
+from app.core import cache as race_cache
 from app.domain.models import RaceListItem, SessionInfo
 
 router = APIRouter(tags=["races"])
@@ -9,6 +10,12 @@ router = APIRouter(tags=["races"])
 
 @router.get("/races", response_model=list[RaceListItem])
 async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
+    # Fast path: serve from cache for past seasons
+    if year < 2025:
+        cached = race_cache.get_meetings(year)
+        if cached:
+            return cached  # already sorted list[RaceListItem] dicts
+
     url = f"{settings.openf1_base_url}/meetings"
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -22,7 +29,6 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
 
     items: list[RaceListItem] = []
     for m in meetings:
-        # Filter to race weekends only (exclude pre-season testing)
         if not m.get("meeting_name"):
             continue
         items.append(
@@ -36,11 +42,21 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
             )
         )
 
-    return sorted(items, key=lambda x: x.date_start or "", reverse=True)
+    sorted_items = sorted(items, key=lambda x: x.date_start or "", reverse=True)
+
+    # Persist for future calls — only cache completed seasons
+    if year < 2025 and sorted_items:
+        race_cache.set_meetings(year, [i.model_dump() for i in sorted_items])
+
+    return sorted_items
 
 
 @router.get("/races/{meeting_key}/sessions", response_model=list[SessionInfo])
 async def list_sessions(meeting_key: int) -> list[SessionInfo]:
+    cached = race_cache.get_sessions_for_meeting(meeting_key)
+    if cached:
+        return cached
+
     url = f"{settings.openf1_base_url}/sessions"
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -50,7 +66,7 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"OpenF1 unreachable: {exc}") from exc
 
-    return [
+    result = [
         SessionInfo(
             session_key=s["session_key"],
             session_name=s.get("session_name", ""),
@@ -59,3 +75,8 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
         )
         for s in sessions
     ]
+
+    if result:
+        race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in result])
+
+    return result

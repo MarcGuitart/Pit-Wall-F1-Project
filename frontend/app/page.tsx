@@ -1,5 +1,12 @@
 import { AppShell } from '@/components/layout/AppShell'
 import { RaceSelector } from '@/components/landing/RaceSelector'
+import { LandingVideoBackground } from '@/components/landing/LandingVideoBackground'
+
+const STEPS = [
+  { num: '01', title: 'Select a session', sub: 'Season, race and session type' },
+  { num: '02', title: 'Decode the strategy', sub: 'Pace, tyres, pit cycles, chaos' },
+  { num: '03', title: 'Ask the race engineer', sub: 'Grounded answers from session data' },
+]
 
 export default function HomePage() {
   return (
@@ -7,6 +14,9 @@ export default function HomePage() {
       <div className="min-h-[calc(100vh-48px)] flex flex-col">
         {/* Hero */}
         <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
+          {/* Video background */}
+          <LandingVideoBackground />
+
           {/* Grid background */}
           <div
             className="absolute inset-0 bg-grid-pattern bg-grid opacity-60 pointer-events-none"
@@ -37,10 +47,10 @@ export default function HomePage() {
               <span className="text-signal-red block">LIKE THEY DO.</span>
             </h1>
 
-            {/* Tagline */}
+            {/* Updated tagline */}
             <p className="font-body text-[16px] text-text-secondary leading-relaxed max-w-xl mx-auto mb-12">
-              True pace rankings, tyre degradation slopes, pit stop impact analysis — the
-              same signals your race engineer is watching.
+              Decode true pace, tyre cliff risk, pit cycles and race-control disruption —
+              the signals behind every strategy call.
             </p>
 
             {/* Stats strip */}
@@ -63,8 +73,32 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Three-step explanation block */}
+        <div className="w-full bg-bg-secondary border-y border-border-subtle">
+          <div className="max-w-5xl mx-auto px-6 py-4 grid grid-cols-3 divide-x divide-border-subtle">
+            {STEPS.map((step) => (
+              <div key={step.num} className="px-6 flex items-center gap-4">
+                <span
+                  className="font-display font-black text-[28px] leading-none select-none shrink-0"
+                  style={{ color: 'rgba(232,0,29,0.45)' }}
+                >
+                  {step.num}
+                </span>
+                <div>
+                  <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary">
+                    {step.title}
+                  </div>
+                  <div className="font-mono text-[10px] text-text-muted mt-0.5">
+                    {step.sub}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Selector section */}
-        <div className="px-6 pb-8 max-w-5xl mx-auto w-full">
+        <div className="px-6 py-8 max-w-5xl mx-auto w-full">
           <RaceSelector />
         </div>
 

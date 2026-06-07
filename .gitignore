@@ -1,34 +1,73 @@
-# ── Frontend ──────────────────────────────────────────────────────────────────
-frontend/.next/
-frontend/out/
-frontend/node_modules/
-frontend/.env.local
-frontend/.env*.local
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
+# ── Internal dev documentation (not for public repo) ───────────────────────
+CLAUDE.md
+CLAUDE_V2.md
+CLAUDE_V3.md
+CLAUDE_V4.md
+PROMPTS.md
+PROMPTS_V2.md
+PROMPTS_V3.md
+PROMPTS_V4.md
+PROMPTS_V4_WIRING.md
+PROMPTS_V4_VALIDATION_COMPLETE.md
+PROMPTS_V4_CALIBRATION.md
+PROMPT_README_GENERATION.md
+VALIDATION_CHECKLIST.md
+docs/ollama-setup.md
+docs/api-contract.md
+api-contract.md
+OLLAMA_setup.md
 
-# ── Backend ───────────────────────────────────────────────────────────────────
-backend/cache/
-backend/.env
-backend/.env.*
-!backend/.env.example
-
-# Python
+# ── Backend ─────────────────────────────────────────────────────────────────
 backend/.venv/
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
-**/__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.eggs/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.pytest_cache/
+backend/.env
+backend/.env.local
+backend/.env.production
+!backend/.env.example
+backend/cache/
+backend/*.log
+backend/**/*.log
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+!frontend/.env.example
+frontend/tsconfig.tsbuildinfo
+frontend/**/*.tsbuildinfo
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+desktop.ini
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.vscode/*.code-workspace
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.orig
+*.bak
+*.tmp
+.turbo/

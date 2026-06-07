@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { DEMO_RACES } from '@/lib/constants'
@@ -12,6 +12,12 @@ const CHAOS_LEVEL = (score: number) => {
   if (score >= 50) return { label: 'High Chaos', color: 'text-signal-amber' }
   if (score >= 25) return { label: 'Medium Chaos', color: 'text-signal-blue' }
   return { label: 'Low Chaos', color: 'text-signal-green' }
+}
+
+const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: string }> = {
+  9636: { tag: 'CHAOS 94', tagColor: 'text-signal-red border-signal-red/40 bg-signal-red/10', reason: '3 safety cars · rain · VSC championship moment' },
+  9539: { tag: 'UNDERCUT', tagColor: 'text-signal-purple border-signal-purple/40 bg-signal-purple/10', reason: 'Clean strategic race · pit window showcase' },
+  9566: { tag: 'DEGRADATION', tagColor: 'text-signal-amber border-signal-amber/40 bg-signal-amber/10', reason: 'High tyre cliff · degradation-driven outcome' },
 }
 
 const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Practice 2', 'Practice 1']
@@ -32,33 +38,52 @@ export function RaceSelector() {
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [backendError, setBackendError] = useState<string | null>(null)
 
-  // Load races when year changes
+  const raceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sessionAbortRef = useRef<AbortController | null>(null)
+
+  // Debounced races fetch — 400ms after year changes
   useEffect(() => {
-    let cancelled = false
-    setLoadingRaces(true)
+    if (raceDebounceRef.current) clearTimeout(raceDebounceRef.current)
+
     setRaces([])
     setSelectedMeetingKey(null)
     setSessions([])
     setSelectedSessionKey(null)
     setBackendError(null)
 
-    fetchRaces(year)
-      .then((data) => { if (!cancelled) setRaces(data) })
-      .catch(() => { if (!cancelled) setBackendError('Backend offline — use featured races below') })
-      .finally(() => { if (!cancelled) setLoadingRaces(false) })
+    raceDebounceRef.current = setTimeout(() => {
+      setLoadingRaces(true)
+      fetchRaces(year)
+        .then((data) => setRaces(data))
+        .catch(() => setBackendError('Backend offline — use featured races below'))
+        .finally(() => setLoadingRaces(false))
+    }, 400)
 
-    return () => { cancelled = true }
+    return () => {
+      if (raceDebounceRef.current) clearTimeout(raceDebounceRef.current)
+    }
   }, [year])
 
-  // Load sessions when meeting changes
-  useEffect(() => {
-    if (!selectedMeetingKey) { setSessions([]); setSelectedSessionKey(null); return }
-    let cancelled = false
-    setLoadingSessions(true)
+  // Sessions fetch with AbortController — 300ms debounce
+  const sessionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    fetchSessions(selectedMeetingKey)
-      .then((data) => {
-        if (!cancelled) {
+  useEffect(() => {
+    if (sessionDebounceRef.current) clearTimeout(sessionDebounceRef.current)
+    if (sessionAbortRef.current) sessionAbortRef.current.abort()
+
+    if (!selectedMeetingKey) {
+      setSessions([])
+      setSelectedSessionKey(null)
+      return
+    }
+
+    sessionDebounceRef.current = setTimeout(() => {
+      const controller = new AbortController()
+      sessionAbortRef.current = controller
+
+      setLoadingSessions(true)
+      fetchSessions(selectedMeetingKey, controller.signal)
+        .then((data) => {
           const sorted = [...data].sort((a, b) => {
             const ai = SESSION_TYPE_ORDER.findIndex((t) => a.session_name.includes(t))
             const bi = SESSION_TYPE_ORDER.findIndex((t) => b.session_name.includes(t))
@@ -67,20 +92,35 @@ export function RaceSelector() {
           setSessions(sorted)
           const raceSession = sorted.find((s) => s.session_type === 'Race')
           if (raceSession) setSelectedSessionKey(raceSession.session_key)
-        }
-      })
-      .catch(() => { if (!cancelled) setSessions([]) })
-      .finally(() => { if (!cancelled) setLoadingSessions(false) })
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') setSessions([])
+        })
+        .finally(() => setLoadingSessions(false))
+    }, 300)
 
-    return () => { cancelled = true }
+    return () => {
+      if (sessionDebounceRef.current) clearTimeout(sessionDebounceRef.current)
+    }
   }, [selectedMeetingKey])
 
-  const raceOptions = [
-    { value: '', label: loadingRaces ? 'Loading races…' : races.length === 0 ? 'No races available' : 'Select a race…', disabled: true },
-    ...races.map((r) => ({ value: String(r.meeting_key), label: `${r.meeting_name} — ${r.circuit_short_name ?? ''}` })),
-  ]
+  const handleAnalyze = useCallback(() => {
+    if (selectedSessionKey) router.push(`/race/${selectedSessionKey}`)
+  }, [selectedSessionKey, router])
 
-  const sessionChips = sessions.length > 0 ? sessions : []
+  const canAnalyze = selectedMeetingKey !== null && selectedSessionKey !== null
+
+  const raceOptions = [
+    {
+      value: '',
+      label: loadingRaces ? 'Loading races…' : races.length === 0 ? 'No races available' : 'Select a race…',
+      disabled: true,
+    },
+    ...races.map((r) => ({
+      value: String(r.meeting_key),
+      label: `${r.meeting_name} — ${r.circuit_short_name ?? ''}`,
+    })),
+  ]
 
   return (
     <div className="w-full">
@@ -102,7 +142,7 @@ export function RaceSelector() {
             width="90px"
           />
 
-          {/* Grand Prix */}
+          {/* Grand Prix — search enabled when options > 8 */}
           <PitWallSelect
             label={loadingRaces ? 'Grand Prix — loading…' : 'Grand Prix'}
             value={selectedMeetingKey ? String(selectedMeetingKey) : ''}
@@ -119,8 +159,8 @@ export function RaceSelector() {
               {loadingSessions && <span className="ml-2 text-text-muted normal-case tracking-normal">loading…</span>}
             </label>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {sessionChips.length > 0
-                ? sessionChips.map((s) => (
+              {sessions.length > 0
+                ? sessions.map((s) => (
                     <button
                       key={s.session_key}
                       onClick={() => setSelectedSessionKey(s.session_key)}
@@ -147,11 +187,12 @@ export function RaceSelector() {
 
           {/* Analyze button */}
           <button
-            onClick={() => selectedSessionKey && router.push(`/race/${selectedSessionKey}`)}
-            disabled={!selectedSessionKey}
+            onClick={handleAnalyze}
+            disabled={!canAnalyze}
+            aria-disabled={!canAnalyze}
             className="px-6 py-[9px] bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end"
           >
-            Analyze →
+            Analyze Race →
           </button>
         </div>
       </div>
@@ -164,22 +205,35 @@ export function RaceSelector() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {DEMO_RACES.map((race) => {
             const chaosInfo = CHAOS_LEVEL(race.chaos_score)
+            const featured = FEATURED_TAGS[race.session_key]
             return (
               <button
                 key={race.session_key}
                 onClick={() => router.push(`/race/${race.session_key}`)}
                 className="bg-bg-panel border border-border-subtle rounded-[4px] p-4 text-left hover:border-border-default hover:bg-bg-elevated transition-all group"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary group-hover:text-white transition-colors">
-                      {race.meeting_name}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary group-hover:text-white transition-colors">
+                        {race.meeting_name}
+                      </div>
+                      {featured && (
+                        <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] shrink-0 ${featured.tagColor}`}>
+                          {featured.tag}
+                        </span>
+                      )}
                     </div>
-                    <div className="font-mono text-[11px] text-text-secondary mt-0.5">
+                    <div className="font-mono text-[10px] text-text-secondary">
                       {race.circuit_short_name} · {race.year}
                     </div>
+                    {featured && (
+                      <div className="font-mono text-[9px] text-text-muted mt-0.5">
+                        {featured.reason}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right ml-3 shrink-0">
                     <div className={`font-mono font-bold text-[20px] leading-none ${chaosInfo.color}`}>
                       {race.chaos_score}
                     </div>
@@ -187,17 +241,6 @@ export function RaceSelector() {
                       Chaos
                     </div>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {race.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-0.5 bg-bg-elevated border border-border-subtle rounded-[2px] font-display font-bold text-[9px] uppercase tracking-[0.5px] text-text-secondary"
-                    >
-                      {tag}
-                    </span>
-                  ))}
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between">
