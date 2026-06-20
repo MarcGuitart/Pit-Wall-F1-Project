@@ -7,6 +7,7 @@ from app.api.races import router as races_router
 from app.api.analysis import router as analysis_router
 from app.api.admin import router as admin_router
 from app.api.chat import router as chat_router
+from app.api.telemetry import router as telemetry_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,6 +29,7 @@ app.include_router(races_router)
 app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(chat_router)
+app.include_router(telemetry_router)
 
 
 @app.get("/health")

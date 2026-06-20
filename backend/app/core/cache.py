@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 _ANALYSIS_FILENAME = "_analysis.json"
 _SESSION_META_FILENAME = "_session_meta.json"
+_TELEMETRY_FILENAME = "telemetry.json"
 
 
 def _path(session_key: int, endpoint: str) -> Path:
@@ -78,6 +79,39 @@ def set_full_analysis(session_key: int, data: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
     logger.info("[CACHE SAVED] _analysis.json for %s", session_key)
+
+
+# ── Circuit telemetry cache (FastF1) ───────────────────────────────────────
+
+def _telemetry_path(session_key: int) -> Path:
+    return settings.cache_path / str(session_key) / _TELEMETRY_FILENAME
+
+
+def get_telemetry(session_key: int) -> dict | None:
+    """Return cached telemetry dict, or None if not cached."""
+    p = _telemetry_path(session_key)
+    if not p.exists():
+        logger.info("[CACHE MISS] telemetry for %s", session_key)
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        logger.info("[CACHE HIT] telemetry for %s", session_key)
+        return data
+    except (json.JSONDecodeError, OSError):
+        logger.warning("[CACHE CORRUPT] telemetry for %s — deleting", session_key)
+        try:
+            p.unlink()
+        except OSError:
+            pass
+        return None
+
+
+def set_telemetry(session_key: int, data: dict) -> None:
+    """Persist telemetry dict to disk."""
+    p = _telemetry_path(session_key)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
+    logger.info("[CACHE SAVED] telemetry for %s", session_key)
 
 
 # ── Backward-compat aliases ────────────────────────────────────────────────

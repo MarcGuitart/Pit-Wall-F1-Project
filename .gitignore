@@ -30,6 +30,7 @@ backend/.env.local
 backend/.env.production
 !backend/.env.example
 backend/cache/
+backend/fastf1_cache/
 backend/*.log
 backend/**/*.log
 

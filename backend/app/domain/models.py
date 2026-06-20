@@ -292,3 +292,49 @@ class SessionInfo(BaseModel):
     session_name: str
     session_type: str
     date_start: Optional[str] = None
+
+
+# ── Circuit Telemetry (FastF1 — loaded lazily) ─────────────────────────────
+
+class TelemetryPoint(BaseModel):
+    distance: float        # meters along lap
+    x: float               # normalised -1..1
+    y: float               # normalised -1..1
+    speed: float           # km/h
+    throttle: float        # 0–100
+    brake: bool
+    gear: int              # 1–8
+    drs: int               # 0=closed, 10/12/14=open
+    lap_number: Optional[int] = None
+    race_time: Optional[float] = None
+
+
+class DriverTelemetry(BaseModel):
+    driver_code: str
+    team_colour: str       # hex e.g. "#FF8000"
+    lap_time: float        # seconds
+    fastest_lap_number: int
+    points: list[TelemetryPoint]
+    sector_1_time: Optional[float] = None
+    sector_2_time: Optional[float] = None
+    sector_3_time: Optional[float] = None
+
+
+class CircuitPoint(BaseModel):
+    x: float
+    y: float
+    distance: float
+
+
+class TelemetryData(BaseModel):
+    circuit_key: str       # e.g. "brazil_2024"
+    circuit_name: str
+    year: int
+    session_type: str
+    circuit_outline: list[CircuitPoint]
+    drivers: list[DriverTelemetry]
+    sector_boundaries: dict  # {"sector_1_end": float, "sector_2_end": float}
+    total_distance: float
+    confidence: str
+    source: str            # "FastF1"
+    note: Optional[str] = None
