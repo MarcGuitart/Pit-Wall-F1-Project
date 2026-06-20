@@ -1,4 +1,5 @@
 import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
+import type { TelemetryData } from '@/types/telemetry'
 import { ApiError } from '@/lib/errors'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -98,4 +99,23 @@ export async function engineerChat(payload: {
     question: payload.question,
     focused_driver: payload.focused_driver,
   })
+}
+
+/**
+ * Circuit telemetry (FastF1) — loaded lazily when the Circuit View is expanded.
+ * Returns null on any failure so the UI can show a graceful unavailable state.
+ */
+export async function getTelemetry(
+  sessionKey: number,
+  drivers: string[],
+): Promise<TelemetryData | null> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/telemetry/${sessionKey}?drivers=${drivers.join(',')}`,
+    )
+    if (!res.ok) return null
+    return (await res.json()) as TelemetryData
+  } catch {
+    return null
+  }
 }

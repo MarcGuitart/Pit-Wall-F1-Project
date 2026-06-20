@@ -1,5 +1,3 @@
-'use client'
-
 export function LandingVideoBackground() {
   return (
     <div
@@ -11,16 +9,6 @@ export function LandingVideoBackground() {
         pointerEvents: 'none',
       }}
     >
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.15 }}
-        onError={(e) => ((e.currentTarget as HTMLVideoElement).style.display = 'none')}
-      >
-        <source src="/video/pitwall-bg.mp4" type="video/mp4" />
-      </video>
       <div
         style={{
           position: 'absolute',
