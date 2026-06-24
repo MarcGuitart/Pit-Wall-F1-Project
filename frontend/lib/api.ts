@@ -56,6 +56,8 @@ export async function fetchChatHealth(): Promise<{
   model: string
   model_available?: boolean
   available_models?: string[]
+  groq_available?: boolean
+  ai_ready?: boolean
   error?: string
 }> {
   const res = await fetch(`${BASE_URL}/chat/health`)

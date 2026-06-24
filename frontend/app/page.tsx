@@ -54,18 +54,21 @@ export default function HomePage() {
             </p>
 
             {/* Stats strip */}
-            <div className="flex items-center justify-center gap-8 mb-12 flex-wrap">
+            <div className="flex items-center justify-center gap-12 mb-12 flex-wrap">
               {[
-                { value: '8', label: 'Analysis Modules' },
-                { value: '71', label: 'Laps Decoded' },
-                { value: '100', label: 'Max Chaos Score' },
-              ].map(({ value, label }) => (
+                { value: '50K+', label: 'Data Points Per Session', sub: 'pos · intervals · car data · weather' },
+                { value: '12', label: 'Analysis Modules', sub: 'pace · tyre · pit · chaos · DRS · DNA…' },
+                { value: '40+', label: 'Strategic Signals', sub: 'engineer notes · decisions · phases' },
+              ].map(({ value, label, sub }) => (
                 <div key={label} className="text-center">
-                  <div className="font-display font-black text-[32px] text-text-primary">
+                  <div className="font-display font-black text-[28px] md:text-[34px] text-text-primary leading-none">
                     {value}
                   </div>
-                  <div className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+                  <div className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted mt-1">
                     {label}
+                  </div>
+                  <div className="font-mono text-[8px] text-text-muted/60 mt-0.5 max-w-[120px] mx-auto leading-tight">
+                    {sub}
                   </div>
                 </div>
               ))}
@@ -103,12 +106,55 @@ export default function HomePage() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-border-subtle px-6 py-4 text-center">
-          <p className="font-mono text-[10px] text-text-muted">
-            Unofficial project · Data via{' '}
-            <span className="text-text-secondary">OpenF1</span> · Not affiliated
-            with Formula 1 or FIA
-          </p>
+        <footer className="border-t border-border-subtle px-6 py-5">
+          <div className="max-w-5xl mx-auto flex items-center justify-between flex-wrap gap-4">
+            <p className="font-mono text-[10px] text-text-muted">
+              Unofficial project · Data via{' '}
+              <span className="text-text-secondary">OpenF1</span> &amp; FastF1 · Not affiliated with Formula 1 or FIA
+            </p>
+
+            {/* Author block */}
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="font-mono text-[9px] text-text-muted">Project Implemented by</div>
+                <div className="font-display font-bold text-[11px] uppercase tracking-[1px] text-text-primary">
+                  Marc Guitart Frescó
+                </div>
+                
+              </div>
+
+              {/* LinkedIn */}
+              <a
+                href="https://www.linkedin.com/in/marc-guitart-fresco/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-subtle rounded-[3px] hover:border-signal-blue hover:text-signal-blue text-text-muted transition-all"
+                aria-label="LinkedIn profile"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                </svg>
+                <span className="font-display font-bold text-[9px] uppercase tracking-[1px]">LinkedIn</span>
+              </a>
+
+              {/* CV / Resume */}
+              <a
+                href="/cv.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border-subtle rounded-[3px] hover:border-signal-green hover:text-signal-green text-text-muted transition-all"
+                aria-label="Download CV"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="18" x2="12" y2="12"/>
+                  <polyline points="9 15 12 18 15 15"/>
+                </svg>
+                <span className="font-display font-bold text-[9px] uppercase tracking-[1px]">CV</span>
+              </a>
+            </div>
+          </div>
         </footer>
       </div>
     </AppShell>

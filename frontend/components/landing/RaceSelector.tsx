@@ -22,7 +22,7 @@ const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: str
 
 const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Practice 2', 'Practice 1']
 
-const YEAR_OPTIONS = [2025, 2024, 2023, 2022].map((y) => ({
+const YEAR_OPTIONS = [2025, 2024, 2023].map((y) => ({
   value: String(y),
   label: String(y),
 }))

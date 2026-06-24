@@ -305,6 +305,8 @@ class TelemetryPoint(BaseModel):
     brake: bool
     gear: int              # 1–8
     drs: int               # 0=closed, 10/12/14=open
+    lat_g: Optional[float] = None   # lateral G (positive = left)
+    lon_g: Optional[float] = None   # longitudinal G (positive = acceleration)
     lap_number: Optional[int] = None
     race_time: Optional[float] = None
 

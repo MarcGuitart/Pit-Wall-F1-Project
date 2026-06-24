@@ -1,0 +1,7 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/engineer-chat/route": "app/api/engineer-chat/route.js",
+  "/page": "app/page.js",
+  "/race/[sessionKey]/page": "app/race/[sessionKey]/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js"
+}

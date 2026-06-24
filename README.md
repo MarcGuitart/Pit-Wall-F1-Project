@@ -63,20 +63,15 @@ Detects DRY → DAMP → WET transitions and classifies drivers as best-timed, l
 ### Chaos Index
 Score 0–100 from a weighted sum: SC events (×15, cap 30), yellow flags (×3, cap 20), investigations (×5, cap 20), time penalties (×4, cap 15), rain periods (×10, cap 15), position volatility (÷5, cap 20). Peak chaos lap detection included.
 
-### Full Race Driver Inputs
-Selectable driver telemetry panel powered by `GET /telemetry/{session_key}?drivers=VER,NOR,HAM`.
+### Circuit Telemetry (FastF1 Replay)
+Powered by `GET /telemetry/{session_key}?drivers=VER,NOR,HAM`. Located in its own **Telemetry tab** in the analysis view.
 
-When FastF1 is available locally, the panel can render circuit-distance telemetry for selected drivers. When FastF1 is missing or unavailable for the session, it falls back to OpenF1 `car_data`, producing full-race traces for:
-
-- speed
-- throttle
-- brake
-- gear
-- DRS
-- lap number
-- race time
-
-The OpenF1 fallback assigns every car-data sample to a lap using `laps.date_start` and `lap_duration`, downsamples long races for the browser, and caches each requested driver combination separately. This makes it possible to choose any analysed driver and compare brake/throttle behaviour across the race, not only on a fastest lap.
+- **Replay mode** — animated car dot moves along the circuit outline in sync with Speed / Throttle / Brake / Gear / DRS channel panels. Playback speeds: 0.5× / 1× / 2× / 4×. Scrub bar seeks to any lap position.
+- **Metric heatmap** — circuit outline coloured per-segment: Speed (red→amber→green), Throttle (blue→green), Brake zones (red only), Gear (purple/blue/green/amber by pair). Switches in real time when metric selector is changed.
+- **Multi-driver comparison** — up to 3 drivers simultaneously, each in team colour, line weight proportional to speed. Car dots for all selected drivers animated together.
+- **Sector time comparison** — S1 / S2 / S3 cards below the channels show best time per sector and delta to second driver.
+- **Hover sync** — moving the cursor over the circuit map moves the cursor line in all 5 channel panels simultaneously, and vice versa.
+- FastF1 data cached at `cache/{session_key}/telemetry.json` — first load 5–15 seconds, subsequent loads instant.
 
 ### Race Wall Engineer
 RadioOverlay with F1 team radio UX: animated waveform on open, synthetic radio sounds via Web Audio API, grounded answers via Ollama. Context passed to the model is a compact JSON summary of the race — top-3 pace, tyre cliffs, pit winners/losers, key decisions, race DNA, phase summary, DRS peak train. Dynamic suggested questions are generated from the session data (weather impact, DRS train presence, focused driver, chaos score). Alternate implementation using Anthropic Claude API is available at `frontend/app/api/engineer-chat/route.ts`.

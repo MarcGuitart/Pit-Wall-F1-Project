@@ -1,12 +1,17 @@
 'use client'
 
-import type { TelemetryMetric } from '@/types/telemetry'
+export type ActiveMetric = 'speed' | 'throttle' | 'brake' | 'gear'
 
-const METRICS: TelemetryMetric[] = ['SPEED', 'THROTTLE', 'BRAKE', 'GEAR']
+const METRICS: { id: ActiveMetric; label: string }[] = [
+  { id: 'speed',    label: 'Speed' },
+  { id: 'throttle', label: 'Throttle' },
+  { id: 'brake',    label: 'Brake' },
+  { id: 'gear',     label: 'Gear' },
+]
 
 type Props = {
-  active: TelemetryMetric
-  onChange: (metric: TelemetryMetric) => void
+  active: ActiveMetric
+  onChange: (metric: ActiveMetric) => void
   multiDriver: boolean
 }
 
@@ -18,11 +23,11 @@ export function MetricSelector({ active, onChange, multiDriver }: Props) {
       </span>
       <div className="flex items-center gap-1">
         {METRICS.map((m) => {
-          const isActive = m === active
+          const isActive = m.id === active
           return (
             <button
-              key={m}
-              onClick={() => onChange(m)}
+              key={m.id}
+              onClick={() => onChange(m.id)}
               className={[
                 'px-2.5 py-1 rounded-[3px] border font-display font-bold text-[9px] uppercase tracking-[0.5px] transition-all',
                 isActive
@@ -30,14 +35,14 @@ export function MetricSelector({ active, onChange, multiDriver }: Props) {
                   : 'border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
               ].join(' ')}
             >
-              {m}
+              {m.label}
             </button>
           )
         })}
       </div>
       {multiDriver && (
         <span className="font-mono text-[8px] text-text-muted">
-          Multi-driver: team colours used, metric shown as line weight
+          Multi-driver: team colours, speed as line weight
         </span>
       )}
     </div>

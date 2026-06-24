@@ -229,6 +229,24 @@ async def get_analysis(
         drivers = data.get("drivers", [])
 
         if not laps:
+            # If session_meta was empty (OpenF1 couldn't find this session), it likely
+            # means the session is too recent — the historical guard didn't fire because
+            # there was no date_start to check. Return 425 so the frontend shows the
+            # "not available yet" state rather than a generic error.
+            if not session_meta:
+                raise HTTPException(
+                    status_code=425,
+                    detail={
+                        "code": "SESSION_NOT_HISTORICAL_YET",
+                        "message": (
+                            "No session metadata or lap data found. "
+                            "This session may not yet be available in OpenF1. "
+                            "Historical data typically becomes available 30 minutes after the session ends."
+                        ),
+                        "unlock_at_utc": None,
+                        "retry_after_minutes": 30,
+                    },
+                )
             raise HTTPException(
                 status_code=404,
                 detail=f"No lap data found for session {session_key}",

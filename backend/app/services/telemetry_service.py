@@ -271,6 +271,53 @@ def _normalise_xy(x_vals, y_vals) -> tuple[list[float], list[float]]:
     return norm_x, norm_y
 
 
+def _compute_gg(x_m, y_m, speed_kmh):
+    """
+    Compute lateral and longitudinal G-forces from position + speed arrays.
+
+    lat_g: centripetal acceleration = v² × curvature / g
+    lon_g: tangential acceleration  = dv/dt / g  (approx via dv/ds × v)
+
+    Returns two lists of floats, same length as inputs, clipped to ±4g.
+    """
+    import numpy as np
+
+    n = len(speed_kmh)
+    if n < 4:
+        return [0.0] * n, [0.0] * n
+
+    x = np.asarray(x_m, dtype=float)
+    y = np.asarray(y_m, dtype=float)
+    v = np.asarray(speed_kmh, dtype=float) / 3.6  # convert to m/s
+
+    # Longitudinal G: dv/ds * v / g
+    ds = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2)
+    ds = np.where(ds < 0.01, 0.01, ds)  # avoid division by zero
+    dv = np.diff(v)
+    lon_raw = (dv / ds) * v[:-1] / 9.81
+    lon_g = np.append(lon_raw, lon_raw[-1])  # repeat last value
+
+    # Lateral G: curvature = |x'y'' - y'x''| / (x'^2 + y'^2)^1.5
+    dx = np.gradient(x)
+    dy = np.gradient(y)
+    d2x = np.gradient(dx)
+    d2y = np.gradient(dy)
+    denom = (dx ** 2 + dy ** 2) ** 1.5
+    denom = np.where(denom < 1e-6, 1e-6, denom)
+    curvature = np.abs(dx * d2y - dy * d2x) / denom
+    lat_raw = v ** 2 * curvature / 9.81
+
+    # Sign of lateral G from cross-product direction
+    cross = dx * d2y - dy * d2x
+    lat_g = lat_raw * np.sign(cross)
+
+    # Clip to ±4g and round
+    lat_g = np.clip(lat_g, -4.0, 4.0)
+    lon_g = np.clip(lon_g, -4.0, 4.0)
+
+    return [round(float(v), 3) for v in lat_g], [round(float(v), 3) for v in lon_g]
+
+
 def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[DriverTelemetry]:
     """Extract and downsample telemetry for one driver's best lap."""
     laps = session.laps.pick_driver(driver_code)
@@ -297,6 +344,9 @@ def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[Dr
     y_vals = tel["Y"].values
     norm_x, norm_y = _normalise_xy(x_vals, y_vals)
 
+    # Compute G-forces from raw meter coordinates + speed
+    lat_g_full, lon_g_full = _compute_gg(x_vals.tolist(), y_vals.tolist(), tel["Speed"].tolist())
+
     total = len(tel)
     step = max(1, total // DOWNSAMPLE_TO)
     indices = list(range(0, total, step))
@@ -311,6 +361,8 @@ def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[Dr
             brake=bool(tel.iloc[i]["Brake"]),
             gear=int(tel.iloc[i]["nGear"]),
             drs=int(tel.iloc[i].get("DRS", 0) or 0),
+            lat_g=lat_g_full[i],
+            lon_g=lon_g_full[i],
         )
         for i in indices
     ]

@@ -89,7 +89,9 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     fetchChatHealth()
       .then((health) => {
         if (cancelled) return
-        setOllamaStatus(health.ollama_reachable ? 'online' : 'offline')
+        // ai_ready = true when Ollama has a model OR Groq key is configured
+        const ready = !!(health.ai_ready ?? (health.ollama_reachable && (health.model_available ?? (health.available_models?.length ?? 0) > 0)))
+        setOllamaStatus(ready ? 'online' : 'offline')
       })
       .catch(() => {
         if (!cancelled) setOllamaStatus('offline')
@@ -97,12 +99,12 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     return () => { cancelled = true }
   }, [])
 
-  // Opening animation: 2.1s then transition to chat
+  // Opening animation: 1.2s then transition to chat
   useEffect(() => {
     const timer = setTimeout(() => {
       setPhase('chat')
       if (ollamaStatus === 'offline') setShowOffline(true)
-    }, 2100)
+    }, 1200)
     return () => clearTimeout(timer)
   }, [ollamaStatus])
 

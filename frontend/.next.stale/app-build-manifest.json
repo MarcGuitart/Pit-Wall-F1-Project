@@ -1,0 +1,35 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-be3409098f4dfa98.js",
+      "static/chunks/fd9d1056-b11b2651f33aae7f.js",
+      "static/chunks/117-4f5b424f20efdcae.js",
+      "static/chunks/main-app-5fa0516a4fc39196.js",
+      "static/chunks/app/_not-found/page-221ef7203edcd7a2.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-be3409098f4dfa98.js",
+      "static/chunks/fd9d1056-b11b2651f33aae7f.js",
+      "static/chunks/117-4f5b424f20efdcae.js",
+      "static/chunks/main-app-5fa0516a4fc39196.js",
+      "static/css/65e2134c37664c15.css",
+      "static/chunks/app/layout-867fa5a33f2826e1.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-be3409098f4dfa98.js",
+      "static/chunks/fd9d1056-b11b2651f33aae7f.js",
+      "static/chunks/117-4f5b424f20efdcae.js",
+      "static/chunks/main-app-5fa0516a4fc39196.js",
+      "static/chunks/752-8c3b0bc7e5fbb2da.js",
+      "static/chunks/app/page-cdc84aee15508b13.js"
+    ],
+    "/race/[sessionKey]/page": [
+      "static/chunks/webpack-be3409098f4dfa98.js",
+      "static/chunks/fd9d1056-b11b2651f33aae7f.js",
+      "static/chunks/117-4f5b424f20efdcae.js",
+      "static/chunks/main-app-5fa0516a4fc39196.js",
+      "static/chunks/752-8c3b0bc7e5fbb2da.js",
+      "static/chunks/app/race/[sessionKey]/page-658366ad701da2f0.js"
+    ]
+  }
+}

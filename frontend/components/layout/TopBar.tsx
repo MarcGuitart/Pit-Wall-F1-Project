@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRaceStore } from '@/stores/raceStore'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
@@ -14,7 +15,8 @@ type TopBarProps = {
 }
 
 export function TopBar({ breadcrumb }: TopBarProps) {
-  const { mode, setMode } = useRaceStore()
+  const { mode } = useRaceStore()
+  const [showLiveTip, setShowLiveTip] = useState(false)
 
   return (
     <header className="h-12 bg-bg-secondary border-b border-border-subtle flex items-center px-4 gap-4 shrink-0 z-50 relative">
@@ -57,26 +59,43 @@ export function TopBar({ breadcrumb }: TopBarProps) {
       <div className="ml-auto flex items-center gap-3">
         {/* Mode toggle */}
         <div className="flex items-center bg-bg-panel border border-border-subtle rounded-[3px] p-0.5 gap-0.5">
-          <button
-            onClick={() => setMode('historical')}
-            className={`px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] transition-all ${
-              mode === 'historical'
-                ? 'bg-signal-red text-white'
-                : 'text-text-secondary hover:text-text-primary'
+          {/* Historical — always active */}
+          <div
+            className={`px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] select-none ${
+              mode === 'historical' ? 'bg-signal-red text-white' : 'text-text-secondary'
             }`}
           >
             Historical
-          </button>
-          <button
-            onClick={() => setMode('live')}
-            className={`px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] transition-all ${
-              mode === 'live'
-                ? 'bg-signal-red text-white'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            Live
-          </button>
+          </div>
+
+          {/* Live — coming soon */}
+          <div className="relative">
+            <button
+              onMouseEnter={() => setShowLiveTip(true)}
+              onMouseLeave={() => setShowLiveTip(false)}
+              onFocus={() => setShowLiveTip(true)}
+              onBlur={() => setShowLiveTip(false)}
+              className="px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] text-text-muted/50 cursor-not-allowed flex items-center gap-1.5"
+              aria-label="Live mode — coming soon"
+            >
+              Live
+              <span className="px-1 py-0.5 rounded-[2px] bg-signal-amber/15 border border-signal-amber/30 text-signal-amber font-mono text-[7px] leading-none">
+                SOON
+              </span>
+            </button>
+            {showLiveTip && (
+              <div className="absolute top-full right-0 mt-2 z-50 pointer-events-none">
+                <div className="bg-bg-elevated border border-border-default rounded-[4px] px-3 py-2 shadow-xl w-[210px]">
+                  <div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-signal-amber mb-1">
+                    Live mode · Coming soon
+                  </div>
+                  <div className="font-mono text-[9px] text-text-muted leading-relaxed">
+                    Real-time tracking requires a paid OpenF1 subscription. Full historical analysis is available now.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Radio trigger */}
