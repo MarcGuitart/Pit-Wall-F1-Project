@@ -49,8 +49,8 @@ export default function HomePage() {
 
             {/* Updated tagline */}
             <p className="font-body text-[16px] text-text-secondary leading-relaxed max-w-xl mx-auto mb-12">
-              Decode true pace, tyre cliff risk, pit cycles and race-control disruption —
-              the signals behind every strategy call.
+              Turn raw F1 data into strategy-grade insight: pace, tyres, pit windows
+              and race momentum in one engineer-style view.
             </p>
 
             {/* Stats strip */}

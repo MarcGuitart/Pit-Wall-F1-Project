@@ -133,9 +133,9 @@ export function TrackReplayMap({
   const [is3D, setIs3D] = useState(false)
 
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-visible">
+    <div className="h-full min-h-0 overflow-visible flex flex-col">
       {/* 3D toggle */}
-      <div className="flex justify-end px-2 pt-1.5 pb-0">
+      <div className="flex justify-end px-1 pt-0 pb-1 shrink-0">
         <button
           onClick={() => setIs3D((p) => !p)}
           title={is3D ? 'Switch to flat 2D view' : 'Switch to tilted 3D view (Google Maps style)'}
@@ -152,6 +152,7 @@ export function TrackReplayMap({
 
       {/* Perspective wrapper */}
       <div
+        className="flex-1 min-h-0 flex items-center"
         style={{
           perspective: is3D ? '700px' : 'none',
           perspectiveOrigin: '50% 40%',
@@ -160,7 +161,7 @@ export function TrackReplayMap({
       >
         <svg
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          className="w-full"
+          className="w-full h-full"
           style={{
             display: 'block',
             transform: is3D ? 'rotateX(32deg)' : 'none',

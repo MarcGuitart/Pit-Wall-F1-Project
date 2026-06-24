@@ -90,7 +90,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                     Live mode · Coming soon
                   </div>
                   <div className="font-mono text-[9px] text-text-muted leading-relaxed">
-                    Real-time tracking requires a paid OpenF1 subscription. Full historical analysis is available now.
+                    Real-time is not available yet. The live mode will allow you to follow along with the race as it happens. At the moment, you can explore historical races from 2023 to 2025.
                   </div>
                 </div>
               </div>

@@ -200,8 +200,15 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
   // ── Main view ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
-      {/* Lap info row */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* ── Full-width header: drivers · lap · mode · metric ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <DriverSelector
+          drivers={selectable}
+          selected={selectedDrivers}
+          onToggle={toggleDriver}
+          max={MAX_SELECTED}
+        />
+        {/* Lap chip */}
         <div className="flex items-center gap-2 px-2.5 py-1 bg-bg-elevated border border-border-subtle rounded-[3px]">
           <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-text-muted">Lap</span>
           <span className="font-mono text-[11px] text-text-primary font-bold">
@@ -233,27 +240,29 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
             </button>
           ))}
         </div>
-        <span className="font-mono text-[9px] text-text-muted">
+        <MetricSelector
+          active={metric}
+          onChange={setMetric}
+          multiDriver={selectedDrivers.length > 1}
+        />
+        <span className="font-mono text-[9px] text-text-muted ml-auto">
           FastF1 · {data.confidence} confidence
         </span>
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-3">
-        {/* Left: controls + map */}
-        <div className="space-y-2">
-          <DriverSelector
-            drivers={selectable}
-            selected={selectedDrivers}
-            onToggle={toggleDriver}
-            max={MAX_SELECTED}
-          />
-          <MetricSelector
-            active={metric}
-            onChange={setMetric}
-            multiDriver={selectedDrivers.length > 1}
-          />
-          <div className="space-y-2">
+      {/* ── Main 50/50 grid: circuit left · channels right ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" style={{ alignItems: 'stretch' }}>
+        {/* Left: circuit map + replay controls anchored to bottom */}
+        <section className="min-h-[430px] bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden flex flex-col">
+          <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between shrink-0">
+            <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+              Circuit Map · {data.circuit_name}
+            </span>
+            <span className="font-mono text-[9px] text-text-muted">
+              {metric} heatmap
+            </span>
+          </div>
+          <div className="flex-1 min-h-0 p-2">
             <TrackReplayMap
               data={data}
               selectedDrivers={selectedDrivers}
@@ -262,6 +271,8 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
               hoveredProgress={hoveredProgress}
               onHover={setHoveredProgress}
             />
+          </div>
+          <div className="p-2 pt-0 shrink-0">
             <ReplayControls
               playing={playing}
               progress={progress}
@@ -272,27 +283,40 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
               onSpeedChange={setPlaybackSpeed}
             />
           </div>
-        </div>
+        </section>
 
-        {/* Right: channels + sector cards + G-G diagram */}
-        <div className="space-y-3">
-          <TelemetryChannels
-            data={data}
-            selectedDrivers={selectedDrivers}
-            progress={progress}
-            hoveredProgress={hoveredProgress}
-            onHover={setHoveredProgress}
-          />
-          <SectorCards drivers={selectedTelemetry} />
-          {/* Single-driver panels: G-force meter + G-G diagram */}
-          {selectedTelemetry.length === 1 && (
-            <>
-              <GForceMeter driver={selectedTelemetry[0]} progress={progress} />
-              <GGDiagram driver={selectedTelemetry[0]} />
-            </>
-          )}
-        </div>
+        {/* Right: telemetry channels + sector cards anchored to bottom */}
+        <section className="min-h-[430px] bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden flex flex-col">
+          <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between shrink-0">
+            <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+              Telemetry Channels · {selectedTelemetry[0]?.driver_code ?? 'Driver'}
+            </span>
+            <span className="font-mono text-[9px] text-text-muted">
+              L{selectedTelemetry[0]?.fastest_lap_number ?? '–'} fastest
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <TelemetryChannels
+              data={data}
+              selectedDrivers={selectedDrivers}
+              progress={progress}
+              hoveredProgress={hoveredProgress}
+              onHover={setHoveredProgress}
+            />
+          </div>
+          <div className="p-2 pt-0 shrink-0">
+            <SectorCards drivers={selectedTelemetry} />
+          </div>
+        </section>
       </div>
+
+      {/* ── Bottom row: G-Force meter (50%) · GG diagram (50%) ── */}
+      {selectedTelemetry.length === 1 && (
+        <div className="grid grid-cols-1 xl:grid-cols-[380px_720px] gap-3 items-start justify-center">
+          <GForceMeter driver={selectedTelemetry[0]} progress={progress} />
+          <GGDiagram driver={selectedTelemetry[0]} />
+        </div>
+      )}
     </div>
   )
 }

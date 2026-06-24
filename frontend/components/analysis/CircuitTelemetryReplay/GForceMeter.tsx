@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { DriverTelemetry } from '@/types/telemetry'
-import { getValueAtProgress } from './utils/interpolate'
+import { getInterpolatedValueAtProgress, getValueAtProgress } from './utils/interpolate'
 
 const SIZE = 210
 const CX = SIZE / 2
@@ -52,12 +52,12 @@ export function GForceMeter({ driver, progress }: Props) {
   const live = useMemo(() => {
     if (!pts.length) return { speed: 0, throttle: 0, brake: false, gear: 0, lat_g: 0, lon_g: 0 }
     return {
-      speed:    getValueAtProgress(pts, progress, 'speed') as number,
-      throttle: getValueAtProgress(pts, progress, 'throttle') as number,
+      speed:    getInterpolatedValueAtProgress(pts, progress, 'speed'),
+      throttle: getInterpolatedValueAtProgress(pts, progress, 'throttle'),
       brake:    getValueAtProgress(pts, progress, 'brake') as boolean,
       gear:     getValueAtProgress(pts, progress, 'gear') as number,
-      lat_g:    ((getValueAtProgress(pts, progress, 'lat_g') as number) ?? 0),
-      lon_g:    ((getValueAtProgress(pts, progress, 'lon_g') as number) ?? 0),
+      lat_g:    getInterpolatedValueAtProgress(pts, progress, 'lat_g'),
+      lon_g:    getInterpolatedValueAtProgress(pts, progress, 'lon_g'),
     }
   }, [pts, progress])
 

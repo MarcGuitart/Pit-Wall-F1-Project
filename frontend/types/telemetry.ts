@@ -16,6 +16,24 @@ export type TelemetryPoint = {
   race_time?: number | null
 }
 
+export type GGPoint = {
+  lat_g: number
+  lon_g: number
+  throttle: number
+  brake: boolean
+  speed: number
+}
+
+export type GForceState = {
+  speed: number
+  throttle: number
+  brake: boolean
+  gear: number
+  lat_g: number
+  lon_g: number
+  total_g: number
+}
+
 export type DriverTelemetry = {
   driver_code: string
   team_colour: string // hex e.g. "#FF8000"

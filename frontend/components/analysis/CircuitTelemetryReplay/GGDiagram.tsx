@@ -96,7 +96,7 @@ export function GGDiagram({ driver }: Props) {
   }, [validPts])
 
   // ── Tick marks ──────────────────────────────────────────────────────────────
-  const ticks = [-3, -2, -1, 1, 2, 3]
+  const ticks = [-4, -3, -2, -1, 1, 2, 3, 4]
 
   const ellipsePath = useMemo(() => frictionPath(), [])
 
@@ -119,7 +119,7 @@ export function GGDiagram({ driver }: Props) {
             G-G Diagram
           </span>
           <span className="ml-2 font-mono text-[8px] text-text-muted/60">
-            Traction circle · fastest clean lap
+            Traction circle · {driver.lap_mode === 'representative' ? 'representative lap' : 'fastest clean lap'}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -138,13 +138,12 @@ export function GGDiagram({ driver }: Props) {
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 flex flex-col md:flex-row md:items-center gap-3">
         {/* ── SVG plot ──────────────────────────────────────────────────────── */}
         <svg
-          width="100%"
           viewBox={`0 0 ${W} ${H}`}
-          className="block"
-          style={{ aspectRatio: '1 / 1' }}
+          className="block shrink-0"
+          style={{ width: 260, height: 260, maxWidth: '100%', margin: '0 auto' }}
         >
           {/* Grid lines */}
           {ticks.map((g) => (
@@ -266,17 +265,17 @@ export function GGDiagram({ driver }: Props) {
           )}
         </svg>
 
-        {/* ── Stats row ─────────────────────────────────────────────────────── */}
+        {/* ── Stats side panel ──────────────────────────────────────────────── */}
         {stats && (
-          <>
-            <div className="grid grid-cols-4 gap-0 border-t border-border-subtle mt-1 pt-3">
+          <div className="flex-1 min-w-[180px] border-t md:border-t-0 md:border-l border-border-subtle pt-3 md:pt-0 md:pl-3">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Peak Lat', value: `${stats.peakLat.toFixed(2)}g`, color: '#4DA3FF' },
                 { label: 'Peak Brk', value: `${stats.peakBrk.toFixed(2)}g`, color: '#E8001D' },
                 { label: 'Peak Acc', value: `${stats.peakAcc.toFixed(2)}g`, color: '#23D18B' },
                 { label: 'At Limit', value: pct(stats.atLimit, stats.total), color: '#FFB020' },
               ].map(({ label, value, color }) => (
-                <div key={label} className="text-center px-2">
+                <div key={label} className="bg-bg-panel border border-border-subtle rounded-[3px] px-2 py-2">
                   <div className="font-mono text-[8px] text-text-muted mb-0.5">{label}</div>
                   <div className="font-mono text-[13px] font-bold tabular-nums" style={{ color }}>
                     {value}
@@ -285,7 +284,6 @@ export function GGDiagram({ driver }: Props) {
               ))}
             </div>
 
-            {/* ── Usage bars ───────────────────────────────────────────────── */}
             <div className="mt-3 space-y-1.5">
               {[
                 {
@@ -310,7 +308,7 @@ export function GGDiagram({ driver }: Props) {
                 const frac = total > 0 ? value / total : 0
                 return (
                   <div key={label} className="flex items-center gap-2">
-                    <div className="font-mono text-[8px] text-text-muted w-[110px] shrink-0">{label}</div>
+                    <div className="font-mono text-[8px] text-text-muted w-[92px] shrink-0">{label}</div>
                     <div className="flex-1 h-[5px] bg-bg-panel rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full"
@@ -324,7 +322,7 @@ export function GGDiagram({ driver }: Props) {
                 )
               })}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
