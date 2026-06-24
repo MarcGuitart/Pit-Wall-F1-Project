@@ -21,6 +21,7 @@ export type DriverTelemetry = {
   team_colour: string // hex e.g. "#FF8000"
   lap_time: number // seconds
   fastest_lap_number: number
+  lap_mode: 'fastest_clean' | 'representative'
   points: TelemetryPoint[]
   sector_1_time: number | null
   sector_2_time: number | null

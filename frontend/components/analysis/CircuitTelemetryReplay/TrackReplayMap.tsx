@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import type { TelemetryData, TelemetryPoint } from '@/types/telemetry'
 import type { ActiveMetric } from './MetricSelector'
 import { normToSvg, buildCircuitPath, findSvgPointAtDistance } from './utils/buildPath'
@@ -130,13 +130,44 @@ export function TrackReplayMap({
       })
   }, [activeDrivers, progress, hoveredProgress])
 
+  const [is3D, setIs3D] = useState(false)
+
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden">
-      <svg
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        className="w-full"
-        style={{ display: 'block' }}
+    <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-visible">
+      {/* 3D toggle */}
+      <div className="flex justify-end px-2 pt-1.5 pb-0">
+        <button
+          onClick={() => setIs3D((p) => !p)}
+          title={is3D ? 'Switch to flat 2D view' : 'Switch to tilted 3D view (Google Maps style)'}
+          className={[
+            'px-2 py-0.5 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.8px] border transition-all',
+            is3D
+              ? 'bg-signal-purple/20 text-signal-purple border-signal-purple/40'
+              : 'text-text-muted border-border-subtle hover:text-text-secondary hover:border-border-default',
+          ].join(' ')}
+        >
+          {is3D ? '2D' : '3D'}
+        </button>
+      </div>
+
+      {/* Perspective wrapper */}
+      <div
+        style={{
+          perspective: is3D ? '700px' : 'none',
+          perspectiveOrigin: '50% 40%',
+          paddingBottom: is3D ? '8px' : '0',
+        }}
       >
+        <svg
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+          className="w-full"
+          style={{
+            display: 'block',
+            transform: is3D ? 'rotateX(32deg)' : 'none',
+            transformOrigin: 'center 45%',
+            transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
         {/* Grey circuit outline */}
         <path
           d={outlinePath}
@@ -198,16 +229,19 @@ export function TrackReplayMap({
           </g>
         ))}
 
-        {/* Invisible hover capture rect */}
-        <rect
-          x={0} y={0}
-          width={SVG_W} height={SVG_H}
-          fill="transparent"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => onHover(null)}
-          style={{ cursor: 'crosshair' }}
-        />
+        {/* Invisible hover capture rect — disabled in 3D (coordinates would mismatch) */}
+        {!is3D && (
+          <rect
+            x={0} y={0}
+            width={SVG_W} height={SVG_H}
+            fill="transparent"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => onHover(null)}
+            style={{ cursor: 'crosshair' }}
+          />
+        )}
       </svg>
+      </div>  {/* perspective wrapper */}
     </div>
   )
 }

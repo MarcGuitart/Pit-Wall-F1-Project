@@ -316,6 +316,7 @@ class DriverTelemetry(BaseModel):
     team_colour: str       # hex e.g. "#FF8000"
     lap_time: float        # seconds
     fastest_lap_number: int
+    lap_mode: str = "fastest_clean"   # "fastest_clean" | "representative"
     points: list[TelemetryPoint]
     sector_1_time: Optional[float] = None
     sector_2_time: Optional[float] = None

@@ -1,16 +1,53 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { DriverTelemetry } from '@/types/telemetry'
+import type { DriverTelemetry, TelemetryPoint } from '@/types/telemetry'
 
-const SIZE = 280          // SVG canvas size (square)
-const HALF = SIZE / 2
-const G_RANGE = 3.5       // ±g shown on each axis
-const SCALE = HALF / G_RANGE
+// ── Layout constants ──────────────────────────────────────────────────────────
+const W = 320
+const H = 320
+const PAD = 36          // space for axis labels
+const CX = PAD + (W - PAD * 2) / 2
+const CY = PAD + (H - PAD * 2) / 2
+const PLOT_W = W - PAD * 2
+const PLOT_H = H - PAD * 2
+const G_MAX = 5.0       // max G shown on each axis (matches backend ±5g clip)
 
-// Convert g-value to SVG coordinate
-function gToSvg(g: number): number {
-  return HALF - g * SCALE
+// Convert G-value to SVG pixel coordinate
+function gx(g: number): number { return CX + (g / G_MAX) * (PLOT_W / 2) }
+function gy(g: number): number { return CY - (g / G_MAX) * (PLOT_H / 2) }  // lon_g up = top
+
+// ── Friction ellipse reference ────────────────────────────────────────────────
+// F1 limits are asymmetric: braking >> acceleration (4-wheel brakes vs RWD traction)
+const LAT_LIMIT  = 3.6   // ±lateral g at friction limit
+const BRK_LIMIT  = 3.8   // max braking g (bottom of ellipse)
+const ACC_LIMIT  = 2.2   // max acceleration g (top of ellipse) — traction limited
+
+function frictionPath(): string {
+  const N = 200
+  const pts: string[] = []
+  for (let i = 0; i <= N; i++) {
+    const theta = (i / N) * Math.PI * 2
+    const lat = Math.cos(theta) * LAT_LIMIT
+    // Squash top vs bottom to model the asymmetry
+    const lonLimit = Math.sin(theta) >= 0 ? ACC_LIMIT : BRK_LIMIT
+    const lon = Math.sin(theta) * lonLimit
+    pts.push(`${i === 0 ? 'M' : 'L'}${gx(lat).toFixed(1)},${gy(lon).toFixed(1)}`)
+  }
+  return pts.join(' ') + 'Z'
+}
+
+// ── Per-point colour ──────────────────────────────────────────────────────────
+// Standard F1 telemetry colouring: green=throttle, red=brake, grey=coast
+function pointColor(p: TelemetryPoint): string {
+  if (p.brake)           return 'rgba(232,0,29,0.65)'
+  if (p.throttle > 15)   return `rgba(35,209,139,${0.35 + (p.throttle / 100) * 0.5})`
+  return 'rgba(138,148,166,0.35)'  // coasting
+}
+
+// ── Stats helpers ─────────────────────────────────────────────────────────────
+function pct(n: number, total: number): string {
+  return total > 0 ? `${Math.round((n / total) * 100)}%` : '—'
 }
 
 type Props = {
@@ -20,183 +57,276 @@ type Props = {
 export function GGDiagram({ driver }: Props) {
   const pts = driver.points
 
-  // Check data is available
-  const hasGG = useMemo(
-    () => pts.some((p) => p.lat_g != null && p.lon_g != null),
+  const hasGG = useMemo(() => pts.some((p) => p.lat_g != null && p.lon_g != null), [pts])
+
+  const validPts = useMemo(
+    () => pts.filter((p) => p.lat_g != null && p.lon_g != null),
     [pts],
   )
 
-  // Build the scatter path data — colour each point by speed
-  const dots = useMemo(() => {
-    if (!hasGG) return []
-    const maxSpeed = Math.max(...pts.map((p) => p.speed))
-    return pts
-      .filter((p) => p.lat_g != null && p.lon_g != null)
-      .map((p) => ({
-        cx: gToSvg(-(p.lat_g ?? 0)),  // lateral: positive = right on screen
-        cy: gToSvg(p.lon_g ?? 0),
-        speed: p.speed,
-        maxSpeed,
-        brake: p.brake,
-      }))
-  }, [pts, hasGG])
+  // ── Statistics ──────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    if (!validPts.length) return null
+    const latAbs = validPts.map((p) => Math.abs(p.lat_g ?? 0))
+    const lonVals = validPts.map((p) => p.lon_g ?? 0)
+    const gMags   = validPts.map((p) => Math.sqrt((p.lat_g ?? 0) ** 2 + (p.lon_g ?? 0) ** 2))
 
-  // Traction circle — theoretical limit, shown as reference ellipse
-  // F1 cars generate ~4–5g peak, but practical limit for a clean lap ~3.5g
-  const circlePoints = useMemo(() => {
-    const N = 120
-    return Array.from({ length: N }, (_, i) => {
-      const angle = (i / N) * Math.PI * 2
-      // Longitudinal limit is asymmetric: braking ~3.5g, accel ~2.0g
-      const braking = angle > Math.PI  // lon_g negative = braking = bottom half
-      const lonScale = braking ? 1.0 : 0.7
-      const x = HALF + Math.cos(angle) * SCALE * G_RANGE
-      const y = HALF - Math.sin(angle) * SCALE * G_RANGE * lonScale
+    const peakLat   = Math.max(...latAbs)
+    const peakBrk   = Math.max(...lonVals.map((v) => -v))   // most negative lon = hardest braking
+    const peakAcc   = Math.max(...lonVals)
+    const peakG     = Math.max(...gMags)
+
+    // % laps at ≥75% of friction limit magnitude
+    const limit75 = peakG * 0.75
+    const atLimit = validPts.filter((_, i) => gMags[i] >= limit75).length
+    const braking  = validPts.filter((p) => p.brake).length
+    const fullThrottle = validPts.filter((p) => p.throttle >= 90).length
+
+    return { peakLat, peakBrk, peakAcc, peakG, atLimit, braking, fullThrottle, total: validPts.length }
+  }, [validPts])
+
+  // ── Connected lap path (thin trace showing G trajectory through the lap) ──
+  const lapPath = useMemo(() => {
+    if (!validPts.length) return ''
+    return validPts.map((p, i) => {
+      const x = gx(-(p.lat_g ?? 0))  // lat_g sign: positive = left, so negate for screen
+      const y = gy(p.lon_g ?? 0)
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-    }).join(' ') + 'Z'
-  }, [])
+    }).join(' ')
+  }, [validPts])
 
-  const gridLines = [-3, -2, -1, 0, 1, 2, 3]
+  // ── Tick marks ──────────────────────────────────────────────────────────────
+  const ticks = [-3, -2, -1, 1, 2, 3]
 
-  function speedToColor(speed: number, maxSpeed: number, brake: boolean): string {
-    if (brake) return 'rgba(232,0,29,0.7)'
-    const t = Math.min(1, speed / maxSpeed)
-    // Green (low speed) → Amber → Red (high speed)
-    if (t < 0.5) {
-      const r = Math.round(77 + (255 - 77) * (t * 2))
-      const g = Math.round(163 + (176 - 163) * (t * 2))
-      return `rgba(${r},${g},77,0.75)`
-    } else {
-      const r = Math.round(255)
-      const g = Math.round(176 * (1 - (t - 0.5) * 2))
-      return `rgba(${r},${g},20,0.75)`
-    }
+  const ellipsePath = useMemo(() => frictionPath(), [])
+
+  if (!hasGG) {
+    return (
+      <div className="bg-bg-elevated border border-border-subtle rounded-[4px] p-6 flex items-center justify-center">
+        <span className="font-mono text-[10px] text-text-muted">
+          G-G data requires FastF1 telemetry
+        </span>
+      </div>
+    )
   }
 
   return (
     <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden">
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
-          G-G Diagram · Traction Circle
-        </span>
+        <div>
+          <span className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
+            G-G Diagram
+          </span>
+          <span className="ml-2 font-mono text-[8px] text-text-muted/60">
+            Traction circle · fastest clean lap
+          </span>
+        </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-signal-green opacity-70" />
             <span className="font-mono text-[8px] text-text-muted">Throttle</span>
-          </div>
-          <div className="flex items-center gap-1.5">
+          </span>
+          <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-signal-red opacity-70" />
-            <span className="font-mono text-[8px] text-text-muted">Braking</span>
-          </div>
+            <span className="font-mono text-[8px] text-text-muted">Brake</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-text-muted opacity-50" />
+            <span className="font-mono text-[8px] text-text-muted">Coast</span>
+          </span>
         </div>
       </div>
 
-      {!hasGG ? (
-        <div className="flex items-center justify-center h-[200px]">
-          <span className="font-mono text-[10px] text-text-muted">
-            G-G data requires FastF1 (not available for this session)
-          </span>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center p-3 gap-2">
-          <svg
-            width={SIZE}
-            height={SIZE}
-            viewBox={`0 0 ${SIZE} ${SIZE}`}
-            className="overflow-visible"
-          >
-            {/* Grid lines */}
-            {gridLines.map((g) => {
-              const coord = gToSvg(g)
-              const gNeg = gToSvg(-g)
-              return (
-                <g key={g} opacity={g === 0 ? 0.4 : 0.15}>
-                  <line x1={0} y1={coord} x2={SIZE} y2={coord} stroke="#F0F2F5" strokeWidth={g === 0 ? 1 : 0.5} />
-                  <line x1={gNeg} y1={0} x2={gNeg} y2={SIZE} stroke="#F0F2F5" strokeWidth={g === 0 ? 1 : 0.5} />
-                </g>
-              )
-            })}
-
-            {/* Grid labels */}
-            {[-2, -1, 1, 2].map((g) => (
-              <text
-                key={`lbl-${g}`}
-                x={gToSvg(-g) + 2}
-                y={HALF - 3}
-                fill="#4A5568"
-                fontSize="7"
-                fontFamily="JetBrains Mono, monospace"
-              >
-                {g > 0 ? `+${g}` : g}G
-              </text>
-            ))}
-
-            {/* Axis labels */}
-            <text x={SIZE - 20} y={HALF + 12} fill="#4A5568" fontSize="7" fontFamily="JetBrains Mono, monospace">Lat→</text>
-            <text x={HALF + 4} y={10} fill="#4A5568" fontSize="7" fontFamily="JetBrains Mono, monospace">Acc↑</text>
-            <text x={HALF + 4} y={SIZE - 4} fill="#4A5568" fontSize="7" fontFamily="JetBrains Mono, monospace">Brk↓</text>
-
-            {/* Traction circle reference */}
-            <path
-              d={circlePoints}
-              fill="none"
-              stroke="#FFB020"
-              strokeWidth={1}
-              strokeDasharray="4,4"
-              opacity={0.4}
-            />
-
-            {/* Scatter dots */}
-            {dots.map((d, i) => (
-              <circle
-                key={i}
-                cx={d.cx}
-                cy={d.cy}
-                r={1.8}
-                fill={speedToColor(d.speed, d.maxSpeed, d.brake)}
+      <div className="p-3">
+        {/* ── SVG plot ──────────────────────────────────────────────────────── */}
+        <svg
+          width="100%"
+          viewBox={`0 0 ${W} ${H}`}
+          className="block"
+          style={{ aspectRatio: '1 / 1' }}
+        >
+          {/* Grid lines */}
+          {ticks.map((g) => (
+            <g key={g}>
+              {/* Vertical (lat) */}
+              <line
+                x1={gx(g)} y1={PAD} x2={gx(g)} y2={H - PAD}
+                stroke="#1E2430" strokeWidth={g === 0 ? 0 : 0.5}
               />
-            ))}
+              {/* Horizontal (lon) */}
+              <line
+                x1={PAD} y1={gy(g)} x2={W - PAD} y2={gy(g)}
+                stroke="#1E2430" strokeWidth={g === 0 ? 0 : 0.5}
+              />
+            </g>
+          ))}
 
-            {/* Driver label */}
-            <text
-              x={4}
-              y={SIZE - 4}
-              fill={driver.team_colour}
-              fontSize="9"
-              fontFamily="Barlow Condensed, sans-serif"
-              fontWeight="700"
-              letterSpacing="1"
-            >
-              {driver.driver_code}
-            </text>
-          </svg>
+          {/* Zero axes — more visible */}
+          <line x1={gx(0)} y1={PAD} x2={gx(0)} y2={H - PAD} stroke="#252D3A" strokeWidth={1} />
+          <line x1={PAD} y1={gy(0)} x2={W - PAD} y2={gy(0)} stroke="#252D3A" strokeWidth={1} />
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 text-center">
-            <div>
-              <div className="font-mono text-[9px] text-text-muted">Peak lat</div>
-              <div className="font-mono text-[11px] text-text-primary">
-                {Math.max(...dots.map((d) => Math.abs(d.cx - HALF) / SCALE)).toFixed(2)}g
-              </div>
+          {/* Axis tick labels */}
+          {ticks.map((g) => (
+            <g key={`lbl-${g}`}>
+              {/* Lat G (bottom axis) */}
+              <text x={gx(g)} y={H - PAD + 14} textAnchor="middle"
+                fill="#4A5568" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                {g > 0 ? `+${g}` : g}
+              </text>
+              {/* Lon G (left axis) */}
+              <text x={PAD - 6} y={gy(g) + 3} textAnchor="end"
+                fill="#4A5568" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                {g > 0 ? `+${g}` : g}
+              </text>
+            </g>
+          ))}
+
+          {/* Axis unit labels */}
+          <text x={CX} y={H - 2} textAnchor="middle"
+            fill="#4A5568" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700">
+            LATERAL G →
+          </text>
+          <text x={10} y={CY} textAnchor="middle"
+            fill="#4A5568" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700"
+            transform={`rotate(-90, 10, ${CY})`}>
+            LONGITUDINAL G ↑
+          </text>
+
+          {/* Quadrant labels */}
+          <text x={CX} y={PAD + 12} textAnchor="middle"
+            fill="#23D18B" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            ACCELERATING
+          </text>
+          <text x={CX} y={H - PAD - 8} textAnchor="middle"
+            fill="#E8001D" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            BRAKING
+          </text>
+          <text x={PAD + 8} y={CY - 6} textAnchor="start"
+            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            L
+          </text>
+          <text x={W - PAD - 8} y={CY - 6} textAnchor="end"
+            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            R
+          </text>
+
+          {/* ── Friction ellipse (theoretical limit) ── */}
+          {/* Filled version for subtlety */}
+          <path d={ellipsePath} fill="rgba(255,176,32,0.04)" stroke="none" />
+          {/* Border */}
+          <path
+            d={ellipsePath}
+            fill="none"
+            stroke="#FFB020"
+            strokeWidth={1}
+            strokeDasharray="6,4"
+            opacity={0.55}
+          />
+
+          {/* Limit labels */}
+          <text x={gx(LAT_LIMIT) + 4} y={CY + 4}
+            fill="#FFB020" fontSize="7" fontFamily="JetBrains Mono, monospace" opacity={0.7}>
+            {LAT_LIMIT}g
+          </text>
+          <text x={CX + 4} y={gy(-BRK_LIMIT) + 10}
+            fill="#FFB020" fontSize="7" fontFamily="JetBrains Mono, monospace" opacity={0.7}>
+            {BRK_LIMIT}g
+          </text>
+
+          {/* ── Lap trajectory trace (thin, shows the path through g-g space) ── */}
+          <path
+            d={lapPath}
+            fill="none"
+            stroke={driver.team_colour}
+            strokeWidth={0.6}
+            opacity={0.25}
+            strokeLinejoin="round"
+          />
+
+          {/* ── Scatter dots ── */}
+          {validPts.map((p, i) => {
+            const x = gx(-(p.lat_g ?? 0))
+            const y = gy(p.lon_g ?? 0)
+            // Skip points wildly out of frame
+            if (x < PAD - 4 || x > W - PAD + 4 || y < PAD - 4 || y > H - PAD + 4) return null
+            return (
+              <circle key={i} cx={x} cy={y} r={1.8} fill={pointColor(p)} />
+            )
+          })}
+
+          {/* Peak braking marker */}
+          {stats && (
+            <>
+              <circle cx={gx(0)} cy={gy(-stats.peakBrk)} r={3}
+                fill="none" stroke="#E8001D" strokeWidth={1} opacity={0.8} />
+              <circle cx={gx(0)} cy={gy(stats.peakAcc)} r={3}
+                fill="none" stroke="#23D18B" strokeWidth={1} opacity={0.8} />
+            </>
+          )}
+        </svg>
+
+        {/* ── Stats row ─────────────────────────────────────────────────────── */}
+        {stats && (
+          <>
+            <div className="grid grid-cols-4 gap-0 border-t border-border-subtle mt-1 pt-3">
+              {[
+                { label: 'Peak Lat', value: `${stats.peakLat.toFixed(2)}g`, color: '#4DA3FF' },
+                { label: 'Peak Brk', value: `${stats.peakBrk.toFixed(2)}g`, color: '#E8001D' },
+                { label: 'Peak Acc', value: `${stats.peakAcc.toFixed(2)}g`, color: '#23D18B' },
+                { label: 'At Limit', value: pct(stats.atLimit, stats.total), color: '#FFB020' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="text-center px-2">
+                  <div className="font-mono text-[8px] text-text-muted mb-0.5">{label}</div>
+                  <div className="font-mono text-[13px] font-bold tabular-nums" style={{ color }}>
+                    {value}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="w-px h-6 bg-border-subtle" />
-            <div>
-              <div className="font-mono text-[9px] text-text-muted">Peak brk</div>
-              <div className="font-mono text-[11px] text-text-primary">
-                {Math.max(...dots.filter((d) => d.brake).map((d) => Math.abs(d.cy - HALF) / SCALE), 0).toFixed(2)}g
-              </div>
+
+            {/* ── Usage bars ───────────────────────────────────────────────── */}
+            <div className="mt-3 space-y-1.5">
+              {[
+                {
+                  label: 'Full throttle',
+                  value: stats.fullThrottle,
+                  total: stats.total,
+                  color: '#23D18B',
+                },
+                {
+                  label: 'Braking',
+                  value: stats.braking,
+                  total: stats.total,
+                  color: '#E8001D',
+                },
+                {
+                  label: 'At grip limit (≥75%)',
+                  value: stats.atLimit,
+                  total: stats.total,
+                  color: '#FFB020',
+                },
+              ].map(({ label, value, total, color }) => {
+                const frac = total > 0 ? value / total : 0
+                return (
+                  <div key={label} className="flex items-center gap-2">
+                    <div className="font-mono text-[8px] text-text-muted w-[110px] shrink-0">{label}</div>
+                    <div className="flex-1 h-[5px] bg-bg-panel rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${(frac * 100).toFixed(1)}%`, backgroundColor: color, opacity: 0.75 }}
+                      />
+                    </div>
+                    <div className="font-mono text-[8px] w-8 text-right" style={{ color }}>
+                      {Math.round(frac * 100)}%
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <div className="w-px h-6 bg-border-subtle" />
-            <div>
-              <div className="font-mono text-[9px] text-text-muted">Peak acc</div>
-              <div className="font-mono text-[11px] text-text-primary">
-                {Math.max(...dots.filter((d) => !d.brake).map((d) => (HALF - d.cy) / SCALE), 0).toFixed(2)}g
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

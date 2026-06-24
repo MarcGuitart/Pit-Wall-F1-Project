@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 async def get_telemetry(
     session_key: int,
     drivers: str = Query(default="NOR,VER,HAM"),
+    lap_mode: str = Query(default="fastest_clean", pattern="^(fastest_clean|representative)$"),
 ) -> TelemetryData:
     driver_list = [d.strip().upper() for d in drivers.split(",") if d.strip()][:5]
-    cache_key = "telemetry_" + "_".join(sorted(driver_list))
+    cache_key = f"telemetry_{lap_mode}_" + "_".join(sorted(driver_list))
 
     # 1. Telemetry cache per requested driver combination
     cached = cache.get(session_key, cache_key)
@@ -49,6 +50,7 @@ async def get_telemetry(
         circuit_name=race.get("circuit_short_name") or race["meeting_name"],
         session_type=race["session_name"],
         driver_codes=driver_list,
+        lap_mode=lap_mode,
     )
 
     if tel_data is None:

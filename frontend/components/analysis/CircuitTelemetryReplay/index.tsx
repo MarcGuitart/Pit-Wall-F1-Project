@@ -13,6 +13,7 @@ import { TelemetryChannels } from './TelemetryChannels'
 import { ReplayControls } from './ReplayControls'
 import { SectorCards } from './SectorCards'
 import { GGDiagram } from './GGDiagram'
+import { GForceMeter } from './GForceMeter'
 
 const MAX_FETCH = 5
 const MAX_SELECTED = 3
@@ -34,6 +35,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
   const [playing, setPlaying] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1)
   const [hoveredProgress, setHoveredProgress] = useState<number | null>(null)
+  const [lapMode, setLapMode] = useState<'fastest_clean' | 'representative'>('fastest_clean')
 
   const rafRef = useRef<number | null>(null)
   const lastTsRef = useRef<number | null>(null)
@@ -52,13 +54,15 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     return m
   }, [analysis.true_pace])
 
-  // Fetch on mount
+  // Fetch when sessionKey or lapMode changes
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
       setError(null)
-      const result = await getTelemetry(sessionKey, topCodes)
+      setProgress(0)
+      setPlaying(false)
+      const result = await getTelemetry(sessionKey, topCodes, lapMode)
       if (cancelled) return
       if (!result || result.drivers.length === 0) {
         setError('FastF1 telemetry not available for this session.')
@@ -72,7 +76,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     load()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey])
+  }, [sessionKey, lapMode])
 
   // Animation loop
   useEffect(() => {
@@ -205,7 +209,29 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
               ? `L${selectedTelemetry[0].fastest_lap_number}`
               : '–'}
           </span>
-          <span className="font-mono text-[9px] text-text-muted">Fastest clean</span>
+        </div>
+        {/* Lap mode toggle */}
+        <div className="flex items-center bg-bg-elevated border border-border-subtle rounded-[3px] p-0.5 gap-0.5">
+          {([
+            { mode: 'fastest_clean' as const, label: 'Fastest',
+              title: 'Fastest clean lap — shows the driver at the absolute limit. Highest G-forces and speed traces.' },
+            { mode: 'representative' as const, label: 'Representative',
+              title: 'Representative lap — closest to the median race lap time. Shows typical race-pace behaviour; expect lower G-forces during safety car periods.' },
+          ]).map(({ mode, label, title }) => (
+            <button
+              key={mode}
+              onClick={() => setLapMode(mode)}
+              title={title}
+              className={[
+                'px-2 py-0.5 rounded-[2px] font-display font-bold text-[9px] uppercase tracking-[0.5px] transition-all',
+                lapMode === mode
+                  ? 'bg-signal-blue/20 text-signal-blue border border-signal-blue/30'
+                  : 'text-text-muted hover:text-text-secondary',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <span className="font-mono text-[9px] text-text-muted">
           FastF1 · {data.confidence} confidence
@@ -258,9 +284,12 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
             onHover={setHoveredProgress}
           />
           <SectorCards drivers={selectedTelemetry} />
-          {/* G-G diagram — single driver only */}
+          {/* Single-driver panels: G-force meter + G-G diagram */}
           {selectedTelemetry.length === 1 && (
-            <GGDiagram driver={selectedTelemetry[0]} />
+            <>
+              <GForceMeter driver={selectedTelemetry[0]} progress={progress} />
+              <GGDiagram driver={selectedTelemetry[0]} />
+            </>
           )}
         </div>
       </div>

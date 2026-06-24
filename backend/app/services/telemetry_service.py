@@ -271,65 +271,100 @@ def _normalise_xy(x_vals, y_vals) -> tuple[list[float], list[float]]:
     return norm_x, norm_y
 
 
-def _compute_gg(x_m, y_m, speed_kmh):
+def _compute_gg(x_m, y_m, speed_kmh, distance_m=None):
     """
-    Compute lateral and longitudinal G-forces from position + speed arrays.
+    Compute lateral and longitudinal G-forces using arc-length parameterization.
 
-    lat_g: centripetal acceleration = v² × curvature / g
-    lon_g: tangential acceleration  = dv/dt / g  (approx via dv/ds × v)
+    Parameterizing by arc length (real meters along track) gives accurate curvature
+    and avoids numerical errors from non-uniform time-based sampling.
 
-    Returns two lists of floats, same length as inputs, clipped to ±4g.
+    lat_g: centripetal  = v² × κ / g  (κ = signed curvature in 1/m)
+    lon_g: longitudinal = (dv/ds) × v / g  (s = arc length in m)
+
+    Returns two lists of floats, same length as inputs, clipped to ±5g.
     """
     import numpy as np
 
     n = len(speed_kmh)
-    if n < 4:
+    if n < 6:
         return [0.0] * n, [0.0] * n
 
     x = np.asarray(x_m, dtype=float)
     y = np.asarray(y_m, dtype=float)
-    v = np.asarray(speed_kmh, dtype=float) / 3.6  # convert to m/s
+    v = np.asarray(speed_kmh, dtype=float) / 3.6  # m/s
 
-    # Longitudinal G: dv/ds * v / g
-    ds = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2)
-    ds = np.where(ds < 0.01, 0.01, ds)  # avoid division by zero
-    dv = np.diff(v)
-    lon_raw = (dv / ds) * v[:-1] / 9.81
-    lon_g = np.append(lon_raw, lon_raw[-1])  # repeat last value
+    # Arc-length parameterization — avoids distortion from varying sample density
+    if distance_m is not None:
+        d = np.asarray(distance_m, dtype=float)
+        d = np.maximum.accumulate(d)  # ensure monotonically non-decreasing
+    else:
+        ds_raw = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2)
+        d = np.concatenate([[0.0], np.cumsum(np.where(ds_raw < 0.01, 0.01, ds_raw))])
 
-    # Lateral G: curvature = |x'y'' - y'x''| / (x'^2 + y'^2)^1.5
-    dx = np.gradient(x)
-    dy = np.gradient(y)
-    d2x = np.gradient(dx)
-    d2y = np.gradient(dy)
-    denom = (dx ** 2 + dy ** 2) ** 1.5
-    denom = np.where(denom < 1e-6, 1e-6, denom)
-    curvature = np.abs(dx * d2y - dy * d2x) / denom
-    lat_raw = v ** 2 * curvature / 9.81
+    # Guarantee strict monotonicity so np.gradient never divides by zero
+    for i in range(1, len(d)):
+        if d[i] <= d[i - 1]:
+            d[i] = d[i - 1] + 0.01
 
-    # Sign of lateral G from cross-product direction
-    cross = dx * d2y - dy * d2x
-    lat_g = lat_raw * np.sign(cross)
+    # Longitudinal G: a_lon = (dv/ds) × v / g
+    dvds = np.gradient(v, d)
+    lon_g = dvds * v / 9.81
 
-    # Clip to ±4g and round
-    lat_g = np.clip(lat_g, -4.0, 4.0)
-    lon_g = np.clip(lon_g, -4.0, 4.0)
+    # Lateral G: a_lat = v² × κ / g (signed curvature via arc-length derivatives)
+    dxds = np.gradient(x, d)   # unit tangent x-component (dimensionless)
+    dyds = np.gradient(y, d)   # unit tangent y-component (dimensionless)
+    d2xds2 = np.gradient(dxds, d)  # curvature x-component (1/m)
+    d2yds2 = np.gradient(dyds, d)  # curvature y-component (1/m)
+
+    cross = dxds * d2yds2 - dyds * d2xds2          # signed curvature (1/m)
+    denom = (dxds ** 2 + dyds ** 2) ** 1.5
+    denom = np.where(np.abs(denom) < 1e-12, 1e-12, denom)
+    curvature = cross / denom  # 1/m, positive = left turn
+
+    lat_g = v ** 2 * curvature / 9.81
+
+    # 9-point box filter to remove GPS noise without destroying corner peaks
+    def _smooth(arr: np.ndarray, k: int = 9) -> np.ndarray:
+        kernel = np.ones(k) / k
+        return np.convolve(arr, kernel, mode="same")
+
+    lat_g = _smooth(lat_g)
+    lon_g = _smooth(lon_g)
+
+    # Clip to F1 physical limits (~5g peak braking, ~5g lateral)
+    lat_g = np.clip(lat_g, -5.0, 5.0)
+    lon_g = np.clip(lon_g, -5.0, 5.0)
 
     return [round(float(v), 3) for v in lat_g], [round(float(v), 3) for v in lon_g]
 
 
-def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[DriverTelemetry]:
-    """Extract and downsample telemetry for one driver's best lap."""
+def _pick_lap(laps, lap_mode: str):
+    """Pick a lap based on mode: fastest_clean or representative (closest to median)."""
+    clean = laps[~laps["PitInTime"].notna() & ~laps["PitOutTime"].notna()]
+    pool = clean if not clean.empty else laps
+
+    if lap_mode == "representative":
+        valid = pool.dropna(subset=["LapTime"])
+        if valid.empty:
+            return pool.pick_fastest()
+        median_time = valid["LapTime"].median()
+        idx = (valid["LapTime"] - median_time).abs().idxmin()
+        return valid.loc[idx]
+
+    # Default: fastest_clean
+    return pool.pick_fastest()
+
+
+def _extract_driver_telemetry(
+    session, driver_code, session_type, lap_mode: str = "fastest_clean"
+) -> Optional[DriverTelemetry]:
+    """Extract and downsample telemetry for one driver's chosen lap."""
     laps = session.laps.pick_driver(driver_code)
     if laps.empty:
         return None
 
     if session_type == "R":
-        # Race: prefer a clean lap (not an in/out lap)
-        clean = laps[~laps["PitInTime"].notna() & ~laps["PitOutTime"].notna()]
-        if clean.empty:
-            clean = laps
-        fastest = clean.pick_fastest()
+        fastest = _pick_lap(laps, lap_mode)
     else:
         fastest = laps.pick_fastest()
 
@@ -344,8 +379,11 @@ def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[Dr
     y_vals = tel["Y"].values
     norm_x, norm_y = _normalise_xy(x_vals, y_vals)
 
-    # Compute G-forces from raw meter coordinates + speed
-    lat_g_full, lon_g_full = _compute_gg(x_vals.tolist(), y_vals.tolist(), tel["Speed"].tolist())
+    # Compute G-forces using arc-length parameterization for accuracy
+    dist_vals = tel["Distance"].values
+    lat_g_full, lon_g_full = _compute_gg(
+        x_vals.tolist(), y_vals.tolist(), tel["Speed"].tolist(), dist_vals.tolist()
+    )
 
     total = len(tel)
     step = max(1, total // DOWNSAMPLE_TO)
@@ -382,6 +420,7 @@ def _extract_driver_telemetry(session, driver_code, session_type) -> Optional[Dr
         team_colour=team_colour,
         lap_time=float(fastest["LapTime"].total_seconds()) if _notna(fastest["LapTime"]) else 0.0,
         fastest_lap_number=int(fastest["LapNumber"]) if _notna(fastest["LapNumber"]) else 0,
+        lap_mode=lap_mode,
         points=points,
         sector_1_time=_secs(fastest["Sector1Time"]),
         sector_2_time=_secs(fastest["Sector2Time"]),
@@ -424,6 +463,7 @@ async def load_telemetry(
     circuit_name: str,
     session_type: str,
     driver_codes: list[str],
+    lap_mode: str = "fastest_clean",
 ) -> Optional[TelemetryData]:
     """
     Load FastF1 telemetry for up to 5 drivers.
@@ -449,7 +489,7 @@ async def load_telemetry(
     for code in driver_codes[:5]:
         try:
             drv_tel = await loop.run_in_executor(
-                None, _extract_driver_telemetry, session, code, f1_session_type
+                None, _extract_driver_telemetry, session, code, f1_session_type, lap_mode
             )
             if drv_tel and drv_tel.points:
                 drivers_data.append(drv_tel)
