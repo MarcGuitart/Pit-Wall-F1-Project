@@ -305,6 +305,8 @@ class TelemetryPoint(BaseModel):
     brake: bool
     gear: int              # 1–8
     drs: int               # 0=closed, 10/12/14=open
+    lat_g: Optional[float] = None   # lateral G (positive = left)
+    lon_g: Optional[float] = None   # longitudinal G (positive = acceleration)
     lap_number: Optional[int] = None
     race_time: Optional[float] = None
 
@@ -314,6 +316,7 @@ class DriverTelemetry(BaseModel):
     team_colour: str       # hex e.g. "#FF8000"
     lap_time: float        # seconds
     fastest_lap_number: int
+    lap_mode: str = "fastest_clean"   # "fastest_clean" | "representative"
     points: list[TelemetryPoint]
     sector_1_time: Optional[float] = None
     sector_2_time: Optional[float] = None

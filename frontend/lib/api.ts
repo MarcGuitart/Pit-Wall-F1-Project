@@ -56,6 +56,8 @@ export async function fetchChatHealth(): Promise<{
   model: string
   model_available?: boolean
   available_models?: string[]
+  groq_available?: boolean
+  ai_ready?: boolean
   error?: string
 }> {
   const res = await fetch(`${BASE_URL}/chat/health`)
@@ -108,10 +110,11 @@ export async function engineerChat(payload: {
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
+  lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
 ): Promise<TelemetryData | null> {
   try {
     const res = await fetch(
-      `${BASE_URL}/telemetry/${sessionKey}?drivers=${drivers.join(',')}`,
+      `${BASE_URL}/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,
     )
     if (!res.ok) return null
     return (await res.json()) as TelemetryData

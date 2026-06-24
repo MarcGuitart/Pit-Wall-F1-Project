@@ -10,11 +10,12 @@ router = APIRouter(tags=["races"])
 
 @router.get("/races", response_model=list[RaceListItem])
 async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
-    # Fast path: serve from cache for past seasons
-    if year < 2025:
-        cached = race_cache.get_meetings(year)
-        if cached:
-            return cached  # already sorted list[RaceListItem] dicts
+    # Fast path: serve any cached season list immediately. This keeps the UI
+    # stable when OpenF1 has a transient failure and avoids hard-coded season
+    # cutoffs becoming stale.
+    cached = race_cache.get_meetings(year)
+    if cached:
+        return cached  # already sorted list[RaceListItem] dicts
 
     url = f"{settings.openf1_base_url}/meetings"
     try:
@@ -23,8 +24,14 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
             resp.raise_for_status()
             meetings = resp.json()
     except httpx.RequestError as exc:
+        cached = race_cache.get_meetings(year)
+        if cached:
+            return cached
         raise HTTPException(status_code=503, detail=f"OpenF1 unreachable: {exc}") from exc
     except httpx.HTTPStatusError as exc:
+        cached = race_cache.get_meetings(year)
+        if cached:
+            return cached
         raise HTTPException(status_code=exc.response.status_code, detail="OpenF1 error") from exc
 
     items: list[RaceListItem] = []
@@ -44,8 +51,8 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
 
     sorted_items = sorted(items, key=lambda x: x.date_start or "", reverse=True)
 
-    # Persist for future calls — only cache completed seasons
-    if year < 2025 and sorted_items:
+    # Persist successful results for future calls.
+    if sorted_items:
         race_cache.set_meetings(year, [i.model_dump() for i in sorted_items])
 
     return sorted_items

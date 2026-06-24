@@ -6,14 +6,18 @@ import type { FullRaceAnalysis } from '@/types'
 import { useRaceStore } from '@/stores/raceStore'
 import { getSessionType } from '@/lib/utils'
 
-import { AnalysisModeToggle } from './AnalysisModeToggle'
-import { SessionTimelineBar } from './SessionTimelineBar'
+import { TabNav } from './TabNav'
 import { RacePhaseTimeline } from './RacePhaseTimeline'
+import { SessionTimelineBar } from './SessionTimelineBar'
 import { DriverFocusStrip } from './DriverFocusStrip'
 import { DriverCard } from './DriverCard'
-import { StrategyViewGrid } from './StrategyViewGrid'
-import { DataViewTables } from './data/DataViewTables'
 import { RadioOverlay } from '@/components/radio/RadioOverlay'
+
+import { StrategyTab } from './tabs/StrategyTab'
+import { ManagementTab } from './tabs/ManagementTab'
+import { WeatherTab } from './tabs/WeatherTab'
+import { TelemetryTab } from './tabs/TelemetryTab'
+import { RaceControlTab } from './tabs/RaceControlTab'
 
 type Props = { analysis: FullRaceAnalysis }
 
@@ -30,10 +34,9 @@ export function AnalysisPage({ analysis }: Props) {
     radioOpen, setRadioOpen,
     analysisMode, setAnalysisMode,
     focusedDriver, setFocusedDriver, clearFocusedDriver,
+    activeTab, setActiveTab,
   } = useRaceStore()
 
-  // Separate state controls whether the DriverCard modal is visible.
-  // focusedDriver stays set when user clicks "Ask engineer" (radio needs it).
   const [driverCardOpen, setDriverCardOpen] = useState(false)
 
   const totalLaps = inferTotalLaps(analysis)
@@ -42,6 +45,12 @@ export function AnalysisPage({ analysis }: Props) {
   const focusedDriverRow = focusedDriver
     ? analysis.true_pace.find((d) => d.driver_code === focusedDriver.code)
     : null
+
+  const visibleNotes = focusedDriver
+    ? analysis.engineer_notes.filter(
+        (n) => n.title.includes(focusedDriver.code) || n.message.includes(focusedDriver.code),
+      )
+    : analysis.engineer_notes
 
   const handleDriverFocus = (code: string, name: string) => {
     setFocusedDriver(code, name)
@@ -54,16 +63,9 @@ export function AnalysisPage({ analysis }: Props) {
   }
 
   const handleAskEngineerAboutDriver = () => {
-    // Keep focusedDriver in store so RadioOverlay shows the focused-driver context
     setDriverCardOpen(false)
     setRadioOpen(true)
   }
-
-  const visibleNotes = focusedDriver
-    ? analysis.engineer_notes.filter(
-        (n) => n.title.includes(focusedDriver.code) || n.message.includes(focusedDriver.code)
-      )
-    : analysis.engineer_notes
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
@@ -100,7 +102,7 @@ export function AnalysisPage({ analysis }: Props) {
         </div>
       </div>
 
-      {/* Always-visible timeline — Race gets phase timeline, others get classic */}
+      {/* Phase timeline — always visible above tabs */}
       {sessionType === 'Race' && (analysis.race_phases ?? []).length > 0
         ? (
           <RacePhaseTimeline
@@ -117,57 +119,77 @@ export function AnalysisPage({ analysis }: Props) {
           />
         )
       }
-      <AnalysisModeToggle
-        mode={analysisMode}
+
+      {/* Tab navigation */}
+      <TabNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
         sessionType={sessionType}
-        lapCount={totalLaps}
-        onChange={setAnalysisMode}
+        analysis={analysis}
       />
+
+      {/* Driver focus strip — always visible when a driver is focused */}
       <DriverFocusStrip
         driverCode={focusedDriver?.code ?? null}
         driverName={focusedDriver?.name ?? null}
         onClear={handleCloseDriverCard}
       />
 
-      {/* Animated view switch */}
+      {/* Tab content */}
       <AnimatePresence mode="wait">
-        {analysisMode === 'strategy' ? (
-          <motion.div
-            key="strategy"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <StrategyViewGrid
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12 }}
+        >
+          {activeTab === 'strategy' && (
+            <StrategyTab
+              analysis={analysis}
+              sessionType={sessionType}
+              analysisMode={analysisMode}
+              focusedDriver={focusedDriver?.code ?? null}
+              visibleNotes={visibleNotes}
+              onAnalysisModeChange={setAnalysisMode}
+              onDriverClick={handleDriverFocus}
+            />
+          )}
+          {activeTab === 'management' && (
+            <ManagementTab
               analysis={analysis}
               sessionType={sessionType}
               focusedDriver={focusedDriver?.code ?? null}
               onDriverClick={handleDriverFocus}
               onSwitchToData={() => setAnalysisMode('data')}
             />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="data"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <DataViewTables
+          )}
+          {activeTab === 'weather' && (
+            <WeatherTab
+              analysis={analysis}
+              totalLaps={totalLaps}
+              sessionType={sessionType}
+            />
+          )}
+          {activeTab === 'telemetry' && (
+            <TelemetryTab
+              sessionKey={analysis.race.session_key}
+              analysis={analysis}
+            />
+          )}
+          {activeTab === 'control' && (
+            <RaceControlTab
               analysis={analysis}
               sessionType={sessionType}
               focusedDriver={focusedDriver?.code ?? null}
               visibleNotes={visibleNotes}
               onDriverClick={handleDriverFocus}
-              onBackToStrategy={() => setAnalysisMode('strategy')}
             />
-          </motion.div>
-        )}
+          )}
+        </motion.div>
       </AnimatePresence>
 
-      {/* Driver card modal — shown only when driverCardOpen AND we have a row */}
+      {/* Driver card modal */}
       {focusedDriverRow && driverCardOpen && (
         <DriverCard
           driver={focusedDriverRow}

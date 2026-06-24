@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "llama3.1:8b"
 
+    # Groq cloud AI — free tier, no local model required (console.groq.com for API key)
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.1-8b-instant"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @property

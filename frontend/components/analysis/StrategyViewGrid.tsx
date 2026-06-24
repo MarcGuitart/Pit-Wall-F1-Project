@@ -16,7 +16,6 @@ import { TrafficAndPrepPanel } from './strategy/TrafficAndPrepPanel'
 import { WeatherOverlay } from './strategy/WeatherOverlay'
 import { DRSTrainDetector } from './strategy/DRSTrainDetector'
 import { CleanAirValueCard } from './CleanAirValueCard'
-import { CircuitViewPanel } from './CircuitView'
 
 // Stub fallbacks when data is unavailable
 import { WeatherOverlay as WeatherStub } from './stubs/WeatherOverlay'
@@ -136,8 +135,6 @@ export function StrategyViewGrid({ analysis, sessionType, focusedDriver, onDrive
         <KeyDecisionCards decisions={decisions} />
       </div>
 
-      {/* Row 7: Circuit Telemetry — full width, lazy-loaded (FastF1) */}
-      <CircuitViewPanel sessionKey={analysis.race.session_key} analysis={analysis} />
     </div>
   )
 }

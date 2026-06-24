@@ -17,7 +17,7 @@ export function DriverSelector({ drivers, selected, onToggle, max = 3 }: Props) 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mr-1">
-        Drivers
+        Driver
       </span>
       {drivers.map((d) => {
         const active = selected.includes(d.code)
@@ -29,7 +29,7 @@ export function DriverSelector({ drivers, selected, onToggle, max = 3 }: Props) 
               'flex items-center gap-1.5 px-2 py-1 rounded-[3px] border transition-all',
               active
                 ? 'bg-bg-elevated'
-                : 'border-border-subtle hover:border-border-default opacity-70 hover:opacity-100',
+                : 'border-border-subtle hover:border-border-default opacity-60 hover:opacity-100',
             ].join(' ')}
             style={active ? { borderColor: d.colour, backgroundColor: `${d.colour}22` } : undefined}
           >
@@ -43,9 +43,7 @@ export function DriverSelector({ drivers, selected, onToggle, max = 3 }: Props) 
           </button>
         )
       })}
-      <span className="font-mono text-[8px] text-text-muted ml-1">
-        max {max}
-      </span>
+      <span className="font-mono text-[8px] text-text-muted ml-1">max {max}</span>
     </div>
   )
 }

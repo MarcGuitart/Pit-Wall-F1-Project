@@ -1,9 +1,9 @@
 """
-POST /chat  — Ollama-backed race engineer chat.
-GET  /chat/health — Ollama connectivity check.
+POST /chat  — AI-backed race engineer chat.
+GET  /chat/health — Connectivity check (Ollama + Groq).
 
-The /analysis/{session_key} endpoint must have been called first so that
-the FullRaceAnalysis is persisted in the local cache.
+AI priority: Ollama (local) → Groq (free cloud) → offline message.
+The /analysis/{session_key} endpoint must have been called first.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from app.core import cache
 from app.core.config import settings
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
-from app.clients.ollama_client import call_ollama
+from app.clients.ollama_client import answer_engineer_question
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -37,7 +37,9 @@ class ChatResponse(BaseModel):
 
 @router.get("/chat/health")
 async def chat_health() -> dict:
-    """Check whether Ollama is reachable and the configured model is available."""
+    """Check Ollama and Groq availability."""
+    groq_available = bool(settings.groq_api_key)
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(f"{settings.ollama_base_url}/api/tags")
@@ -45,12 +47,15 @@ async def chat_health() -> dict:
             tags = r.json()
             models = [m["name"] for m in tags.get("models", [])]
             model_available = any(settings.ollama_model in m for m in models)
+            ai_ready = model_available or groq_available
             return {
                 "ollama_reachable": True,
                 "base_url": settings.ollama_base_url,
                 "model": settings.ollama_model,
                 "model_available": model_available,
                 "available_models": models,
+                "groq_available": groq_available,
+                "ai_ready": ai_ready,
             }
     except Exception as exc:
         return {
@@ -58,6 +63,8 @@ async def chat_health() -> dict:
             "base_url": settings.ollama_base_url,
             "model": settings.ollama_model,
             "error": str(exc),
+            "groq_available": groq_available,
+            "ai_ready": groq_available,
         }
 
 
@@ -85,9 +92,9 @@ async def chat(req: ChatRequest) -> ChatResponse:
     # 2. Build compact context string
     context = build_chat_context(analysis, req.focused_driver)
 
-    # 3. Call Ollama
+    # 3. Call AI (Ollama → Groq fallback)
     session_name = f"{analysis.race.meeting_name} {analysis.race.year}"
-    answer = await call_ollama(
+    answer = await answer_engineer_question(
         context, req.question.strip(), session_name, req.focused_driver
     )
 

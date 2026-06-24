@@ -3,6 +3,7 @@ import type { FullRaceAnalysis } from '@/types'
 
 type AppMode = 'historical' | 'live'
 type AnalysisMode = 'strategy' | 'data'
+export type ActiveTab = 'strategy' | 'management' | 'weather' | 'telemetry' | 'control'
 
 type FocusedDriver = {
   code: string
@@ -45,6 +46,10 @@ type RaceStore = {
   focusedDriver: FocusedDriver
   setFocusedDriver: (code: string, name: string) => void
   clearFocusedDriver: () => void
+
+  // Tab navigation
+  activeTab: ActiveTab
+  setActiveTab: (tab: ActiveTab) => void
 }
 
 export const useRaceStore = create<RaceStore>((set, get) => ({
@@ -82,4 +87,7 @@ export const useRaceStore = create<RaceStore>((set, get) => ({
   focusedDriver: null,
   setFocusedDriver: (code, name) => set({ focusedDriver: { code, name } }),
   clearFocusedDriver: () => set({ focusedDriver: null }),
+
+  activeTab: 'strategy',
+  setActiveTab: (tab) => set({ activeTab: tab }),
 }))

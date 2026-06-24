@@ -10,6 +10,8 @@ export type TelemetryPoint = {
   brake: boolean
   gear: number // 1–8
   drs: number // 0=closed, 10/12/14=open
+  lat_g?: number | null  // lateral G-force (positive = left)
+  lon_g?: number | null  // longitudinal G-force (positive = acceleration)
   lap_number?: number | null
   race_time?: number | null
 }
@@ -19,6 +21,7 @@ export type DriverTelemetry = {
   team_colour: string // hex e.g. "#FF8000"
   lap_time: number // seconds
   fastest_lap_number: number
+  lap_mode: 'fastest_clean' | 'representative'
   points: TelemetryPoint[]
   sector_1_time: number | null
   sector_2_time: number | null

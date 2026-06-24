@@ -2,253 +2,556 @@
 
 # Pit Wall IQ
 
-### Watch F1 like an engineer, not like a spectator.
+### Entiende una carrera de Formula 1 como si estuvieras en el muro.
 
-An unofficial post-race strategy intelligence dashboard that turns raw OpenF1 timing, race-control, weather, pit, interval, and car input data into race interpretation you can actually use: true pace, tyre cliff risk, pit impact, DRS trains, weather crossovers, chaos, full-race driver inputs, and a local AI race engineer.
+**Pit Wall IQ** es un dashboard de inteligencia estrategica post-carrera que transforma datos crudos de OpenF1 en lectura competitiva: ritmo real, degradacion, pit stops, fases de carrera, caos, meteorologia, DRS trains, telemetria de piloto y un ingeniero de carrera con IA local.
 
-Every module answers a strategic question. No raw data dumps.
+No es una tabla de tiempos. Es una herramienta para responder la pregunta que queda despues de ver un Gran Premio:
+
+**por que paso lo que paso?**
+
+<p>
+  <a href="#demo-publica-y-despliegue"><strong>Demo publica: pendiente</strong></a>
+  &nbsp;|&nbsp;
+  <a href="#capturas-recomendadas-para-el-readme"><strong>Capturas recomendadas</strong></a>
+  &nbsp;|&nbsp;
+  <a href="#setup-local"><strong>Setup local</strong></a>
+  &nbsp;|&nbsp;
+  <a href="#licencia-y-uso"><strong>Licencia</strong></a>
+</p>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-custom--tokens-38BDF8?logo=tailwindcss&logoColor=white)
-![Ollama](https://img.shields.io/badge/AI-Ollama%20%2B%20llama3.1%3A8b-black)
-![Data](https://img.shields.io/badge/Data-OpenF1-E10600)
+![Tailwind](https://img.shields.io/badge/Tailwind-custom%20race%20UI-38BDF8?logo=tailwindcss&logoColor=white)
+![OpenF1](https://img.shields.io/badge/Data-OpenF1-E10600)
 ![Telemetry](https://img.shields.io/badge/Telemetry-throttle%20%7C%20brake%20%7C%20speed%20%7C%20gear-7C3AED)
+![AI](https://img.shields.io/badge/AI-Ollama%20local-black)
 
-**Strategy intelligence** · **Full-race driver inputs** · **Local race engineer**
+**Strategy intelligence** / **Race telemetry replay** / **Weather and race-control analysis** / **AI race engineer**
 
 </div>
 
 ---
 
-## What it does
+## Vista Rapida
 
-A Formula 1 race analysis tool with two views:
+| Area | Que demuestra |
+|------|---------------|
+| **Strategy IQ** | Convierte vueltas, stints, pits, weather y race control en lectura estrategica. |
+| **Race Timeline** | Resume la carrera por fases: salida, pit windows, SC/VSC, crossovers y final push. |
+| **Driver Telemetry Replay** | Reproduce speed, throttle, brake, gear, DRS, G/G y sonido de motor por piloto. |
+| **Race Wall Engineer** | Chat contextual que responde usando datos de la sesion, no conocimiento generico. |
+| **Production-ready API** | FastAPI con cache, fallback ante fallos de OpenF1 y endpoints documentados. |
 
-**Strategy View** (default) — curated panels that answer the race's central strategic question in under 30 seconds. Designed for someone who watched the race but wants to understand *why* the finishing order is what it is.
+## Indice
 
-**Data View** — complete analytical tables: every driver's clean lap samples and exclusion log, per-stint degradation slopes, each pit stop with position delta and verdict, and full engineer signals.
-
-**Circuit Telemetry / Driver Inputs** — choose one or more drivers and inspect speed, throttle, brake, gear, DRS, lap number, and race-time traces across the full race. The panel uses FastF1 when local circuit telemetry is available and falls back to OpenF1 `car_data` for full-race input traces.
-
-The Race Wall Engineer chat uses a local Ollama LLM with a compact (~1000-token) session context injected as the system prompt. It answers questions about that specific race, not F1 in general.
+- [Por Que Existe](#por-que-existe)
+- [Funcionalidades Principales](#funcionalidades-principales)
+- [Metricas Procesadas](#metricas-procesadas)
+- [Capturas Recomendadas Para El README](#capturas-recomendadas-para-el-readme)
+- [Arquitectura](#arquitectura)
+- [API](#api)
+- [Demo Publica Y Despliegue](#demo-publica-y-despliegue)
+- [Licencia Y Uso](#licencia-y-uso)
 
 ---
 
-## Analysis modules
+## Por Que Existe
 
-### True Pace Ranking
-Filters to clean laps — excludes pit in/out laps, SC/VSC neutralisation periods, and statistical outliers (>2.5× IQR). Reports median clean pace per driver with an exclusion log explaining why the ranking diverges from broadcast pace. Confidence levels: Low / Medium / High based on sample size.
+La retransmision te cuenta quien gano. Pit Wall IQ intenta explicar **como** se construyo la carrera:
 
-### Tyre Cliff Map
-Per-stint linear regression slope (s/lap) fitted to clean lap times. Classifies degradation as High cliff (≥0.08 s/lap), Medium, or Stable. Groups drivers by risk level and highlights which compound had the lowest average slope.
+- quien tuvo ritmo real cuando limpias trafico, boxes y neutralizaciones;
+- quien gano o perdio con la ventana de pit stop;
+- donde aparecio degradacion o tyre cliff;
+- si el resultado estuvo marcado por lluvia, Safety Car, VSC o DRS trains;
+- que decisiones fueron estrategicamente relevantes;
+- como condujo cada piloto, con trazas de freno, acelerador, velocidad, marcha y DRS.
 
-### Pit Stop Impact
-Position delta = position at `pit_lap − 1` vs `pit_lap + 3`, reconstructed from timestamp-interpolated OpenF1 position data (not lap-number-based). Verdict labels: SC Winner, Undercut, Gained, Neutral, Costly, Lost.
+El objetivo es que un fan, creador de contenido, analista o ingeniero curioso pueda abrir una carrera y tener una lectura estrategica en minutos.
 
-### Race Phase Timeline
-Classifies each lap range into a named phase — Safety Car Reset, VSC Period, Weather Crossover, DRS Train Compression, Pit Window, Start/Sorting, Degradation Phase, Final Push, Racing. Phases are priority-resolved when they overlap (SC beats Weather, Weather beats DRS, DRS beats Degradation).
+---
 
-### Race DNA Card
-Eight-point strategic fingerprint: primary factor, secondary factor, strategy type, overtaking difficulty, pit timing sensitivity, tyre degradation impact, chaos level. Fully deterministic — no LLM involvement.
+## Funcionalidades Principales
 
-### DRS Train Aggregation
-Converts raw 4-second interval snapshots into sustained meaningful trains by merging consecutive windows with ≥50% driver overlap. SC/VSC laps are filtered before merging. For Brazil 2024: 68 raw windows → 7 meaningful trains.
+### Selector De Temporada, Gran Premio Y Sesion
 
-### Weather Crossover Windows
-Detects DRY → DAMP → WET transitions and classifies drivers as best-timed, late, or early based on pit timing relative to the window. **Attribution guard**: if a safety car was active during the window, the summary explicitly states that position changes cannot be attributed to tyre choice alone — protecting against false attribution.
+La app permite elegir temporada, carrera y sesion desde OpenF1. El backend cachea meetings, sessions y analisis completos para que las carreras historicas carguen rapido y sigan disponibles aunque OpenF1 tenga fallos puntuales.
 
-### Chaos Index
-Score 0–100 from a weighted sum: SC events (×15, cap 30), yellow flags (×3, cap 20), investigations (×5, cap 20), time penalties (×4, cap 15), rain periods (×10, cap 15), position volatility (÷5, cap 20). Peak chaos lap detection included.
+Incluye soporte para temporadas recientes como 2025, con cache por ano para evitar errores intermitentes del proveedor de datos.
 
-### Full Race Driver Inputs
-Selectable driver telemetry panel powered by `GET /telemetry/{session_key}?drivers=VER,NOR,HAM`.
+### Strategy View
 
-When FastF1 is available locally, the panel can render circuit-distance telemetry for selected drivers. When FastF1 is missing or unavailable for the session, it falls back to OpenF1 `car_data`, producing full-race traces for:
+Vista principal pensada para entender rapidamente la historia estrategica de la carrera. Agrupa los modulos mas importantes en una lectura de alto nivel:
 
-- speed
-- throttle
-- brake
-- gear
-- DRS
-- lap number
-- race time
+- Race Brain: resumen ejecutivo de la carrera.
+- True Pace Podium: top de ritmo real.
+- Tyre Cliff Map: riesgo de degradacion por stint.
+- Pit Sequence Summary: ganadores y perdedores de paradas.
+- Key Decisions: decisiones con impacto estrategico.
+- Weather Overlay: condiciones y crossovers.
+- Chaos Profile: lectura de incidentes y volatilidad.
+- DRS Train Detector: trenes relevantes y pilotos atrapados.
 
-The OpenF1 fallback assigns every car-data sample to a lap using `laps.date_start` and `lap_duration`, downsamples long races for the browser, and caches each requested driver combination separately. This makes it possible to choose any analysed driver and compare brake/throttle behaviour across the race, not only on a fastest lap.
+### Data View
+
+Vista de tablas completas para validar el analisis. Permite inspeccionar:
+
+- muestras de vueltas limpias;
+- logs de exclusion;
+- stints y degradacion;
+- pit stops con duracion y delta de posicion;
+- senales de ingeniero;
+- decisiones detectadas.
+
+### Tabs De Analisis
+
+La interfaz separa el analisis por dominios para evitar una pantalla sobrecargada:
+
+- **Strategy**: lectura estrategica central.
+- **Weather**: condiciones, lluvia, temperatura y crossovers.
+- **Race Control**: Safety Car, VSC, banderas, investigaciones y penalizaciones.
+- **Management**: gestion de carrera, stint logic, pit timing y tyre usage.
+- **Telemetry**: replay de conduccion y canales dinamicos por piloto.
 
 ### Race Wall Engineer
-RadioOverlay with F1 team radio UX: animated waveform on open, synthetic radio sounds via Web Audio API, grounded answers via Ollama. Context passed to the model is a compact JSON summary of the race — top-3 pace, tyre cliffs, pit winners/losers, key decisions, race DNA, phase summary, DRS peak train. Dynamic suggested questions are generated from the session data (weather impact, DRS train presence, focused driver, chaos score). Alternate implementation using Anthropic Claude API is available at `frontend/app/api/engineer-chat/route.ts`.
+
+Chat tipo radio de equipo con respuestas basadas en la carrera seleccionada. El sistema construye un contexto compacto con:
+
+- top de ritmo;
+- tyre cliffs;
+- pit winners y losers;
+- race DNA;
+- fases de carrera;
+- DRS peak train;
+- caos y weather windows;
+- piloto enfocado, si existe.
+
+El objetivo es que el ingeniero no responda sobre F1 en general, sino sobre **esa sesion concreta**.
 
 ---
 
-## Architecture
+## Metricas Procesadas
 
+### Ritmo Y Vueltas
+
+- `median_lap`: mediana de vuelta total.
+- `clean_pace`: ritmo limpio tras filtrar vueltas no representativas.
+- `traffic_score`: diferencia entre ritmo total y ritmo limpio.
+- `sample_size`: cantidad de vueltas validas usadas.
+- `confidence`: Low / Medium / High segun volumen de muestras.
+- `exclusion_log`: vueltas excluidas y razon.
+
+Filtros aplicados:
+
+- pit in / pit out;
+- Safety Car y VSC;
+- vueltas con outliers estadisticos;
+- muestras insuficientes.
+
+### Degradacion Y Neumaticos
+
+- compuesto por stint.
+- vuelta de inicio y fin.
+- edad del neumatico al inicio.
+- pendiente de degradacion en segundos por vuelta.
+- clasificacion de cliff risk: Low / Medium / High.
+- mejor compuesto medio de la sesion.
+
+El sistema usa regresion lineal sobre vueltas limpias por stint para estimar degradacion.
+
+### Pit Stops
+
+- vuelta de parada.
+- `lane_duration`.
+- `stop_duration`, si OpenF1 lo proporciona.
+- posicion antes del pit.
+- posicion despues del pit.
+- delta neto de posicion.
+- verdict: SC Winner, Undercut, Gained, Neutral, Costly, Lost.
+
+El delta se reconstruye con posicion interpolada por timestamp, no solo por numero de vuelta.
+
+### Race Control Y Caos
+
+Chaos Index de 0 a 100 basado en:
+
+- Safety Car y VSC;
+- yellow flags;
+- investigaciones;
+- penalizaciones;
+- lluvia;
+- volatilidad de posiciones.
+
+Tambien detecta:
+
+- peak chaos lap;
+- fases de Safety Car Reset;
+- VSC Period;
+- ventanas donde race control altera el valor estrategico de parar.
+
+### Weather Y Crossovers
+
+- condicion por vuelta: DRY / DAMP / WET.
+- temperatura de pista.
+- temperatura ambiente.
+- lluvia.
+- eventos de lluvia: onset, end, peak rain.
+- ventanas de crossover.
+- pilotos early, late y best-timed.
+- nota de atribucion cuando una Safety Car coincide con la ventana.
+
+Esto evita conclusiones falsas del tipo "gano por neumatico" cuando en realidad hubo neutralizacion simultanea.
+
+### DRS Trains
+
+- snapshots crudos de intervalos.
+- cadenas de coches con gaps relevantes.
+- agrupacion de ventanas consecutivas por solapamiento de pilotos.
+- filtrado de laps SC/VSC.
+- peak train.
+- lider del tren.
+- pilotos atrapados.
+- duracion estimada.
+- impacto Low / Medium / High.
+
+### Clean Air Value
+
+Estima cuanto tiempo pierde un piloto en trafico comparando ventanas dentro y fuera de un DRS train:
+
+- gain estimado en segundos/vuelta;
+- pilotos con muestras validas;
+- contexto de salida del tren;
+- confianza Low / Medium.
+
+### Race DNA
+
+Huella estrategica deterministica de la carrera:
+
+- primary factor;
+- secondary factor;
+- strategy type;
+- overtaking difficulty;
+- pit timing sensitivity;
+- tyre degradation impact;
+- chaos level.
+
+### Telemetria Y Replay
+
+La pestana Telemetry permite seleccionar pilotos y reproducir la conduccion con canales sincronizados:
+
+- speed;
+- throttle;
+- brake;
+- gear;
+- DRS;
+- lap number;
+- race time;
+- sector times;
+- deltas entre pilotos;
+- G/G diagram;
+- G-force meter;
+- sonido sintetico de motor basado en velocidad, marcha, freno y acelerador.
+
+Fuentes:
+
+- FastF1 para replay de circuito cuando esta disponible localmente.
+- OpenF1 `car_data` como fallback para trazas completas de carrera.
+
+La telemetria se cachea por combinacion de pilotos para que comparar pilotos sea rapido despues de la primera carga.
+
+---
+
+## Capturas Recomendadas Para El README
+
+No hacen falta muchas. Mejor pocas, potentes y bien elegidas:
+
+| Captura | Que debe verse | Por que importa |
+|---------|----------------|-----------------|
+| **01. Home / selector** | Temporada, Gran Premio y sesion listos para analizar. | Demuestra que la app se entiende al abrirla. |
+| **02. Strategy View** | Brasil 2024 con Race Brain, True Pace, Chaos y decisiones. | Vende la capacidad de resumir una carrera compleja. |
+| **03. Weather + Race Control** | Crossovers, lluvia, SC/VSC y fases de carrera. | Ensena que el analisis entiende contexto, no solo tiempos. |
+| **04. Telemetry Replay** | 2 o 3 pilotos, canales de speed/throttle/brake y replay. | Es la parte mas visual y diferencial del proyecto. |
+| **05. Race Wall Engineer** | Overlay de radio con pregunta y respuesta contextual. | Demuestra IA aplicada a datos reales de la sesion. |
+
+Recomendacion: guardar las imagenes en `docs/screenshots/` con nombres como:
+
+```text
+docs/screenshots/01-home-selector.png
+docs/screenshots/02-strategy-brazil-2024.png
+docs/screenshots/03-weather-race-control.png
+docs/screenshots/04-telemetry-replay.png
+docs/screenshots/05-race-engineer.png
 ```
+
+Cuando esten hechas, se pueden insertar asi:
+
+```md
+## Screenshots
+
+| Strategy View | Telemetry Replay |
+|---------------|------------------|
+| ![Strategy](docs/screenshots/02-strategy-brazil-2024.png) | ![Telemetry](docs/screenshots/04-telemetry-replay.png) |
+
+| Weather + Race Control | Race Wall Engineer |
+|------------------------|--------------------|
+| ![Weather](docs/screenshots/03-weather-race-control.png) | ![Engineer](docs/screenshots/05-race-engineer.png) |
+```
+
+---
+
+## Arquitectura
+
+```text
 OpenF1 REST API
-    │
-    ▼
-httpx AsyncClient
-  · Semaphore(2) — max concurrent fetches
-  · Jitter 0.2–0.6s between requests
-  · 429 retry with Retry-After header, 4 attempts max
-  · Per-endpoint file cache (immutable for historical sessions)
-    │
-    ▼
-RaceTimeline  ←── built ONCE per session from all raw data
-  · Canonical per-lap signal object (SC/VSC active, weather
-    condition, pits this lap, min gap, leader, clean laps)
-  · All services read from this — no repeated timestamp resolution
-    │
-    ├── pace_service      → TruePaceRow[]
-    ├── tyre_service      → TyreDegradationRow[]
-    ├── pit_service       → PitImpactRow[]
-    ├── chaos_service     → ChaosIndex
-    ├── weather_service   → WeatherAnalysis
-    ├── drs_service       → DRSAnalysisAggregated
-    ├── crossover_service → CrossoverWindow[], WeatherWinnersLosers
-    ├── race_phase_service→ RacePhase[]
-    ├── race_dna_service  → RaceDNA
-    ├── clean_air_service → CleanAirValue
-    ├── telemetry_service → DriverTelemetry[] (FastF1 or OpenF1 car_data)
-    ├── notes_service     → EngineerNote[]
-    └── decisions_service → RaceDecision[]
-         │
-         ▼
-    FullRaceAnalysis (Pydantic v2)
-    cached as _analysis.json per session — repeat loads are instant
-         │
-         ▼
-    Next.js 14 frontend
-    · Zustand global store (analysis, focused driver, view mode)
-    · Single hook (useRaceAnalysis) owns all fetching — in-flight
-      deduplication, single-flight backend lock prevent duplicates
-    · Lazy telemetry panel fetches only the selected drivers
+    |
+    v
+FastAPI backend
+    - httpx AsyncClient
+    - file cache por endpoint y sesion
+    - retry / fallback / stale cache
+    - RaceTimeline canonico por vuelta
+    |
+    +--> pace_service        -> TruePaceRow[]
+    +--> tyre_service        -> TyreDegradationRow[]
+    +--> pit_service         -> PitImpactRow[]
+    +--> chaos_service       -> ChaosIndex
+    +--> weather_service     -> WeatherAnalysis
+    +--> drs_service         -> DRSAnalysisAggregated
+    +--> crossover_service   -> CrossoverWindow[]
+    +--> race_phase_service  -> RacePhase[]
+    +--> race_dna_service    -> RaceDNA
+    +--> clean_air_service   -> CleanAirValue
+    +--> telemetry_service   -> DriverTelemetry[]
+    +--> notes_service       -> EngineerNote[]
+    +--> decisions_service   -> RaceDecision[]
+    |
+    v
+FullRaceAnalysis cacheado como _analysis.json
+    |
+    v
+Next.js frontend
+    - App Router
+    - TypeScript strict
+    - Zustand store
+    - Tabs por dominio
+    - Replay de telemetria
+    - Radio overlay con IA
 ```
 
-The `RaceTimeline` object is the central V4 architectural decision. Before it existed, each service resolved OpenF1 timestamps independently. Now they share a single canonical per-lap signal map, which makes the services testable in isolation and eliminates drift.
+La decision central del backend es `RaceTimeline`: una representacion canonica por vuelta que evita que cada servicio resuelva timestamps de forma distinta.
 
 ---
 
-## Setup
+## API
 
-### Prerequisites
+```text
+GET  /health
+GET  /races?year=2025
+GET  /races/{meeting_key}/sessions
+GET  /analysis/{session_key}
+GET  /analysis/{session_key}?force_refresh=true
+GET  /telemetry/{session_key}?drivers=VER,NOR,HAM
+GET  /chat/health
+POST /chat
+POST /admin/clear-cache/{session_key}
+```
 
-- Python 3.11+
-- Node.js 18+
-- [Ollama](https://ollama.ai) for AI chat (optional — app runs without it)
+Docs interactivas:
+
+```text
+http://localhost:8000/docs
+```
+
+---
+
+## Sesiones Demo
+
+| Race | Year | session_key | Ideal para mostrar |
+|------|------|-------------|--------------------|
+| Sao Paulo GP | 2024 | `9636` | caos extremo, lluvia, SC/VSC, weather crossovers, DRS trains |
+| Spanish GP | 2024 | `9539` | carrera estrategica limpia, undercut, DRS, track position |
+| Hungarian GP | 2024 | `9566` | degradacion y tyre cliff |
+| United States GP | 2024 | `9617` | pit data con `stop_duration` |
+
+---
+
+## Stack
+
+**Backend**
+
+- Python 3.11
+- FastAPI
+- Pydantic v2
+- httpx
+- Polars
+- NumPy
+- FastF1 opcional
+- Ollama opcional
+
+**Frontend**
+
+- Next.js 14
+- React
+- TypeScript strict
+- Tailwind CSS
+- Framer Motion
+- Zustand
+- Recharts
+- SVG custom para replay, G/G y canales de telemetria
+
+**Datos**
+
+- OpenF1 REST API
+- cache local por sesion y endpoint
+- fallback con cache para evitar caidas por errores temporales del proveedor
+
+---
+
+## Setup Local
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # edit if needed
-uvicorn app.main:app --reload
-# → http://localhost:8000
-# → http://localhost:8000/docs  (Swagger UI)
+cp .env.example .env
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### Frontend
 
+Usar Node 20 para evitar incompatibilidades con Next 14:
+
 ```bash
+export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"
+
 cd frontend
-npm install
-cp .env.example .env.local    # set NEXT_PUBLIC_API_URL=http://localhost:8000
-npm run dev
-# → http://localhost:3000
+npm ci
+npm run dev -- --hostname 127.0.0.1 --port 3001
 ```
 
-### AI chat (Ollama)
+Abrir:
+
+```text
+http://127.0.0.1:3001
+```
+
+---
+
+## Build De Produccion Local
 
 ```bash
-ollama serve
-ollama pull llama3.1:8b       # ~4.7 GB
+export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"
 
-# Lighter alternatives: phi3:mini, mistral:7b
-# Set OLLAMA_MODEL in backend/.env to use a different model
+cd frontend
+npm ci
+npm run build
+npm run start -- -H 127.0.0.1 -p 3001
 ```
 
-The app works without Ollama — the Radio Overlay shows an offline state with setup instructions.
+Backend:
 
-### Environment variables
+```bash
+cd backend
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-**`backend/.env`**
+Checks:
 
-| Variable | Purpose |
-|----------|---------|
-| `OPENF1_BASE_URL` | OpenF1 API endpoint (default: `https://api.openf1.org/v1`) |
-| `CACHE_DIR` | Directory for per-session JSON cache files (default: `./cache`) |
-| `OLLAMA_BASE_URL` | Ollama server address (default: `http://127.0.0.1:11434`) |
-| `OLLAMA_MODEL` | Model to use for the race engineer (default: `llama3.1:8b`) |
-
-**`frontend/.env.local`**
-
-| Variable | Purpose |
-|----------|---------|
-| `NEXT_PUBLIC_API_URL` | Backend URL the frontend calls |
-| `ANTHROPIC_API_KEY` | Optional — only needed if using the Claude API chat route |
+```bash
+curl http://127.0.0.1:8000/health
+curl -I http://127.0.0.1:3001/race/9636
+```
 
 ---
 
-## Demo sessions
+## Demo Publica Y Despliegue
 
-| Race | Year | session_key | Why it's useful for testing |
-|------|------|-------------|----------------------------|
-| Brazilian GP | 2024 | `9636` | Extreme chaos (100/100), rain + SC×2 + VSC, all V4 modules active |
-| Spanish GP | 2024 | `9539` | Clean strategic race, undercut sequence, DRS trains, no weather |
-| Hungarian GP | 2024 | `9566` | High tyre degradation, cliff map showcase |
-| US GP (Austin) | 2024 | `9617` | Earliest session with `stop_duration` field in pit data |
+El siguiente paso para promocionar el proyecto es publicarlo con una arquitectura sencilla:
 
-First load fetches from OpenF1 and caches per-endpoint. Subsequent loads return from `_analysis.json` in milliseconds. To force a recompute: `POST /admin/clear-cache/{session_key}`.
+### Opcion Recomendada
 
-Telemetry is loaded lazily after opening the Circuit Telemetry panel. OpenF1 `car_data` is cached per driver and telemetry responses are cached per driver combination, so the first selected driver can take a few seconds and later selections are much faster.
+- **Frontend**: Vercel.
+- **Backend**: Render, Railway, Fly.io o similar.
+- **Cache**: persistencia en disco del backend si el proveedor lo permite; si no, migrar cache a object storage o Redis.
+- **LLM**: mantener Ollama opcional en local, o desactivar el chat en produccion si no hay servidor de modelo.
 
-### Validated reference values
+### Variables Necesarias
 
-| | Brazil 2024 | Spain 2024 |
-|-|-------------|------------|
-| Chaos | 100 / Extreme | 62 / High |
-| Primary factor | Weather + Safety Car | Track Position / DRS |
-| Race phases | 10 | 4 |
-| Crossover windows | 3 (all with concurrent SC) | 2 (no SC) |
-| Meaningful DRS trains | 7 (from 68 raw, 16 SC-filtered) | 3 (from 24 raw) |
-| Clean air value | 1.06 s/lap, Medium confidence | 1.33 s/lap, Medium confidence |
+Frontend:
+
+```text
+NEXT_PUBLIC_API_URL=https://tu-backend-publico.com
+```
+
+Backend:
+
+```text
+OPENF1_BASE_URL=https://api.openf1.org/v1
+CACHE_DIR=./cache
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.1:8b
+CORS_ORIGINS=["https://tu-frontend.vercel.app"]
+```
+
+### Checklist Antes De Publicar
+
+- Anadir screenshots en `docs/screenshots/`.
+- Revisar CORS del backend para aceptar el dominio publico.
+- Decidir si el chat IA estara activo o en modo offline.
+- Probar `/analysis/9636` en backend desplegado.
+- Probar `/telemetry/9636?drivers=VER,NOR,HAM`.
+- Probar carga completa de `/race/9636` desde frontend publico.
+- Anadir la URL publica al README cuando este desplegada.
 
 ---
 
-## API endpoints
+## Licencia Y Uso
 
-```
-GET  /health                            → {"status": "ok"}
-GET  /races?year=2024                   → list[RaceMeta]
-GET  /races/{meeting_key}/sessions      → list[SessionInfo]
-GET  /analysis/{session_key}            → FullRaceAnalysis
-GET  /analysis/{session_key}?force_refresh=true  → recomputes, bypasses cache
-GET  /telemetry/{session_key}?drivers=VER,NOR,HAM → selected driver telemetry
-POST /admin/clear-cache/{session_key}   → clears cached analysis + raw endpoints
-GET  /chat/health                       → Ollama reachability + model status
-POST /chat                              → race engineer answer (Ollama-backed)
-```
+**Estado recomendado por ahora:** source-available, non-commercial, no resale.
 
-Interactive docs at `http://localhost:8000/docs` when the backend is running.
+La intencion del proyecto es que cualquiera pueda verlo, estudiarlo y usarlo como demo personal o educativa, pero no pueda copiarlo, revenderlo, publicarlo como producto propio o explotarlo comercialmente sin permiso.
+
+Eso no encaja con una licencia open source clasica como MIT, Apache-2.0 o GPL, porque esas licencias permiten redistribucion y uso comercial bajo ciertas condiciones. Para este caso conviene una licencia **source-available** o una licencia personalizada.
+
+Opciones razonables:
+
+| Opcion | Encaja? | Comentario |
+|--------|---------|------------|
+| **Sin licencia / All Rights Reserved** | Alta proteccion, baja reutilizacion | Nadie tiene permiso explicito para usar, modificar o distribuir el codigo. GitHub permite verlo y forkearlo por sus terminos, pero no concede derecho amplio de uso. |
+| **PolyForm Noncommercial** | Buena base | Permite usos no comerciales y prohibe explotacion comercial. Es mas adecuada para software que Creative Commons. |
+| **Licencia propietaria personalizada** | Mas precisa | Permite definir exactamente: uso personal/educativo permitido, uso comercial prohibido, redistribucion prohibida, copia de producto prohibida. Conviene revisarla con abogado si el proyecto va a tener visibilidad. |
+| **Business Source License** | Posible, pero menos ideal | Permite codigo visible con restricciones de produccion y cambio futuro a open source. Es mas pesada para un proyecto personal. |
+| **Creative Commons BY-NC-ND** | Mejor para contenido que para codigo | Puede servir para screenshots, textos o assets, pero Creative Commons no recomienda sus licencias para software. |
+
+Recomendacion practica para Pit Wall IQ:
+
+1. Mantener el repositorio publico para portafolio y promocion.
+2. Anadir un `LICENSE` personalizado o PolyForm Noncommercial.
+3. Anadir en README una nota visible: "Commercial use, resale, hosted clones and redistribution are not permitted without written permission."
+4. Separar, si hace falta, licencia de codigo y licencia de contenido visual/documentacion.
 
 ---
 
-## Tech stack
+## Estado Del Proyecto
 
-**Backend:** Python 3.11 · FastAPI 0.111 · Pydantic v2 · httpx · Polars · NumPy · FastF1 optional · Ollama
+Pit Wall IQ ya tiene una base funcional potente:
 
-**Frontend:** Next.js 14 (App Router) · TypeScript (strict) · Tailwind CSS · Framer Motion · Zustand · Recharts
+- analisis estrategico completo;
+- datos historicos cacheados;
+- UI por dominios;
+- telemetria visual;
+- race engineer con IA;
+- endpoints preparados para despliegue.
 
-**Typography:** Barlow Condensed (display) · Barlow (body) · JetBrains Mono (data)
-
-**Data:** [OpenF1](https://openf1.org) REST API — free and unauthenticated for historical sessions
+La siguiente fase es convertirlo en una demo publica estable y compartirlo con capturas bien escogidas.
 
 ---
 
 ## Disclaimer
 
-This is an unofficial personal project. It is not affiliated with, endorsed by, or connected to Formula 1, the FIA, or any F1 team. All data is sourced from [OpenF1](https://openf1.org), which is also an unofficial community project. Driver names, team names, and race results are factual information, not trademarks being claimed.
+Proyecto personal y no oficial. No esta afiliado, aprobado ni conectado con Formula 1, FIA, F1, Formula One Management ni ningun equipo. Los datos provienen de OpenF1, un proyecto comunitario no oficial. Los nombres de pilotos, equipos, circuitos y Grandes Premios se usan como informacion factual.
