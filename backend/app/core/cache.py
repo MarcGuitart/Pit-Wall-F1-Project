@@ -6,6 +6,10 @@ from typing import Any
 
 from app.core.config import settings
 
+# Note: cache is ephemeral on Render free tier.
+# First request per session fetches from OpenF1 (~5-10s).
+# Subsequent requests within the same container lifetime are cached.
+
 logger = logging.getLogger(__name__)
 
 _ANALYSIS_FILENAME = "_analysis.json"

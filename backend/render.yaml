@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: pit-wall-iq-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      # Set CORS_ORIGINS to your Vercel frontend URL after first deploy, e.g.:
+      # CORS_ORIGINS=https://pit-wall-iq.vercel.app
+      # Set GROQ_API_KEY if you want AI chat in production (free at console.groq.com)
