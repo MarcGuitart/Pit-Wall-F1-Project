@@ -38,6 +38,11 @@ async def _fetch_endpoint(
 ) -> list[dict]:
     last_exc: Exception | None = None
 
+    # Add token header if configured — OpenF1 now requires auth for live data
+    headers: dict[str, str] = {}
+    if settings.openf1_api_token:
+        headers["Authorization"] = f"Bearer {settings.openf1_api_token}"
+
     for attempt in range(_MAX_ATTEMPTS):
         try:
             async with _semaphore:
@@ -46,7 +51,16 @@ async def _fetch_endpoint(
                 resp = await client.get(
                     f"{settings.openf1_base_url}/{endpoint}",
                     params={"session_key": session_key},
+                    headers=headers,
                 )
+
+            if resp.status_code == 401:
+                # Fast-fail: retrying won't help without a valid token
+                logger.error(
+                    "[401 UNAUTHORIZED] %s for %s — set OPENF1_API_TOKEN to fetch new sessions",
+                    endpoint, session_key,
+                )
+                return []
 
             if resp.status_code == 429:
                 retry_after = int(

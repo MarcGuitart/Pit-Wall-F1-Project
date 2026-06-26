@@ -18,9 +18,11 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
         return cached  # already sorted list[RaceListItem] dicts
 
     url = f"{settings.openf1_base_url}/meetings"
+    token = settings.openf1_api_token
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"year": year})
+            resp = await client.get(url, params={"year": year}, headers=headers)
             resp.raise_for_status()
             meetings = resp.json()
     except httpx.RequestError as exc:
@@ -65,11 +67,20 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
         return cached
 
     url = f"{settings.openf1_base_url}/sessions"
+    token = settings.openf1_api_token
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"meeting_key": meeting_key})
+            resp = await client.get(url, params={"meeting_key": meeting_key}, headers=headers)
+            if resp.status_code == 401:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Session list not in cache and OpenF1 requires authentication. Set OPENF1_API_TOKEN.",
+                )
             resp.raise_for_status()
             sessions = resp.json()
+    except HTTPException:
+        raise
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"OpenF1 unreachable: {exc}") from exc
 

@@ -4,6 +4,8 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     openf1_base_url: str = "https://api.openf1.org/v1"
+    # Optional: OpenF1 API token for fetching sessions not in the static cache
+    openf1_api_token: str = ""
     cache_dir: str = "./cache"
     cors_origins: list[str] = [
         "http://localhost:3000",

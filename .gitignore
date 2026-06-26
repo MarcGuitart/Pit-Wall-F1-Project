@@ -29,7 +29,8 @@ backend/.env
 backend/.env.local
 backend/.env.production
 !backend/.env.example
-backend/cache/
+# Static fixture cache committed to repo (Spain 2024 / Brazil 2024 + meetings)
+!backend/cache/
 backend/fastf1_cache/
 backend/*.log
 backend/**/*.log
@@ -73,3 +74,6 @@ desktop.ini
 *.bak
 *.tmp
 .turbo/
+
+# Local Netlify folder
+.netlify
