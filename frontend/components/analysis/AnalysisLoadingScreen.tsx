@@ -5,11 +5,11 @@ import { LOADING_STEPS } from '@/lib/constants'
 
 type Props = {
   raceName: string
-  sessionKey: number
+  sessionKey?: number
   currentStep?: number
 }
 
-export function AnalysisLoadingScreen({ raceName, sessionKey, currentStep }: Props) {
+export function AnalysisLoadingScreen({ raceName, currentStep }: Props) {
   // If currentStep is controlled externally (real API), use it; otherwise self-pace
   const [internalStep, setInternalStep] = useState(0)
   const [elapsed, setElapsed] = useState(0)
@@ -47,10 +47,6 @@ export function AnalysisLoadingScreen({ raceName, sessionKey, currentStep }: Pro
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center gap-3 px-4 py-2 bg-bg-panel border border-border-subtle rounded-[4px]">
             <div className="w-2 h-2 rounded-full bg-signal-blue animate-pulse" />
-            <span className="font-mono text-[11px] text-text-secondary">
-              Session {sessionKey}
-            </span>
-            <span className="text-text-muted font-mono text-[11px]">·</span>
             <span className="font-display font-bold text-[11px] uppercase tracking-[1px] text-text-primary">
               {raceName}
             </span>

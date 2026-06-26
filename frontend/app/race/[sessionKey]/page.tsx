@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useRaceStore } from '@/stores/raceStore'
 import { useRaceAnalysis } from '@/hooks/useRaceAnalysis'
@@ -18,6 +19,16 @@ export default function RacePage() {
     isNaN(sessionKey) ? null : sessionKey,
   )
 
+  // Update browser tab title once race data is available — must be before any early return
+  useEffect(() => {
+    if (analysis) {
+      document.title = `${analysis.race.meeting_name} ${analysis.race.year} · Pit Wall IQ`
+    }
+    return () => {
+      document.title = 'Pit Wall IQ — Race Strategy Intelligence'
+    }
+  }, [analysis])
+
   if (isNaN(sessionKey)) {
     router.push('/')
     return null
@@ -25,7 +36,7 @@ export default function RacePage() {
 
   const raceName = analysis
     ? `${analysis.race.meeting_name} ${analysis.race.year}`
-    : `Session ${sessionKey}`
+    : 'Loading…'
 
   const breadcrumb = analysis
     ? [
@@ -33,7 +44,7 @@ export default function RacePage() {
         { label: analysis.race.meeting_name, href: '/' },
         { label: analysis.race.session_name },
       ]
-    : [{ label: `Session ${sessionKey}` }]
+    : []
 
   // Error states — map to SessionUnavailableState for structured errors
   if (error) {
