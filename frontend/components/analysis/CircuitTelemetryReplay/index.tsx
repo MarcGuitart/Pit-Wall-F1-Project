@@ -64,6 +64,13 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
       setPlaying(false)
       const result = await getTelemetry(sessionKey, topCodes, lapMode)
       if (cancelled) return
+      if (result === 'production_unavailable') {
+        setError(
+          'Circuit telemetry is only available when running locally. Select a featured race for full analysis.',
+        )
+        setLoading(false)
+        return
+      }
       if (!result || result.drivers.length === 0) {
         setError('FastF1 telemetry not available for this session.')
         setLoading(false)
@@ -142,6 +149,13 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     setLoading(true)
     setError(null)
     const result = await getTelemetry(sessionKey, topCodes)
+    if (result === 'production_unavailable') {
+      setError(
+        'Circuit telemetry is only available when running locally. Select a featured race for full analysis.',
+      )
+      setLoading(false)
+      return
+    }
     if (!result || result.drivers.length === 0) {
       setError('FastF1 telemetry not available for this session.')
       setLoading(false)

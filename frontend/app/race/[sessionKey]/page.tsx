@@ -50,6 +50,7 @@ export default function RacePage() {
   if (error) {
     if (
       error.code === 'SESSION_NOT_HISTORICAL_YET' ||
+      error.code === 'SESSION_NOT_CACHED' ||
       error.code === 'OPENF1_RATE_LIMIT' ||
       error.code === 'OPENF1_ERROR'
     ) {

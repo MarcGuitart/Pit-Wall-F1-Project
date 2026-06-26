@@ -105,17 +105,19 @@ export async function engineerChat(payload: {
 
 /**
  * Circuit telemetry (FastF1) — loaded lazily when the Circuit View is expanded.
- * Returns null on any failure so the UI can show a graceful unavailable state.
+ * Returns null on generic failure, 'production_unavailable' when the server
+ * explicitly signals it cannot run FastF1 (503 in production).
  */
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
   lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
-): Promise<TelemetryData | null> {
+): Promise<TelemetryData | null | 'production_unavailable'> {
   try {
     const res = await fetch(
       `${BASE_URL}/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,
     )
+    if (res.status === 503) return 'production_unavailable'
     if (!res.ok) return null
     return (await res.json()) as TelemetryData
   } catch {

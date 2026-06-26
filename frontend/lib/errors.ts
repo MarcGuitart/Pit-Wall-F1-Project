@@ -1,5 +1,6 @@
 export type ErrorCode =
   | 'SESSION_NOT_HISTORICAL_YET'
+  | 'SESSION_NOT_CACHED'
   | 'OPENF1_RATE_LIMIT'
   | 'ANALYSIS_FAILED'
   | 'OPENF1_ERROR'
@@ -26,6 +27,18 @@ export class ApiError extends Error {
 
 export function parseAnalysisError(err: unknown): AnalysisError {
   if (err instanceof ApiError) {
+    if (err.status === 404) {
+      // FastAPI wraps detail in { detail: ... } — extract the inner code if present
+      const inner = (err.detail as { detail?: Record<string, unknown> } | undefined)?.detail
+      if (inner?.code === 'session_not_cached') {
+        return {
+          code: 'SESSION_NOT_CACHED',
+          message:
+            (inner.message as string | undefined) ??
+            'This session is not available in the production demo. Try Brasil 2024 (9636) or España 2024 (9539).',
+        }
+      }
+    }
     if (err.status === 425) {
       const detail = err.detail as Record<string, unknown> | undefined
       return {

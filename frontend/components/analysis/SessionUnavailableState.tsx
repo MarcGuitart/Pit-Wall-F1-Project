@@ -20,6 +20,11 @@ const CONFIG: Record<
     icon: '○',
     title: 'SESSION STILL IN LIVE WINDOW',
   },
+  SESSION_NOT_CACHED: {
+    accentColor: 'bg-signal-blue',
+    icon: '○',
+    title: 'NOT IN DEMO CACHE',
+  },
   OPENF1_RATE_LIMIT: {
     accentColor: 'bg-signal-amber',
     icon: '⏸',

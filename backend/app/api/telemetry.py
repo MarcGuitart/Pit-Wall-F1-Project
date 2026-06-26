@@ -7,8 +7,10 @@ Requires that /analysis/{session_key} has run first so session metadata
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from app.core import cache
+from app.core.config import settings
 from app.domain.models import TelemetryData
 from app.services.telemetry_service import load_openf1_race_telemetry, load_telemetry
 
@@ -22,6 +24,18 @@ async def get_telemetry(
     drivers: str = Query(default="NOR,VER,HAM"),
     lap_mode: str = Query(default="fastest_clean", pattern="^(fastest_clean|representative)$"),
 ) -> TelemetryData:
+    # FastF1 downloads 50-200 MB per session — exceeds Render free tier RAM (512 MB).
+    # Return 503 immediately so the frontend shows an actionable message instead
+    # of a silent OOM process crash.
+    if settings.environment == "production":
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "telemetry_unavailable",
+                "message": "Telemetry requires local setup with Ollama. Not available in production.",
+            },
+        )
+
     driver_list = [d.strip().upper() for d in drivers.split(",") if d.strip()][:5]
     cache_key = f"telemetry_{lap_mode}_" + "_".join(sorted(driver_list))
 

@@ -229,11 +229,21 @@ async def get_analysis(
         drivers = data.get("drivers", [])
 
         if not laps:
-            # If session_meta was empty (OpenF1 couldn't find this session), it likely
-            # means the session is too recent — the historical guard didn't fire because
-            # there was no date_start to check. Return 425 so the frontend shows the
-            # "not available yet" state rather than a generic error.
             if not session_meta:
+                # Distinguish: no token means we're in static-cache-only mode and this
+                # session simply isn't available in the demo. With a token, the session
+                # is probably too recent for OpenF1 to have published it yet.
+                if not settings.openf1_api_token:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "code": "session_not_cached",
+                            "message": (
+                                "This session is not available in the production demo. "
+                                "Try Brasil 2024 (9636) or España 2024 (9539)."
+                            ),
+                        },
+                    )
                 raise HTTPException(
                     status_code=425,
                     detail={
