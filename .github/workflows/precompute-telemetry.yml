@@ -59,6 +59,9 @@ jobs:
           restore-keys: |
             fastf1-
 
+      - name: Create FastF1 cache directory
+        run: mkdir -p ~/.cache/fastf1
+
       - name: Run telemetry precomputation
         run: |
           cd backend
