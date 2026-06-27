@@ -31,23 +31,40 @@ async def get_telemetry(
     driver_list = [d.strip().upper() for d in drivers.split(",") if d.strip()][:5]
     cache_key = f"telemetry_{lap_mode}_" + "_".join(sorted(driver_list))
 
+    logger.info(
+        "[TELEMETRY LOOKUP] session=%s cache_key=%s cache_path=%s",
+        session_key, cache_key, settings.cache_path.resolve(),
+    )
+
     # 1. Exact match in file cache (pre-computed JSON or previously computed in dev)
     cached = cache.get(session_key, cache_key)
     if cached:
+        logger.info("[TELEMETRY EXACT HIT] %s — %s", session_key, cache_key)
         return TelemetryData.model_validate(cached)
 
     # 2. Flexible match — any pre-computed file for the same lap_mode that covers
     #    all requested drivers. Filters its driver list down to what was requested.
     #    Avoids re-running FastF1 just because the caller asked for a subset.
     session_dir = settings.cache_path / str(session_key)
+    logger.info("[TELEMETRY] session_dir=%s exists=%s", session_dir.resolve(), session_dir.exists())
     if session_dir.exists():
+        candidates = list(session_dir.glob(f"telemetry_{lap_mode}_*.json"))
+        logger.info(
+            "[TELEMETRY FLEX] %d candidate(s): %s",
+            len(candidates), [c.name for c in candidates],
+        )
         driver_set = set(driver_list)
-        for candidate in session_dir.glob(f"telemetry_{lap_mode}_*.json"):
+        for candidate in candidates:
             try:
                 import json as _json
                 data = _json.loads(candidate.read_text())
                 cached_codes = {d["driver_code"] for d in data.get("drivers", [])}
-                if driver_set.issubset(cached_codes):
+                is_match = driver_set.issubset(cached_codes)
+                logger.info(
+                    "[TELEMETRY FLEX] %s — cached=%s match=%s",
+                    candidate.name, sorted(cached_codes), is_match,
+                )
+                if is_match:
                     data["drivers"] = [
                         d for d in data["drivers"] if d["driver_code"] in driver_set
                     ]
@@ -56,7 +73,8 @@ async def get_telemetry(
                         session_key, sorted(driver_set), candidate.name,
                     )
                     return TelemetryData.model_validate(data)
-            except Exception:
+            except Exception as exc:
+                logger.warning("[TELEMETRY FLEX ERROR] %s: %s", candidate.name, exc)
                 continue
 
     # 3. Session type guard — telemetry replay only makes sense for Race sessions.

@@ -4,12 +4,17 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+# Absolute path so cache resolution is independent of the process working
+# directory (guards against Render starting uvicorn from the repo root
+# instead of the backend/ subdirectory).
+_DEFAULT_CACHE_DIR = str(Path(__file__).parents[2] / "cache")
+
 
 class Settings(BaseSettings):
     openf1_base_url: str = "https://api.openf1.org/v1"
     # Optional: OpenF1 API token for fetching sessions not in the static cache
     openf1_api_token: str = ""
-    cache_dir: str = "./cache"
+    cache_dir: str = _DEFAULT_CACHE_DIR
     environment: str = "development"
     cors_origins: list[str] = [
         "http://localhost:3000",
