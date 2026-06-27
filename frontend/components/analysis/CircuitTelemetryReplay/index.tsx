@@ -28,7 +28,7 @@ type Props = {
 export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
   const [data, setData] = useState<TelemetryData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<'race_only' | 'not_precomputed' | string | null>(null)
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>([])
   const [metric, setMetric] = useState<ActiveMetric>('speed')
   const [progress, setProgress] = useState(0)
@@ -64,10 +64,8 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
       setPlaying(false)
       const result = await getTelemetry(sessionKey, topCodes, lapMode)
       if (cancelled) return
-      if (result === 'production_unavailable') {
-        setError(
-          'Circuit telemetry is only available when running locally. Select a featured race for full analysis.',
-        )
+      if (result === 'race_only' || result === 'not_precomputed' || result === 'production_unavailable') {
+        setError(result)
         setLoading(false)
         return
       }
@@ -77,7 +75,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
         return
       }
       setData(result)
-      setSelectedDrivers(result.drivers.slice(0, 1).map((d) => d.driver_code))
+      setSelectedDrivers(result.drivers.slice(0, 1).map((d: { driver_code: string }) => d.driver_code))
       setLoading(false)
     }
     load()
@@ -149,10 +147,8 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     setLoading(true)
     setError(null)
     const result = await getTelemetry(sessionKey, topCodes)
-    if (result === 'production_unavailable') {
-      setError(
-        'Circuit telemetry is only available when running locally. Select a featured race for full analysis.',
-      )
+    if (result === 'race_only' || result === 'not_precomputed' || result === 'production_unavailable') {
+      setError(result)
       setLoading(false)
       return
     }
@@ -162,7 +158,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
       return
     }
     setData(result)
-    setSelectedDrivers(result.drivers.slice(0, 1).map((d) => d.driver_code))
+    setSelectedDrivers(result.drivers.slice(0, 1).map((d: { driver_code: string }) => d.driver_code))
     setLoading(false)
   }, [sessionKey, topCodes])
 
@@ -193,20 +189,39 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
 
   // ── Error state ───────────────────────────────────────────────────────────
   if (error || !data) {
+    const isRaceOnly = error === 'race_only'
+    const isNotPrecomputed = error === 'not_precomputed' || error === 'production_unavailable'
+
     return (
       <div className="bg-bg-panel border border-border-subtle rounded-[4px] p-8 flex flex-col items-center justify-center gap-3 min-h-[280px]">
         <div className="font-display font-bold text-[11px] uppercase tracking-[1.5px] text-text-secondary">
           Telemetry Unavailable
         </div>
         <div className="font-mono text-[10px] text-text-muted text-center max-w-sm">
-          {error ?? 'FastF1 data not found for this session.'}
+          {isRaceOnly
+            ? 'Circuit telemetry is only available for Race sessions.'
+            : isNotPrecomputed
+              ? "Telemetry for this session hasn't been precomputed yet. To visualise it locally, follow the setup guide in the repository."
+              : (error ?? 'FastF1 data not found for this session.')}
         </div>
-        <button
-          onClick={handleRetry}
-          className="mt-1 px-3 py-1.5 rounded-[3px] border border-border-default text-text-secondary hover:border-signal-blue hover:text-signal-blue font-display font-bold text-[10px] uppercase tracking-[1px] transition-all"
-        >
-          Retry
-        </button>
+        {isNotPrecomputed && (
+          <a
+            href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-[10px] text-signal-blue hover:underline"
+          >
+            View local setup guide →
+          </a>
+        )}
+        {!isRaceOnly && !isNotPrecomputed && (
+          <button
+            onClick={handleRetry}
+            className="mt-1 px-3 py-1.5 rounded-[3px] border border-border-default text-text-secondary hover:border-signal-blue hover:text-signal-blue font-display font-bold text-[10px] uppercase tracking-[1px] transition-all"
+          >
+            Retry
+          </button>
+        )}
       </div>
     )
   }

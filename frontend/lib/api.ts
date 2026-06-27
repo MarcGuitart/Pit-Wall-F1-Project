@@ -105,19 +105,31 @@ export async function engineerChat(payload: {
 
 /**
  * Circuit telemetry (FastF1) — loaded lazily when the Circuit View is expanded.
- * Returns null on generic failure, 'production_unavailable' when the server
- * explicitly signals it cannot run FastF1 (503 in production).
+ *
+ * Returns:
+ *   TelemetryData        — success
+ *   null                 — generic failure
+ *   'race_only'          — session is not a Race (Qualifying, Practice, etc.)
+ *   'not_precomputed'    — session is a Race but telemetry hasn't been precomputed
+ *   'production_unavailable' — legacy / unrecognised 503
  */
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
   lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
-): Promise<TelemetryData | null | 'production_unavailable'> {
+): Promise<TelemetryData | null | 'race_only' | 'not_precomputed' | 'production_unavailable'> {
   try {
     const res = await fetch(
       `${BASE_URL}/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,
     )
-    if (res.status === 503) return 'production_unavailable'
+    if (res.status === 503) {
+      try {
+        const body = await res.json()
+        if (body.error === 'telemetry_race_only') return 'race_only'
+        if (body.error === 'telemetry_not_precomputed') return 'not_precomputed'
+      } catch { /* fall through */ }
+      return 'production_unavailable'
+    }
     if (!res.ok) return null
     return (await res.json()) as TelemetryData
   } catch {

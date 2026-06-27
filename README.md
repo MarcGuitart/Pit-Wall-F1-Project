@@ -125,6 +125,17 @@ ollama serve
 
 The chat feature works without Ollama — it degrades gracefully with a clear message rather than breaking the rest of the analysis.
 
+### Telemetry for additional sessions (optional)
+
+The featured sessions (Brasil 2024, España 2024) include precomputed telemetry. To generate it for any other cached session, run:
+
+```bash
+cd backend
+python scripts/precompute_telemetry.py --sessions <session_key> --drivers VER,NOR,LEC,PIA,RUS
+```
+
+Replace `<session_key>` with the OpenF1 session key (e.g. `9662` for Abu Dhabi 2024). The script writes a JSON file to `backend/cache/` that the telemetry endpoint serves on the next request.
+
 ---
 
 ## Data source

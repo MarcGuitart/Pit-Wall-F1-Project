@@ -59,7 +59,25 @@ async def get_telemetry(
             except Exception:
                 continue
 
-    # 3. Production guard — FastF1 downloads 50-200 MB and would OOM Render free tier.
+    # 3. Session type guard — telemetry replay only makes sense for Race sessions.
+    #    Read from the nearest metadata source available.
+    _meta = cache.get_session_meta(session_key)
+    if _meta is None:
+        _analysis = cache.get_full_analysis(session_key)
+        _session_name = (_analysis or {}).get("race", {}).get("session_name") if _analysis else None
+    else:
+        _session_name = _meta.get("session_name") or _meta.get("session_type")
+
+    if _session_name and _session_name != "Race":
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "telemetry_race_only",
+                "message": "Circuit telemetry replay is only available for Race sessions.",
+            },
+        )
+
+    # 4. Production guard — FastF1 downloads 50-200 MB and would OOM Render free tier.
     #    If we reach here in production it means the precompute workflow hasn't run yet.
     if settings.environment == "production":
         return JSONResponse(
@@ -74,7 +92,7 @@ async def get_telemetry(
             },
         )
 
-    # 4. Development path — session metadata must already be in the analysis cache
+    # 5. Development path — session metadata must already be in the analysis cache
     analysis = cache.get_full_analysis(session_key)
     if not analysis:
         raise HTTPException(
@@ -87,7 +105,7 @@ async def get_telemetry(
 
     race = analysis["race"]
 
-    # 5. Prefer FastF1 circuit telemetry; fall back to OpenF1 car_data traces
+    # 6. Prefer FastF1 circuit telemetry; fall back to OpenF1 car_data traces
     tel_data = await load_telemetry(
         year=race["year"],
         circuit_name=race.get("circuit_short_name") or race["meeting_name"],
@@ -116,6 +134,6 @@ async def get_telemetry(
             },
         )
 
-    # 6. Persist for next request
+    # 7. Persist for next request
     cache.set(session_key, cache_key, tel_data.model_dump())
     return tel_data
