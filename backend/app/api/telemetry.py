@@ -16,7 +16,11 @@ from fastapi.responses import JSONResponse
 from app.core import cache
 from app.core.config import settings
 from app.domain.models import TelemetryData
-from app.services.telemetry_service import load_openf1_race_telemetry, load_telemetry
+
+# telemetry_service is imported lazily inside the dev-path branch only.
+# Keeping it out of the module-level imports ensures that fastf1 (which
+# telemetry_service pulls in) is never imported on Render, where it would
+# OOM the 512 MB container before the route handler is even registered.
 
 router = APIRouter(tags=["telemetry"])
 logger = logging.getLogger(__name__)
@@ -111,6 +115,10 @@ async def get_telemetry(
         )
 
     # 5. Development path — session metadata must already be in the analysis cache
+    # Lazy import: fastf1 is pulled in transitively here; keeping it out of the
+    # module-level imports prevents it from being loaded on Render where it OOMs.
+    from app.services.telemetry_service import load_openf1_race_telemetry, load_telemetry  # noqa: PLC0415
+
     analysis = cache.get_full_analysis(session_key)
     if not analysis:
         raise HTTPException(
