@@ -111,8 +111,8 @@ def _load_ff1_session(year: int, meeting_name: str, session_name: str):
     Using meeting_name directly avoids the CIRCUIT_NAME_MAP used by the runtime
     endpoint (which can miss entries like "Yas Marina Circuit").
     """
-    # fastf1_config enables the on-disk cache as a side-effect of import
-    from app.core import fastf1_config  # noqa: F401
+    from app.core.fastf1_config import configure_fastf1_cache
+    configure_fastf1_cache()
     import fastf1
 
     fastf1.Cache.enable_cache(FASTF1_CACHE)

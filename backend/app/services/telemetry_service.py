@@ -252,9 +252,9 @@ async def load_openf1_race_telemetry(
 
 def _load_fastf1_session(year: int, circuit: str, session_type: str):
     """Synchronous FastF1 load — run in executor."""
-    # Importing fastf1_config enables the on-disk cache as a side effect.
-    from app.core import fastf1_config  # noqa: F401
-    import fastf1 as ff1
+    from app.core.fastf1_config import configure_fastf1_cache  # noqa: PLC0415
+    configure_fastf1_cache()
+    import fastf1 as ff1  # noqa: PLC0415
 
     session = ff1.get_session(year, circuit, session_type)
     session.load(telemetry=True, laps=True, weather=False)

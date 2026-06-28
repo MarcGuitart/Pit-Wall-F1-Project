@@ -10,6 +10,7 @@ from app.api.chat import router as chat_router
 from app.api.telemetry import router as telemetry_router
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Pit Wall IQ",
@@ -30,6 +31,13 @@ app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(chat_router)
 app.include_router(telemetry_router)
+
+
+@app.on_event("startup")
+async def _startup_log() -> None:
+    paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+    logger.info("[STARTUP] environment=%s cache_path=%s", settings.environment, settings.cache_path.resolve())
+    logger.info("[STARTUP] routes registered: %s", paths)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
