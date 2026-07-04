@@ -190,10 +190,10 @@ export function RaceSelector() {
                         }
                       }}
                       className={[
-                        'h-9 px-2.5 py-0 flex items-center rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border whitespace-nowrap',
+                        'bg-bg-elevated border rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] transition-all whitespace-nowrap outline-none',
                         isSelected
-                          ? 'bg-signal-red/15 border-signal-red text-signal-red'
-                          : 'bg-bg-panel border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
+                          ? 'border-signal-red text-signal-red'
+                          : 'border-border-default text-text-secondary hover:border-border-default/80 hover:text-text-primary',
                       ].join(' ')}
                     >
                       {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
@@ -204,7 +204,7 @@ export function RaceSelector() {
                 ['Race', 'Qualifying', 'FP3', 'FP2', 'FP1'].map((label) => (
                   <span
                     key={label}
-                    className="h-9 px-2.5 py-0 flex items-center rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] border bg-bg-panel border-border-subtle text-text-muted whitespace-nowrap opacity-50"
+                    className="bg-bg-elevated border border-border-default rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] text-text-muted whitespace-nowrap opacity-50"
                   >
                     {label}
                   </span>
@@ -222,7 +222,7 @@ export function RaceSelector() {
             onClick={handleAnalyze}
             disabled={!canAnalyze}
             aria-disabled={!canAnalyze}
-            className="h-9 px-5 py-0 flex items-center bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end"
+            className="bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed border border-signal-red rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] text-white transition-all whitespace-nowrap self-end"
           >
             Analyze Race →
           </button>
