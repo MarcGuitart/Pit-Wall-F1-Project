@@ -42,7 +42,6 @@ export function RaceSelector() {
   const [loadingRaces, setLoadingRaces] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [backendError, setBackendError] = useState<string | null>(null)
-  const [hoveredSession, setHoveredSession] = useState<number | null>(null)
 
   const raceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sessionAbortRef = useRef<AbortController | null>(null)
@@ -160,7 +159,7 @@ export function RaceSelector() {
             width="280px"
           />
 
-          {/* Session pills — horizontal, API-driven, with hover date tooltip */}
+          {/* Session pills */}
           <div className="flex flex-col gap-1">
             <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
               Session
@@ -171,61 +170,48 @@ export function RaceSelector() {
             <div className="flex items-center gap-1.5 flex-wrap">
               {sessions.length > 0 ? (
                 sessions.map((s) => {
-                  const date = s.date_start ? new Date(s.date_start) : null
-                  const dateLabel = date
-                    ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                    : ''
                   const isSelected = selectedSessionKey === s.session_key
-                  const isHovered = hoveredSession === s.session_key
-
                   return (
-                    <div key={s.session_key} className="relative">
-                      <button
-                        onClick={() => setSelectedSessionKey(s.session_key)}
-                        onMouseEnter={() => {
-                          setHoveredSession(s.session_key)
-                          // Prefetch telemetry for precomputed Race sessions, once per session
-                          if (
-                            s.session_type === 'Race' &&
-                            TELEMETRY_PREFETCH_SESSIONS.has(s.session_key) &&
-                            !prefetchedRef.current.has(s.session_key)
-                          ) {
-                            prefetchedRef.current.add(s.session_key)
-                            fetch(
-                              `${API_BASE}/telemetry/${s.session_key}?drivers=VER,NOR,PIA,LEC,RUS&lap_mode=fastest_clean`,
-                            ).catch(() => {
-                              prefetchedRef.current.delete(s.session_key)
-                            })
-                          }
-                        }}
-                        onMouseLeave={() => setHoveredSession(null)}
-                        className={[
-                          'px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border whitespace-nowrap',
-                          isSelected
-                            ? 'bg-signal-red/15 border-signal-red text-signal-red'
-                            : 'bg-bg-panel border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
-                        ].join(' ')}
-                      >
-                        {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
-                      </button>
-
-                      {/* Date tooltip — shown on hover */}
-                      {isHovered && dateLabel && (
-                        <div
-                          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none"
-                          style={{ animation: 'fadeIn 0.1s ease-out' }}
-                        >
-                          <div className="px-2 py-1 bg-bg-elevated border border-border-default rounded-[3px] whitespace-nowrap">
-                            <span className="font-mono text-[9px] text-text-secondary">{dateLabel}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      key={s.session_key}
+                      onClick={() => setSelectedSessionKey(s.session_key)}
+                      onMouseEnter={() => {
+                        if (
+                          s.session_type === 'Race' &&
+                          TELEMETRY_PREFETCH_SESSIONS.has(s.session_key) &&
+                          !prefetchedRef.current.has(s.session_key)
+                        ) {
+                          prefetchedRef.current.add(s.session_key)
+                          fetch(
+                            `${API_BASE}/telemetry/${s.session_key}?drivers=VER,NOR,PIA,LEC,RUS&lap_mode=fastest_clean`,
+                          ).catch(() => {
+                            prefetchedRef.current.delete(s.session_key)
+                          })
+                        }
+                      }}
+                      className={[
+                        'px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border whitespace-nowrap',
+                        isSelected
+                          ? 'bg-signal-red/15 border-signal-red text-signal-red'
+                          : 'bg-bg-panel border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
+                      ].join(' ')}
+                    >
+                      {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
+                    </button>
                   )
                 })
+              ) : selectedMeetingKey && !loadingSessions ? (
+                ['Race', 'Qualifying', 'FP3', 'FP2', 'FP1'].map((label) => (
+                  <span
+                    key={label}
+                    className="px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] border bg-bg-panel border-border-subtle text-text-muted whitespace-nowrap opacity-50"
+                  >
+                    {label}
+                  </span>
+                ))
               ) : (
                 <span className="font-mono text-[10px] text-text-muted opacity-50">
-                  {selectedMeetingKey ? 'No sessions available' : 'Select a race first'}
+                  {selectedMeetingKey ? '' : 'Select a race first'}
                 </span>
               )}
             </div>
@@ -236,7 +222,7 @@ export function RaceSelector() {
             onClick={handleAnalyze}
             disabled={!canAnalyze}
             aria-disabled={!canAnalyze}
-            className="px-6 py-[9px] bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end"
+            className="h-8 px-4 py-0 flex items-center bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[12px] uppercase tracking-[1px] rounded-[3px] transition-all whitespace-nowrap self-end"
           >
             Analyze Race →
           </button>

@@ -33,8 +33,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #8A94A6;
 }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(3px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
