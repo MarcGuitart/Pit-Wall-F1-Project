@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://pitwallengineer.com/sitemap.xml
