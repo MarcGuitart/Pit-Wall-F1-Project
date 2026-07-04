@@ -82,5 +82,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add backend/cache/*/telemetry_*.json
-          git diff --staged --quiet || git commit -m "ci: precompute telemetry cache [skip ci]"
-          git push
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "ci: precompute telemetry cache [skip ci]"
+          git pull --rebase origin main
+          git push origin main
