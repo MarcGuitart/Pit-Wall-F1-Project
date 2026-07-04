@@ -10,7 +10,7 @@ on:
       drivers:
         description: 'Driver codes (comma-separated)'
         required: false
-        default: 'VER,NOR,PIA,LEC,RUS,HAM,SAI,ALO,ANT,GAS'
+        default: 'VER,NOR,PIA,LEC,RUS,HAM,SAI,ALO,ANT,GAS,PER,OCO,STR,TSU'
       force:
         description: 'Recompute even if telemetry cache already exists'
         required: false
@@ -71,7 +71,7 @@ jobs:
           fi
           python scripts/precompute_telemetry.py \
             --sessions "${{ github.event.inputs.sessions || 'all' }}" \
-            --drivers "${{ github.event.inputs.drivers || 'VER,NOR,PIA,LEC,RUS,HAM,SAI,ALO,ANT,GAS' }}" \
+            --drivers "${{ github.event.inputs.drivers || 'VER,NOR,PIA,LEC,RUS,HAM,SAI,ALO,ANT,GAS,PER,OCO,STR,TSU' }}" \
             $FORCE_FLAG
         env:
           ENVIRONMENT: ci

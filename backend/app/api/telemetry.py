@@ -46,9 +46,10 @@ async def get_telemetry(
         logger.info("[TELEMETRY EXACT HIT] %s — %s", session_key, cache_key)
         return TelemetryData.model_validate(cached)
 
-    # 2. Flexible match — any pre-computed file for the same lap_mode that covers
-    #    all requested drivers. Filters its driver list down to what was requested.
-    #    Avoids re-running FastF1 just because the caller asked for a subset.
+    # 2. Flexible match — find the best pre-computed file for this lap_mode.
+    #    "Best" = the candidate with the most overlap with the requested drivers.
+    #    Serves whichever requested drivers ARE cached; silently skips the rest.
+    #    Requires at least 2 matching drivers to avoid serving a single-driver result.
     session_dir = settings.cache_path / str(session_key)
     logger.info("[TELEMETRY] session_dir=%s exists=%s", session_dir.resolve(), session_dir.exists())
     if session_dir.exists():
@@ -58,28 +59,34 @@ async def get_telemetry(
             len(candidates), [c.name for c in candidates],
         )
         driver_set = set(driver_list)
+        best_data = None
+        best_overlap: set[str] = set()
         for candidate in candidates:
             try:
                 import json as _json
                 data = _json.loads(candidate.read_text())
                 cached_codes = {d["driver_code"] for d in data.get("drivers", [])}
-                is_match = driver_set.issubset(cached_codes)
+                overlap = driver_set & cached_codes
                 logger.info(
-                    "[TELEMETRY FLEX] %s — cached=%s match=%s",
-                    candidate.name, sorted(cached_codes), is_match,
+                    "[TELEMETRY FLEX] %s — cached=%s overlap=%s",
+                    candidate.name, sorted(cached_codes), sorted(overlap),
                 )
-                if is_match:
-                    data["drivers"] = [
-                        d for d in data["drivers"] if d["driver_code"] in driver_set
-                    ]
-                    logger.info(
-                        "[TELEMETRY FLEX HIT] %s — served %s from %s",
-                        session_key, sorted(driver_set), candidate.name,
-                    )
-                    return TelemetryData.model_validate(data)
+                if len(overlap) > len(best_overlap):
+                    best_overlap = overlap
+                    best_data = data
             except Exception as exc:
                 logger.warning("[TELEMETRY FLEX ERROR] %s: %s", candidate.name, exc)
                 continue
+
+        if best_data is not None and len(best_overlap) >= 2:
+            best_data["drivers"] = [
+                d for d in best_data["drivers"] if d["driver_code"] in best_overlap
+            ]
+            logger.info(
+                "[TELEMETRY FLEX HIT] %s — serving %s (requested %s)",
+                session_key, sorted(best_overlap), sorted(driver_set),
+            )
+            return TelemetryData.model_validate(best_data)
 
     # 3. Session type guard — telemetry replay only makes sense for Race sessions.
     #    Read from the nearest metadata source available.
