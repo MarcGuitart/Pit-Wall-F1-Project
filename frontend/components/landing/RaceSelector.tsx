@@ -14,6 +14,8 @@ const CHAOS_LEVEL = (score: number) => {
   return { label: 'Low Chaos', color: 'text-signal-green' }
 }
 
+const TELEMETRY_SESSIONS = new Set([9197, 9539, 9566, 9636, 9662])
+
 const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: string }> = {
   9636: { tag: 'CHAOS 94', tagColor: 'text-signal-red border-signal-red/40 bg-signal-red/10', reason: '3 safety cars · rain · VSC championship moment' },
   9539: { tag: 'UNDERCUT', tagColor: 'text-signal-purple border-signal-purple/40 bg-signal-purple/10', reason: 'Clean strategic race · pit window showcase' },
@@ -206,6 +208,7 @@ export function RaceSelector() {
           {DEMO_RACES.map((race) => {
             const chaosInfo = CHAOS_LEVEL(race.chaos_score)
             const featured = FEATURED_TAGS[race.session_key]
+            const hasTelemetry = TELEMETRY_SESSIONS.has(race.session_key)
             return (
               <button
                 key={race.session_key}
@@ -214,13 +217,18 @@ export function RaceSelector() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary group-hover:text-white transition-colors">
                         {race.meeting_name}
                       </div>
                       {featured && (
                         <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] shrink-0 ${featured.tagColor}`}>
                           {featured.tag}
+                        </span>
+                      )}
+                      {hasTelemetry && (
+                        <span className="px-1.5 py-0.5 border border-signal-blue/40 bg-signal-blue/10 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] text-signal-blue shrink-0">
+                          ◈ Telemetry
                         </span>
                       )}
                     </div>
@@ -255,6 +263,19 @@ export function RaceSelector() {
             )
           })}
         </div>
+        <p className="mt-3 font-mono text-[9px] text-text-muted">
+          Circuit telemetry replay available for{' '}
+          <span className="text-signal-blue">◈ highlighted</span> races.{' '}
+          For other sessions, follow the{' '}
+          <a
+            href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-signal-blue hover:underline"
+          >
+            local setup guide →
+          </a>
+        </p>
       </div>
     </div>
   )
