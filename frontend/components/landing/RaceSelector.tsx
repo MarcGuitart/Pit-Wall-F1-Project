@@ -154,36 +154,51 @@ export function RaceSelector() {
             width="280px"
           />
 
-          {/* Session chips */}
+          {/* Session list — vertical, API-driven only */}
           <div className="flex flex-col gap-1">
             <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
               Session
-              {loadingSessions && <span className="ml-2 text-text-muted normal-case tracking-normal">loading…</span>}
+              {loadingSessions && <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">loading…</span>}
             </label>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {sessions.length > 0
-                ? sessions.map((s) => (
+            <div className="flex flex-col gap-0.5">
+              {sessions.length > 0 ? (
+                sessions.map((s) => {
+                  const date = s.date_start ? new Date(s.date_start) : null
+                  const dateLabel = date
+                    ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : ''
+                  const isSelected = selectedSessionKey === s.session_key
+                  return (
                     <button
                       key={s.session_key}
                       onClick={() => setSelectedSessionKey(s.session_key)}
                       className={[
-                        'px-2.5 py-1.5 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[0.5px] transition-all border',
-                        selectedSessionKey === s.session_key
-                          ? 'bg-signal-red border-signal-red text-white'
+                        'px-3 py-1.5 rounded-[3px] transition-all border flex items-center justify-between gap-6 min-w-[220px]',
+                        isSelected
+                          ? 'bg-signal-red/15 border-signal-red/60 text-signal-red'
                           : 'border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
                       ].join(' ')}
                     >
-                      {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
+                      <span className="font-display font-bold text-[10px] uppercase tracking-[0.5px]">
+                        {s.session_name}
+                      </span>
+                      {dateLabel && (
+                        <span className={`font-mono text-[9px] shrink-0 ${isSelected ? 'text-signal-red/70' : 'text-text-muted'}`}>
+                          {dateLabel}
+                        </span>
+                      )}
                     </button>
-                  ))
-                : ['RACE', 'QUALI', 'FP3', 'FP2', 'FP1'].map((label) => (
-                    <div
-                      key={label}
-                      className="px-2.5 py-1.5 rounded-[3px] border border-border-subtle text-text-muted font-display font-bold text-[10px] uppercase opacity-40"
-                    >
-                      {label}
-                    </div>
-                  ))}
+                  )
+                })
+              ) : selectedMeetingKey ? (
+                <div className="px-3 py-1.5 rounded-[3px] border border-border-subtle font-mono text-[10px] text-text-muted opacity-50 min-w-[220px]">
+                  No sessions available
+                </div>
+              ) : (
+                <div className="px-3 py-1.5 rounded-[3px] border border-border-subtle font-mono text-[10px] text-text-muted opacity-40 min-w-[220px]">
+                  Select a race first
+                </div>
+              )}
             </div>
           </div>
 

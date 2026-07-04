@@ -123,6 +123,7 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
             if resp.status_code == 401:
                 fallback = _sessions_from_analysis_cache(meeting_key)
                 if fallback:
+                    logger.info(f"[SESSIONS FALLBACK] serving from analysis cache for meeting {meeting_key}")
                     logger.info("[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s", len(fallback), meeting_key)
                     race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
                     return fallback

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="5" fill="#05060A"/>
+  <rect x="1" y="1" width="30" height="30" rx="4" fill="none" stroke="#E8001D" stroke-width="1.5" opacity="0.6"/>
+  <text
+    x="16" y="21"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="13"
+    fill="#E8001D"
+    text-anchor="middle"
+    letter-spacing="-0.5"
+  >PW</text>
+</svg>
