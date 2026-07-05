@@ -4,6 +4,10 @@
 
 ### Watch F1 like an engineer, not like a spectator.
 
+<p align="center">
+  <img src="docs/assets/hero-demo.gif" alt="Pit Wall Engineer live demo" width="100%" />
+</p>
+
 **Pit Wall IQ** is a post-race strategy intelligence dashboard that transforms raw Formula 1 data into competitive analysis — real pace, tyre degradation, pit stop impact, race phases, weather crossovers, DRS trains, telemetry replay, and an AI race engineer that knows the session.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
@@ -29,22 +33,77 @@ The pipeline is straightforward: the backend fetches raw data from OpenF1 across
 
 What makes it more than a timing table is the layer of interpretation on top of the data. Clean laps are separated from safety car and traffic-affected laps before pace is ranked. Pit stop impact is calculated using timestamp-interpolated position data, not just lap numbers. Weather crossovers track which drivers were early, on-time, or late relative to when conditions changed — and flag when a safety car happened to coincide with the window. The telemetry replay lets you watch any driver's throttle, brake, gear, and speed trace with a synchronised circuit map.
 
+<p align="center">
+  <img src="docs/assets/strategy-dashboard.png" alt="Strategy dashboard for Brazilian Grand Prix 2024" width="100%" />
+  <br />
+  <em>Strategy view — São Paulo 2024, Chaos 100/Extreme</em>
+</p>
+
 ---
 
 ## Features
 
-| Feature | What it answers |
-|---|---|
-| **True Pace Ranking** | Who was actually fast, ignoring traffic, pit laps, and safety car periods? |
-| **Tyre Degradation Tracker** | Which stints were degrading, and who was close to a tyre cliff? |
-| **Pit Stop Impact** | Did that pit stop gain or lose positions? How long was the lane stop? |
-| **Race Phase Timeline** | How did the race break down into phases — opening, pit window, SC reset, final push? |
-| **Race DNA Card** | What kind of race was this? Tyre management, strategy sensitivity, overtaking difficulty. |
-| **DRS Train Detection** | Which drivers were stuck in DRS trains, and for how long did they last? |
-| **Chaos Index** | How much did safety cars, yellows, penalties, rain, and position volatility affect the race? |
-| **Weather Winners & Losers** | Who timed the weather crossover well, and who got caught on the wrong tyre? |
-| **Circuit Telemetry Replay** | How did each driver actually drive — throttle, brake, gear, speed, G-forces — lap by lap? |
-| **AI Race Engineer** | What does the data say about a specific moment or decision in this session? |
+### True Pace Ranking
+> Who was actually fast, ignoring traffic, pit laps, and safety car periods?
+
+<img src="docs/assets/true-pace-card.png" alt="True Pace detail card" width="100%" />
+
+---
+
+### Tyre Degradation Tracker
+> Which stints were degrading, and who was close to a tyre cliff?
+
+<img src="docs/assets/tyre-pit-panel.png" alt="Tyre and Pit tab" width="100%" />
+
+---
+
+### Pit Stop Impact
+> Did that pit stop gain or lose positions? How long was the lane stop?
+
+---
+
+### Race Phase Timeline
+> How did the race break down into phases — opening, pit window, SC reset, final push?
+
+<img src="docs/assets/race-phase-timeline.gif" alt="Race Phase Timeline animation" width="100%" />
+
+---
+
+### Race DNA Card
+> What kind of race was this? Tyre management, strategy sensitivity, overtaking difficulty.
+
+---
+
+### DRS Train Detection
+> Which drivers were stuck in DRS trains, and for how long did they last?
+
+---
+
+### Chaos Index
+> How much did safety cars, yellows, penalties, rain, and position volatility affect the race?
+
+<img src="docs/assets/chaos-timeline.png" alt="Race phase timeline with Chaos 100" width="100%" />
+
+---
+
+### Weather Winners & Losers
+> Who timed the weather crossover well, and who got caught on the wrong tyre?
+
+<img src="docs/assets/weather-crossover.png" alt="Weather Strategy Impact panel" width="100%" />
+
+---
+
+### Circuit Telemetry Replay
+> How did each driver actually drive — throttle, brake, gear, speed, G-forces — lap by lap?
+
+<img src="docs/assets/telemetry-replay.gif" alt="Circuit telemetry replay" width="100%" />
+
+---
+
+### AI Race Engineer
+> What does the data say about a specific moment or decision in this session?
+
+<img src="docs/assets/ai-chat.gif" alt="AI Race Engineer chat" width="100%" />
 
 ---
 
