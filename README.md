@@ -1,14 +1,10 @@
 <div align="center">
 
-# Pit Wall IQ
+# Pit Wall Engineer
 
 ### Watch F1 like an engineer, not like a spectator.
 
-<p align="center">
-  <img src="docs/assets/hero-demo.gif" alt="Pit Wall Engineer live demo" width="100%" />
-</p>
-
-**Pit Wall IQ** is a post-race strategy intelligence dashboard that transforms raw Formula 1 data into competitive analysis — real pace, tyre degradation, pit stop impact, race phases, weather crossovers, DRS trains, telemetry replay, and an AI race engineer that knows the session.
+A post-race intelligence dashboard that turns raw Formula 1 timing data into the analysis a race engineer would actually run — real pace, tyre degradation, pit impact, race phases, weather crossovers, and telemetry replay.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
@@ -16,27 +12,34 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-custom%20race%20UI-38BDF8?logo=tailwindcss&logoColor=white)
 ![OpenF1](https://img.shields.io/badge/Data-OpenF1-E10600)
-![Telemetry](https://img.shields.io/badge/Telemetry-throttle%20%7C%20brake%20%7C%20speed%20%7C%20gear-7C3AED)
 ![AI](https://img.shields.io/badge/AI-Ollama%20local-black)
 
 </div>
 
-<!-- screenshot -->
+<p align="center">
+  <img src="assets/hero-demo.gif" alt="Pit Wall Engineer — live telemetry replay" width="100%" />
+</p>
 
 ---
 
 ## What it does
 
-After a Formula 1 race, the broadcast tells you who finished where. Pit Wall IQ tries to answer the harder question: **why did that happen?** It surfaces the underlying story — who was actually fast when you strip out safety cars and traffic, who gained or lost positions through pit timing, where tyres started to fall off the cliff, and which decisions shaped the final order.
+After a Formula 1 race, the broadcast tells you who finished where. Pit Wall Engineer tries to answer the harder question: **why did that happen?** It surfaces the underlying story — who was actually fast when you strip out safety cars and traffic, who gained or lost positions through pit timing, where tyres started to fall off the cliff, and which decisions shaped the final order.
 
 The pipeline is straightforward: the backend fetches raw data from OpenF1 across eight endpoints (laps, stints, pit stops, position, intervals, race control, weather, driver metadata), caches it per session, then runs a sequence of analytical services that build a single canonical `RaceTimeline` object. Every service reads from the same timeline, which keeps the analysis consistent across modules. The result is a typed `FullRaceAnalysis` JSON payload served to the Next.js frontend.
 
 What makes it more than a timing table is the layer of interpretation on top of the data. Clean laps are separated from safety car and traffic-affected laps before pace is ranked. Pit stop impact is calculated using timestamp-interpolated position data, not just lap numbers. Weather crossovers track which drivers were early, on-time, or late relative to when conditions changed — and flag when a safety car happened to coincide with the window. The telemetry replay lets you watch any driver's throttle, brake, gear, and speed trace with a synchronised circuit map.
 
 <p align="center">
-  <img src="docs/assets/strategy-dashboard.png" alt="Strategy dashboard for Brazilian Grand Prix 2024" width="100%" />
+  <img src="assets/landing.png" alt="Pit Wall Engineer landing page" width="100%" />
   <br />
-  <em>Strategy view — São Paulo 2024, Chaos 100/Extreme</em>
+  <em>Select any season from 2023–2025, any Grand Prix, any session.</em>
+</p>
+
+<p align="center">
+  <img src="assets/strategy-dashboard.png" alt="Strategy view — São Paulo Grand Prix 2024" width="100%" />
+  <br />
+  <em>Strategy view — São Paulo Grand Prix 2024. Chaos 100/100 — Extreme.</em>
 </p>
 
 ---
@@ -44,66 +47,46 @@ What makes it more than a timing table is the layer of interpretation on top of 
 ## Features
 
 ### True Pace Ranking
-> Who was actually fast, ignoring traffic, pit laps, and safety car periods?
 
-<img src="docs/assets/true-pace-card.png" alt="True Pace detail card" width="100%" />
+Raw lap-time averages lie: they fold in pit laps, safety car crawls, and the odd mistake. The pace service filters every driver's laps down to clean racing laps — excluding pit in/out laps, safety car and VSC neutralised laps, laps with no timing, and statistical outliers beyond 2.5× IQR — then ranks drivers on the median of what's left. Each result carries a confidence level derived from the clean-lap sample size and an exclusion log that shows exactly which laps were dropped and why, so the ranking is auditable rather than a black box.
 
----
+<img src="assets/true-pace-card.png" alt="True Pace detail — Verstappen" width="100%" />
 
-### Tyre Degradation Tracker
-> Which stints were degrading, and who was close to a tyre cliff?
+### Tyre Degradation & Pit Stop Impact
 
-<img src="docs/assets/tyre-pit-panel.png" alt="Tyre and Pit tab" width="100%" />
+Degradation is measured as the linear-regression slope of lap time across each stint, so a driver nursing a set of hards shows a gentle gradient while someone on the edge shows a steep one — classified into a cliff-risk level. Pit stops are scored on `lane_duration` against a benchmark, then combined with position data one lap before and three laps after the stop to produce a verdict: positions gained, lost, or neutral. Together they answer whether an undercut actually worked or just looked busy.
 
----
+<img src="assets/tyre-pit-panel.png" alt="Tyre & Pit analysis panel" width="100%" />
 
-### Pit Stop Impact
-> Did that pit stop gain or lose positions? How long was the lane stop?
+### Race Phase Timeline & Chaos Index
 
----
+The race is segmented into labelled phases — start/sorting, pit window, safety car reset, VSC period, weather crossover, DRS compression, final push — resolved by a priority order so that a lap under a safety car is never mislabelled as ordinary racing. The Chaos Index rolls the disorder into a single 0–100 score built from safety cars, yellow flags, investigations, penalties, rain transitions, and total position volatility, and pins down the single `peak_chaos_lap` where the race was most out of shape.
 
-### Race Phase Timeline
-> How did the race break down into phases — opening, pit window, SC reset, final push?
-
-<img src="docs/assets/race-phase-timeline.gif" alt="Race Phase Timeline animation" width="100%" />
-
----
-
-### Race DNA Card
-> What kind of race was this? Tyre management, strategy sensitivity, overtaking difficulty.
-
----
-
-### DRS Train Detection
-> Which drivers were stuck in DRS trains, and for how long did they last?
-
----
-
-### Chaos Index
-> How much did safety cars, yellows, penalties, rain, and position volatility affect the race?
-
-<img src="docs/assets/chaos-timeline.png" alt="Race phase timeline with Chaos 100" width="100%" />
-
----
+<img src="assets/chaos-timeline.png" alt="Race Phase Timeline — Chaos 100" width="100%" />
 
 ### Weather Winners & Losers
-> Who timed the weather crossover well, and who got caught on the wrong tyre?
 
-<img src="docs/assets/weather-crossover.png" alt="Weather Strategy Impact panel" width="100%" />
+When the track transitions wet→dry or dry→wet, the crossover detector finds the window and classifies each driver's timing. The important guard here is that when a safety car overlaps a weather transition, the summary explicitly notes the concurrent SC and downgrades confidence — position gains during a crossover under safety car aren't attributed to tyre choice alone, which is where naive analyses go wrong.
 
----
+<img src="assets/weather-crossover.png" alt="Weather Strategy Impact" width="100%" />
 
 ### Circuit Telemetry Replay
-> How did each driver actually drive — throttle, brake, gear, speed, G-forces — lap by lap?
 
-<img src="docs/assets/telemetry-replay.gif" alt="Circuit telemetry replay" width="100%" />
+The telemetry tab pulls lap data from FastF1 and plays back synchronised speed, throttle, brake, and gear channels against an animated SVG circuit map. You can watch the fastest clean lap for outright pace, or a representative lap closest to the driver's median for how they drove on average — one running independently of the OpenF1 analysis pipeline, keyed only on year, circuit, and session type.
 
----
+<img src="assets/telemetry-replay.gif" alt="Circuit Telemetry Replay — Interlagos" width="100%" />
 
 ### AI Race Engineer
-> What does the data say about a specific moment or decision in this session?
 
-<img src="docs/assets/ai-chat.gif" alt="AI Race Engineer chat" width="100%" />
+The chat is grounded in the session's own computed analysis, not a general-purpose model guessing from memory. Before answering, it receives a compact summary of the actual signals — chaos score and peak lap, top clean-pace drivers, tyre cliffs, pit sequence, and race control events — so its answers reference this specific race and carry the same confidence framing as the rest of the dashboard. The model never sees raw OpenF1 arrays, only the interpreted analysis.
+
+<img src="assets/ai-chat.gif" alt="AI Race Engineer — grounded Q&A" width="100%" />
+
+### Also included
+
+- **DRS Train Detection** — identifies groups of three or more cars stuck within one second of each other and how long each train held together.
+- **Pit Stop Impact detail** — per-stop breakdown of lane time and net position change with a plain-language verdict.
+- **Race DNA Card** — a deterministic eight-point fingerprint of the race (tyre management, strategy sensitivity, overtaking difficulty, and more), fully reproducible from the same input.
 
 ---
 
