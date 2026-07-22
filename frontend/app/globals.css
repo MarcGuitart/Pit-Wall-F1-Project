@@ -33,3 +33,10 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #8A94A6;
 }
+
+/* Race-start loader — green "lights out" go-signal flash */
+@keyframes pwGoFlash {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}

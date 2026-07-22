@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pit Wall Engineer — Loader Preview</title>
+    <style>
+      :root {
+        --bg-primary: #05060a;
+        --border-default: #252d3a;
+        --text-primary: #f0f2f5;
+        --text-secondary: #8a94a6;
+        --signal-red: #e8001d;
+        --signal-green: #23d18b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: ui-monospace, "JetBrains Mono", monospace;
+        overflow: hidden;
+      }
+
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-primary);
+        overflow: hidden;
+        transition: opacity 560ms ease-out;
+      }
+      .overlay.fading { opacity: 0; }
+
+      .grid, .vignette, .grain, .scan {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .grid {
+        background-image:
+          linear-gradient(rgba(30,36,48,0.4) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(30,36,48,0.4) 1px, transparent 1px);
+        background-size: 40px 40px;
+        opacity: 0.4;
+      }
+      .vignette {
+        background: radial-gradient(ellipse 60% 55% at 50% 45%, transparent 25%, #05060a 100%);
+      }
+      .grain {
+        opacity: 0.07;
+        mix-blend-mode: overlay;
+        background-size: 140px 140px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+      .scan {
+        opacity: 0.5;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0px, rgba(0,0,0,0.16) 1px, transparent 1px, transparent 3px);
+      }
+      .go-flash {
+        position: absolute; inset: 0; pointer-events: none;
+        background: rgba(35,209,139,0.10);
+        opacity: 0;
+      }
+      .go-flash.fire { animation: pwGoFlash 0.6s ease-out forwards; }
+      @keyframes pwGoFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+
+      .content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; }
+
+      .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 40px; }
+      .brand .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
+      .brand.out .dot { background: var(--signal-green); }
+      .brand .name {
+        font-family: "Arial Black", system-ui, sans-serif;
+        font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: 3px;
+      }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+      .bar {
+        margin: 0 auto 8px; height: 6px; width: 92%; border-radius: 2px;
+        background: linear-gradient(180deg, #30343c 0%, #171a1f 60%, #0a0b0e 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 4px rgba(0,0,0,0.6);
+      }
+
+      .gantry { display: flex; align-items: flex-start; gap: 14px; }
+      .column {
+        position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px;
+        border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
+        background: linear-gradient(155deg, #23272f 0%, #12141a 45%, #0a0b0f 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -3px 6px rgba(0,0,0,0.7), 0 6px 16px rgba(0,0,0,0.55);
+      }
+      .column .sheen {
+        position: absolute; inset: 0; border-radius: 6px; pointer-events: none; opacity: 0.05;
+        background: repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px);
+      }
+      .rivet {
+        position: absolute; width: 4px; height: 4px; border-radius: 999px;
+        background: radial-gradient(circle at 40% 35%, #7b828c 0%, #2a2d33 60%, #0d0f12 100%);
+      }
+
+      .bezel {
+        position: relative; width: 44px; height: 44px; border-radius: 999px; padding: 3px;
+        background: linear-gradient(145deg, #4a4f59 0%, #1a1d23 55%, #05060a 100%);
+        box-shadow: inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -2px 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7);
+      }
+      .lens {
+        width: 100%; height: 100%; border-radius: 999px; transition: all 150ms;
+        background: radial-gradient(circle at 38% 30%, #3a1519 0%, #1b070a 55%, #090304 100%);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.85), inset 0 -1px 2px rgba(80,20,25,0.35);
+      }
+      .bezel.on .lens {
+        background: radial-gradient(circle at 38% 30%, #fff0f0 0%, #ff5566 20%, #E8001D 52%, #7a0010 100%);
+        box-shadow: 0 0 24px 6px rgba(232,0,29,0.6), 0 0 7px 1px rgba(255,90,110,0.85), inset 0 0 8px rgba(110,0,14,0.6);
+      }
+      .spec {
+        position: absolute; inset: 0; border-radius: 999px; pointer-events: none;
+        background: radial-gradient(circle at 34% 24%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 34%);
+      }
+
+      .status { margin-top: 40px; height: 16px; display: flex; align-items: center; font-size: 11px; letter-spacing: 1px; color: var(--text-secondary); }
+      .status.out { color: var(--signal-green); }
+      .status .cursor { margin-left: 4px; color: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
+      .status.out .cursor { color: var(--signal-green); }
+
+      .replay {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 20; padding: 8px 18px; border-radius: 3px; cursor: pointer;
+        background: var(--signal-red); color: #fff; border: none;
+        font-family: "Arial Black", sans-serif; font-weight: 800; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay" class="overlay">
+      <div class="grid"></div>
+      <div class="vignette"></div>
+      <div class="grain"></div>
+      <div class="scan"></div>
+      <div id="goFlash" class="go-flash"></div>
+
+      <div class="content">
+        <div id="brand" class="brand">
+          <span class="dot"></span>
+          <span class="name">Pit Wall Engineer</span>
+        </div>
+        <div>
+          <div class="bar"></div>
+          <div id="gantry" class="gantry"></div>
+        </div>
+        <div id="status" class="status">
+          <span id="line">INITIALIZING PIT WALL ENGINEER</span>
+          <span class="cursor">_</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="replay" onclick="run()">▶ Replay sequence</button>
+
+    <script>
+      const LIGHT_COUNT = 5;
+      const FIRST = 900, INTERVAL = 1000, HOLD = 1100;
+      const audio = new Audio('start-lights.mp3');
+      audio.volume = 0.7;
+      const LINES = [
+        'INITIALIZING PIT WALL ENGINEER',
+        'TELEMETRY BUS · ONLINE',
+        'RACE TIMELINE · SYNCED',
+        'STRATEGY MODULES · ARMED',
+        'GRID READY · STAND BY',
+      ];
+
+      const gantry = document.getElementById('gantry');
+      const columns = [];
+      for (let c = 0; c < LIGHT_COUNT; c++) {
+        const col = document.createElement('div');
+        col.className = 'column';
+        col.innerHTML =
+          '<span class="sheen"></span>' +
+          '<span class="rivet" style="left:4px;top:4px"></span>' +
+          '<span class="rivet" style="right:4px;top:4px"></span>' +
+          '<span class="rivet" style="left:4px;bottom:4px"></span>' +
+          '<span class="rivet" style="right:4px;bottom:4px"></span>' +
+          '<span class="bezel"><span class="lens"></span><span class="spec"></span></span>' +
+          '<span class="bezel"><span class="lens"></span><span class="spec"></span></span>';
+        gantry.appendChild(col);
+        columns.push(col);
+      }
+
+      let timers = [];
+      function run() {
+        timers.forEach(clearTimeout);
+        timers = [];
+        const line = document.getElementById('line');
+        const status = document.getElementById('status');
+        const brand = document.getElementById('brand');
+        const goFlash = document.getElementById('goFlash');
+
+        // reset
+        columns.forEach((c) => c.querySelectorAll('.bezel').forEach((b) => b.classList.remove('on')));
+        status.classList.remove('out'); brand.classList.remove('out');
+        goFlash.classList.remove('fire');
+        line.textContent = LINES[0];
+
+        // Restart audio synced with the sequence.
+        try { audio.pause(); audio.currentTime = 0; audio.play().catch(() => {}); } catch (e) {}
+
+        for (let i = 1; i <= LIGHT_COUNT; i++) {
+          timers.push(setTimeout(() => {
+            columns[i - 1].querySelectorAll('.bezel').forEach((b) => b.classList.add('on'));
+            line.textContent = LINES[Math.min(i, LINES.length - 1)];
+          }, FIRST + (i - 1) * INTERVAL));
+        }
+
+        const outAt = FIRST + (LIGHT_COUNT - 1) * INTERVAL + HOLD;
+        timers.push(setTimeout(() => {
+          columns.forEach((c) => c.querySelectorAll('.bezel').forEach((b) => b.classList.remove('on')));
+          status.classList.add('out'); brand.classList.add('out');
+          line.textContent = 'LIGHTS OUT — AND AWAY WE GO';
+          goFlash.classList.add('fire');
+        }, outAt));
+      }
+
+      run();
+    </script>
+  </body>
+</html>

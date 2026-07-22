@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+import { RaceStartLoader } from '@/components/layout/RaceStartLoader'
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body
         className={`${barlowCondensed.variable} ${barlow.variable} ${jetbrainsMono.variable} font-body antialiased bg-bg-primary text-text-primary`}
       >
+        <RaceStartLoader />
         {children}
       </body>
     </html>
