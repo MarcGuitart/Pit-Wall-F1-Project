@@ -190,3 +190,9 @@ Data via [OpenF1](https://openf1.org), free and with no API key required for his
 
 MIT. Not affiliated with Formula 1, FIA, or any F1 team.  
 OpenF1 data is used under their open data terms.
+
+---
+
+<p align="center">
+  <img src="assets/outro.gif" alt="Pit Wall Engineer" width="100%" />
+</p>
