@@ -78,7 +78,7 @@ The telemetry tab pulls lap data from FastF1 and plays back synchronised speed, 
 
 ### AI Race Engineer
 
-The chat is grounded in the session's own computed analysis, not a general-purpose model guessing from memory. Before answering, it receives a compact summary of the actual signals, including chaos score and peak lap, top clean-pace drivers, tyre cliffs, pit sequence, and race control events, so its answers reference this specific race and carry the same confidence framing as the rest of the dashboard. The model never sees raw OpenF1 arrays, only the interpreted analysis.
+The chat is grounded in the session's own computed analysis, not a general-purpose model guessing from memory. Before answering, it receives a compact summary of the actual signals, including chaos score and peak lap, top clean-pace drivers, tyre cliffs, pit sequence, and race control events, so its answers reference this specific race and carry the same confidence framing as the rest of the dashboard. The model never sees raw OpenF1 arrays, only the interpreted analysis. In production the backend routes to Groq (`llama-3.1-8b-instant`) when `GROQ_API_KEY` is set; locally it tries Ollama first and falls back to Groq if no local model is running. If neither is available the chat degrades gracefully with a clear offline message.
 
 <img src="assets/ai-chat.gif" alt="AI Race Engineer, grounded Q&A" width="100%" />
 
@@ -112,7 +112,7 @@ Next.js 14 frontend (TypeScript)
 ├── Strategy View / Data View toggle
 ├── 5 tabs: Strategy · Tyre & Pit · Weather · Race Control · Telemetry
 ├── Circuit Telemetry Replay (FastF1 + animated SVG, G-G diagram)
-└── AI Race Engineer chat (Ollama, session context injected as system prompt)
+└── AI Race Engineer chat (Ollama local → Groq cloud fallback, session context injected as system prompt)
 ```
 
 ---
@@ -125,7 +125,7 @@ Next.js 14 frontend (TypeScript)
 | Frontend | Next.js 14, TypeScript strict, Tailwind CSS, Framer Motion, Zustand, Recharts |
 | Telemetry | FastF1, NumPy, SVG animation |
 | Data | OpenF1 REST API, file-based JSON cache per session |
-| AI | Ollama (local), llama3.1:8b |
+| AI | Groq cloud (`llama-3.1-8b-instant`, production) · Ollama (`llama3.1:8b`, local dev) |
 
 ---
 
@@ -158,14 +158,18 @@ npm run dev
 
 Open http://localhost:3000
 
-### AI race engineer (optional)
+### AI race engineer
+
+**Production (Groq):** set `GROQ_API_KEY` in your environment (free tier at [console.groq.com](https://console.groq.com)). The backend picks it up automatically and routes to `llama-3.1-8b-instant` with no local model required.
+
+**Local dev (Ollama):** the backend tries Ollama first before falling back to Groq.
 
 ```bash
 ollama pull llama3.1:8b
 ollama serve
 ```
 
-The chat feature works without Ollama; it degrades gracefully with a clear message rather than breaking the rest of the analysis.
+If neither Ollama nor a Groq key is available, the chat degrades gracefully with a clear offline message rather than breaking the rest of the analysis.
 
 ### Telemetry for additional sessions (optional)
 
