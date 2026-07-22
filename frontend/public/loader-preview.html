@@ -6,16 +6,22 @@
     <title>Pit Wall Engineer — Loader Preview</title>
     <style>
       :root {
-        --bg-primary: #05060a;
-        --border-default: #252d3a;
-        --text-primary: #f0f2f5;
-        --text-secondary: #8a94a6;
-        --signal-red: #e8001d;
-        --signal-green: #23d18b;
+        --bg-primary:    #05060a;
+        --bg-secondary:  #0B0D12;
+        --bg-panel:      #111419;
+        --bg-elevated:   #181C23;
+        --border-subtle: #1E2430;
+        --border-default:#252D3A;
+        --text-primary:  #F0F2F5;
+        --text-secondary:#8A94A6;
+        --text-muted:    #4A5568;
+        --signal-red:    #E8001D;
+        --signal-green:  #23D18B;
+        --signal-blue:   #4DA3FF;
+        --signal-amber:  #FFB020;
       }
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; }
       body {
-        margin: 0;
         min-height: 100vh;
         background: var(--bg-primary);
         color: var(--text-primary);
@@ -23,157 +29,242 @@
         overflow: hidden;
       }
 
+      /* ── shared overlay surfaces ── */
       .overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: var(--bg-primary);
-        overflow: hidden;
-        transition: opacity 560ms ease-out;
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: var(--bg-primary); overflow: hidden;
+        transition: opacity 600ms ease-out;
       }
-      .overlay.fading { opacity: 0; }
+      .overlay.fading { opacity: 0; pointer-events: none; }
 
-      .grid, .vignette, .grain, .scan {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
+      .layer { position: absolute; inset: 0; pointer-events: none; }
       .grid {
         background-image:
           linear-gradient(rgba(30,36,48,0.4) 1px, transparent 1px),
           linear-gradient(90deg, rgba(30,36,48,0.4) 1px, transparent 1px);
-        background-size: 40px 40px;
-        opacity: 0.4;
+        background-size: 40px 40px; opacity: 0.4;
       }
       .vignette {
         background: radial-gradient(ellipse 60% 55% at 50% 45%, transparent 25%, #05060a 100%);
       }
       .grain {
-        opacity: 0.07;
-        mix-blend-mode: overlay;
+        opacity: 0.07; mix-blend-mode: overlay;
         background-size: 140px 140px;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
       }
       .scan {
-        opacity: 0.5;
+        opacity: 0.45;
         background: repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0px, rgba(0,0,0,0.16) 1px, transparent 1px, transparent 3px);
       }
-      .go-flash {
-        position: absolute; inset: 0; pointer-events: none;
-        background: rgba(35,209,139,0.10);
-        opacity: 0;
+
+      /* ── gate screen ── */
+      #gate { display: flex; }
+      #gate .content { position: relative; z-index: 10; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 32px; padding: 0 16px; }
+
+      .brand { display: flex; align-items: center; gap: 8px; }
+      .brand .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
+      .brand .dot.green { background: var(--signal-green); }
+      .brand .name { font-family: "Arial Black", system-ui, sans-serif; font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: 3px; }
+      @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+      /* Status panel — matches app's panel/border system */
+      .status-panel {
+        width: 100%; border-radius: 4px; border: 1px solid var(--border-subtle); overflow: hidden;
+        background: var(--bg-panel);
       }
-      .go-flash.fire { animation: pwGoFlash 0.6s ease-out forwards; }
-      @keyframes pwGoFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
-
-      .content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; }
-
-      .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 40px; }
-      .brand .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
-      .brand.out .dot { background: var(--signal-green); }
-      .brand .name {
-        font-family: "Arial Black", system-ui, sans-serif;
-        font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: 3px;
+      .panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-secondary);
       }
-      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+      .panel-header-left { display: flex; align-items: center; gap: 8px; }
+      .panel-header-left .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--signal-green); animation: pulse 1.4s ease-in-out infinite; }
+      .panel-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); font-weight: 700; font-family: "Arial Black", sans-serif; }
+      .panel-version { font-size: 9px; color: var(--text-muted); }
+      .status-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+      .status-row:last-child { border-bottom: none; }
+      .row-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+      .row-value { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
 
-      .bar {
-        margin: 0 auto 8px; height: 6px; width: 92%; border-radius: 2px;
-        background: linear-gradient(180deg, #30343c 0%, #171a1f 60%, #0a0b0e 100%);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 4px rgba(0,0,0,0.6);
+      /* FIA button */
+      .fia-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+      .fia-ping {
+        position: absolute; width: 192px; height: 192px; border-radius: 50%; pointer-events: none;
+        background: radial-gradient(circle, #E8001D 0%, transparent 70%);
+        animation: ping 2.4s ease-out infinite; opacity: 0.15;
       }
+      @keyframes ping { 0%{transform:scale(.85);opacity:.15}70%{transform:scale(1.15);opacity:0}100%{opacity:0} }
 
+      .fia-plate {
+        position: relative; width: 168px; height: 168px; border-radius: 50%; cursor: pointer; border: none; padding: 10px;
+        background: radial-gradient(circle at 35% 30%, #4a4f5a 0%, #25292f 40%, #141719 75%, #08090c 100%);
+        box-shadow: inset 0 -2px 0 rgba(255,255,255,0.05), 0 10px 40px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04);
+        transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+        overflow: visible;
+      }
+      .fia-plate:active, .fia-plate.pressing {
+        transform: scale(0.962) translateY(3px);
+        box-shadow: inset 0 5px 14px rgba(0,0,0,0.95), 0 2px 6px rgba(0,0,0,0.8);
+      }
+      .fia-collar {
+        position: absolute; inset: 10px; border-radius: 50%;
+        background: linear-gradient(150deg, #383d46 0%, #1a1d22 55%, #0c0e11 100%);
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.75), inset 0 -1px 0 rgba(255,255,255,0.07);
+      }
+      .fia-face {
+        position: absolute; inset: 18px; border-radius: 50%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+        background: radial-gradient(circle at 37% 30%, #ff3f52 0%, #E8001D 40%, #940012 78%, #4e0009 100%);
+        box-shadow: inset 0 -3px 9px rgba(0,0,0,0.45), inset 0 2px 5px rgba(255,110,120,0.25), 0 0 22px 5px rgba(232,0,29,0.35);
+        transition: background 80ms ease-out, box-shadow 80ms ease-out;
+      }
+      .fia-plate.pressing .fia-face {
+        background: radial-gradient(circle at 50% 58%, #a8001a 0%, #7e000e 55%, #4e0009 100%);
+        box-shadow: inset 0 5px 14px rgba(0,0,0,0.65);
+      }
+      .fia-spec {
+        position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+        background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0) 44%);
+      }
+      .fia-label-1 { color: rgba(255,255,255,0.9); font-family: "Arial Black", sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 900; position: relative; }
+      .fia-label-2 { color: rgba(255,255,255,0.6); font-family: "Arial Black", sans-serif; font-size: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; position: relative; margin-top: 2px; }
+      .fia-rivet {
+        position: absolute; width: 5px; height: 5px; border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #5e666f 0%, #22252a 70%);
+      }
+      .hint { font-size: 9px; text-transform: uppercase; letter-spacing: 2.5px; color: var(--text-muted); opacity: 0.6; animation: pulse 2s ease-in-out infinite; }
+
+      /* ── sequence screen ── */
+      #sequence { display: none; }
+      #sequence .content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; padding: 0 24px; }
+      .go-flash { position: absolute; inset: 0; pointer-events: none; background: rgba(35,209,139,0.10); opacity: 0; }
+      .go-flash.fire { animation: goflash 0.6s ease-out forwards; }
+      @keyframes goflash { 0%{opacity:0}25%{opacity:1}100%{opacity:0} }
+
+      .seq-brand { margin-bottom: 40px; }
+      .bar { margin: 0 auto 8px; height: 6px; width: 92%; border-radius: 2px; background: linear-gradient(180deg,#30343c 0%,#171a1f 60%,#0a0b0e 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.15),0 2px 4px rgba(0,0,0,0.6); }
       .gantry { display: flex; align-items: flex-start; gap: 14px; }
       .column {
         position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px;
         border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
-        background: linear-gradient(155deg, #23272f 0%, #12141a 45%, #0a0b0f 100%);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -3px 6px rgba(0,0,0,0.7), 0 6px 16px rgba(0,0,0,0.55);
+        background: linear-gradient(155deg,#23272f 0%,#12141a 45%,#0a0b0f 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.10),inset 0 -3px 6px rgba(0,0,0,0.7),0 6px 16px rgba(0,0,0,0.55);
       }
-      .column .sheen {
-        position: absolute; inset: 0; border-radius: 6px; pointer-events: none; opacity: 0.05;
-        background: repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px);
-      }
-      .rivet {
-        position: absolute; width: 4px; height: 4px; border-radius: 999px;
-        background: radial-gradient(circle at 40% 35%, #7b828c 0%, #2a2d33 60%, #0d0f12 100%);
-      }
-
+      .sheen { position: absolute; inset: 0; border-radius: 6px; pointer-events: none; opacity: 0.05; background: repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 3px); }
+      .rivet { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: radial-gradient(circle at 40% 35%,#7b828c 0%,#2a2d33 60%,#0d0f12 100%); }
       .bezel {
-        position: relative; width: 44px; height: 44px; border-radius: 999px; padding: 3px;
-        background: linear-gradient(145deg, #4a4f59 0%, #1a1d23 55%, #05060a 100%);
-        box-shadow: inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -2px 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7);
+        position: relative; width: 44px; height: 44px; border-radius: 50%; padding: 3px;
+        background: linear-gradient(145deg,#4a4f59 0%,#1a1d23 55%,#05060a 100%);
+        box-shadow: inset 0 1px 1px rgba(255,255,255,0.35),inset 0 -2px 3px rgba(0,0,0,0.85),0 1px 2px rgba(0,0,0,0.7);
       }
       .lens {
-        width: 100%; height: 100%; border-radius: 999px; transition: all 150ms;
-        background: radial-gradient(circle at 38% 30%, #3a1519 0%, #1b070a 55%, #090304 100%);
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.85), inset 0 -1px 2px rgba(80,20,25,0.35);
+        width: 100%; height: 100%; border-radius: 50%; transition: all 150ms;
+        background: radial-gradient(circle at 38% 30%,#3a1519 0%,#1b070a 55%,#090304 100%);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.85),inset 0 -1px 2px rgba(80,20,25,0.35);
       }
       .bezel.on .lens {
-        background: radial-gradient(circle at 38% 30%, #fff0f0 0%, #ff5566 20%, #E8001D 52%, #7a0010 100%);
-        box-shadow: 0 0 24px 6px rgba(232,0,29,0.6), 0 0 7px 1px rgba(255,90,110,0.85), inset 0 0 8px rgba(110,0,14,0.6);
+        background: radial-gradient(circle at 38% 30%,#fff0f0 0%,#ff5566 20%,#E8001D 52%,#7a0010 100%);
+        box-shadow: 0 0 24px 6px rgba(232,0,29,0.6),0 0 7px 1px rgba(255,90,110,0.85),inset 0 0 8px rgba(110,0,14,0.6);
       }
-      .spec {
-        position: absolute; inset: 0; border-radius: 999px; pointer-events: none;
-        background: radial-gradient(circle at 34% 24%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 34%);
-      }
+      .spec { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: radial-gradient(circle at 34% 24%,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0) 34%); }
 
-      .status { margin-top: 40px; height: 16px; display: flex; align-items: center; font-size: 11px; letter-spacing: 1px; color: var(--text-secondary); }
-      .status.out { color: var(--signal-green); }
-      .status .cursor { margin-left: 4px; color: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
-      .status.out .cursor { color: var(--signal-green); }
+      .status-line { margin-top: 40px; height: 16px; display: flex; align-items: center; font-size: 11px; letter-spacing: 1px; color: var(--text-secondary); }
+      .status-line.out { color: var(--signal-green); }
+      .cursor { margin-left: 4px; color: var(--signal-red); animation: pulse 1.4s ease-in-out infinite; }
+      .status-line.out .cursor { color: var(--signal-green); }
 
-      .replay {
+      /* dev replay button */
+      .replay-btn {
         position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-        z-index: 20; padding: 8px 18px; border-radius: 3px; cursor: pointer;
-        background: var(--signal-red); color: #fff; border: none;
-        font-family: "Arial Black", sans-serif; font-weight: 800; font-size: 11px;
-        text-transform: uppercase; letter-spacing: 1px;
+        z-index: 20; padding: 8px 20px; border-radius: 3px; cursor: pointer;
+        background: #111419; color: var(--text-secondary); border: 1px solid var(--border-default);
+        font-family: ui-monospace, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
       }
+      .replay-btn:hover { border-color: var(--signal-red); color: var(--signal-red); }
     </style>
   </head>
   <body>
-    <div id="overlay" class="overlay">
-      <div class="grid"></div>
-      <div class="vignette"></div>
-      <div class="grain"></div>
-      <div class="scan"></div>
-      <div id="goFlash" class="go-flash"></div>
 
+    <!-- Gate screen -->
+    <div id="gate" class="overlay">
+      <div class="layer grid"></div>
+      <div class="layer vignette"></div>
+      <div class="layer grain"></div>
+      <div class="layer scan"></div>
       <div class="content">
-        <div id="brand" class="brand">
+        <div class="brand">
           <span class="dot"></span>
+          <span class="name">Pit Wall Engineer</span>
+        </div>
+
+        <div class="status-panel">
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <span class="dot" style="background:var(--signal-green)"></span>
+              <span class="panel-label">System Status</span>
+            </div>
+            <span class="panel-version">PWE · v4</span>
+          </div>
+          <div class="status-row"><span class="row-label">Telemetry Bus</span><span class="row-value" style="color:var(--signal-green)">Online</span></div>
+          <div class="status-row"><span class="row-label">Analysis Engine</span><span class="row-value" style="color:var(--signal-green)">Armed</span></div>
+          <div class="status-row"><span class="row-label">Session Cache</span><span class="row-value" style="color:var(--signal-green)">Ready</span></div>
+          <div class="status-row"><span class="row-label">OpenF1 Stream</span><span class="row-value" style="color:var(--signal-blue)">Connected</span></div>
+          <div class="status-row"><span class="row-label">Chaos Index</span><span class="row-value" style="color:var(--signal-amber)">Calibrating</span></div>
+        </div>
+
+        <div class="fia-wrap">
+          <span class="fia-ping"></span>
+          <button id="fiaBtn" class="fia-plate" onclick="startSequence()">
+            <span class="fia-collar"></span>
+            <span class="fia-face">
+              <span class="fia-spec"></span>
+              <span class="fia-label-1">Start</span>
+              <span class="fia-label-2">Race Analysis</span>
+            </span>
+            <span class="fia-rivet" style="top:11px;left:11px"></span>
+            <span class="fia-rivet" style="top:11px;right:11px"></span>
+            <span class="fia-rivet" style="bottom:11px;left:11px"></span>
+            <span class="fia-rivet" style="bottom:11px;right:11px"></span>
+          </button>
+        </div>
+
+        <span class="hint">Press to enter</span>
+      </div>
+    </div>
+
+    <!-- Sequence screen -->
+    <div id="sequence" class="overlay">
+      <div class="layer grid"></div>
+      <div class="layer vignette"></div>
+      <div class="layer grain"></div>
+      <div class="layer scan"></div>
+      <div id="goFlash" class="layer go-flash"></div>
+      <div class="content">
+        <div class="seq-brand brand">
+          <span id="seqDot" class="dot"></span>
           <span class="name">Pit Wall Engineer</span>
         </div>
         <div>
           <div class="bar"></div>
           <div id="gantry" class="gantry"></div>
         </div>
-        <div id="status" class="status">
-          <span id="line">INITIALIZING PIT WALL ENGINEER</span>
+        <div id="statusLine" class="status-line">
+          <span id="lineText">INITIALIZING PIT WALL ENGINEER</span>
           <span class="cursor">_</span>
         </div>
       </div>
     </div>
 
-    <button class="replay" onclick="run()">▶ Replay sequence</button>
+    <!-- Dev replay -->
+    <button class="replay-btn" onclick="resetToGate()">↺ Replay</button>
 
     <script>
       const LIGHT_COUNT = 5;
       const FIRST = 900, INTERVAL = 1000, HOLD = 1100;
-      const audio = new Audio('start-lights.mp3');
-      audio.volume = 0.7;
-      const LINES = [
-        'INITIALIZING PIT WALL ENGINEER',
-        'TELEMETRY BUS · ONLINE',
-        'RACE TIMELINE · SYNCED',
-        'STRATEGY MODULES · ARMED',
-        'GRID READY · STAND BY',
-      ];
+      const LINES = ['INITIALIZING PIT WALL ENGINEER','TELEMETRY BUS · ONLINE','RACE TIMELINE · SYNCED','STRATEGY MODULES · ARMED','GRID READY · STAND BY'];
 
+      // Build gantry columns
       const gantry = document.getElementById('gantry');
       const columns = [];
       for (let c = 0; c < LIGHT_COUNT; c++) {
@@ -192,40 +283,69 @@
       }
 
       let timers = [];
-      function run() {
-        timers.forEach(clearTimeout);
-        timers = [];
-        const line = document.getElementById('line');
-        const status = document.getElementById('status');
-        const brand = document.getElementById('brand');
+      let audio = null;
+
+      function startSequence() {
+        document.getElementById('fiaBtn').classList.add('pressing');
+
+        // Audio on user gesture — guaranteed by browsers
+        try {
+          audio = new Audio('start-lights.mp3');
+          audio.volume = 0.7;
+          audio.play().catch(() => {});
+        } catch(e) {}
+
+        setTimeout(() => {
+          document.getElementById('gate').style.display = 'none';
+          const seq = document.getElementById('sequence');
+          seq.style.display = 'flex';
+          runSequence();
+        }, 200);
+      }
+
+      function runSequence() {
+        timers.forEach(clearTimeout); timers = [];
+        const lineEl = document.getElementById('lineText');
+        const statusLine = document.getElementById('statusLine');
+        const seqDot = document.getElementById('seqDot');
         const goFlash = document.getElementById('goFlash');
+        const seq = document.getElementById('sequence');
 
-        // reset
-        columns.forEach((c) => c.querySelectorAll('.bezel').forEach((b) => b.classList.remove('on')));
-        status.classList.remove('out'); brand.classList.remove('out');
+        columns.forEach(c => c.querySelectorAll('.bezel').forEach(b => b.classList.remove('on')));
+        statusLine.classList.remove('out'); seqDot.classList.remove('green');
         goFlash.classList.remove('fire');
-        line.textContent = LINES[0];
-
-        // Restart audio synced with the sequence.
-        try { audio.pause(); audio.currentTime = 0; audio.play().catch(() => {}); } catch (e) {}
+        lineEl.textContent = LINES[0];
 
         for (let i = 1; i <= LIGHT_COUNT; i++) {
           timers.push(setTimeout(() => {
-            columns[i - 1].querySelectorAll('.bezel').forEach((b) => b.classList.add('on'));
-            line.textContent = LINES[Math.min(i, LINES.length - 1)];
-          }, FIRST + (i - 1) * INTERVAL));
+            columns[i-1].querySelectorAll('.bezel').forEach(b => b.classList.add('on'));
+            lineEl.textContent = LINES[Math.min(i, LINES.length-1)];
+          }, FIRST + (i-1) * INTERVAL));
         }
 
-        const outAt = FIRST + (LIGHT_COUNT - 1) * INTERVAL + HOLD;
+        const outAt = FIRST + (LIGHT_COUNT-1) * INTERVAL + HOLD;
         timers.push(setTimeout(() => {
-          columns.forEach((c) => c.querySelectorAll('.bezel').forEach((b) => b.classList.remove('on')));
-          status.classList.add('out'); brand.classList.add('out');
-          line.textContent = 'LIGHTS OUT — AND AWAY WE GO';
+          columns.forEach(c => c.querySelectorAll('.bezel').forEach(b => b.classList.remove('on')));
+          statusLine.classList.add('out');
+          seqDot.classList.add('green'); seqDot.style.background = 'var(--signal-green)';
+          lineEl.textContent = 'LIGHTS OUT — AND AWAY WE GO';
           goFlash.classList.add('fire');
         }, outAt));
+
+        timers.push(setTimeout(() => {
+          seq.classList.add('fading');
+        }, outAt + 300));
       }
 
-      run();
+      function resetToGate() {
+        timers.forEach(clearTimeout); timers = [];
+        if (audio) { audio.pause(); audio.currentTime = 0; }
+        const gate = document.getElementById('gate');
+        const seq = document.getElementById('sequence');
+        gate.style.display = 'flex'; gate.style.opacity = '1';
+        seq.style.display = 'none'; seq.classList.remove('fading');
+        document.getElementById('fiaBtn').classList.remove('pressing');
+      }
     </script>
   </body>
 </html>
