@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # Groq cloud AI — free tier, no local model required (console.groq.com for API key)
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "llama3-8b-8192"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
