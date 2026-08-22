@@ -138,6 +138,8 @@ async def _call_groq(system: str, question: str) -> str:
             headers=headers,
             json=payload,
         )
+        if not r.is_success:
+            logger.error("[AI] Groq HTTP %s — body: %s", r.status_code, r.text)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"].strip()
 
