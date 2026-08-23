@@ -27,8 +27,8 @@ class TruePaceRow(BaseModel):
     team_name: Optional[str] = None
     team_colour: Optional[str] = None
     rank: int
-    median_lap: float
-    clean_pace: float
+    median_clean_lap: float
+    fastest_clean_lap: float
     traffic_score: float
     sample_size: int
     confidence: Literal["Low", "Medium", "High"]

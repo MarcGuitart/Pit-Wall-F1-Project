@@ -37,7 +37,8 @@ def build_chat_context(
             {
                 "driver": r.driver_code,
                 "team": r.team_name,
-                "pace": r.clean_pace,
+                "median_pace_seconds": r.median_clean_lap,
+                "best_clean_lap_seconds": r.fastest_clean_lap,
                 "rank": r.rank,
                 "verdict": r.verdict,
             }
@@ -160,8 +161,8 @@ def build_chat_context(
         if driver_pace:
             ctx["driver_pace"] = {
                 "rank": driver_pace.rank,
-                "clean_pace": driver_pace.clean_pace,
-                "median_lap": driver_pace.median_lap,
+                "median_pace_seconds": driver_pace.median_clean_lap,
+                "best_clean_lap_seconds": driver_pace.fastest_clean_lap,
                 "sample_size": driver_pace.sample_size,
                 "confidence": driver_pace.confidence,
                 "verdict": driver_pace.verdict,

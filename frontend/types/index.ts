@@ -23,8 +23,8 @@ export type TruePaceRow = {
   team_name: string | null
   team_colour: string | null
   rank: number
-  median_lap: number
-  clean_pace: number
+  median_clean_lap: number
+  fastest_clean_lap: number
   traffic_score: number
   sample_size: number
   confidence: 'Low' | 'Medium' | 'High'

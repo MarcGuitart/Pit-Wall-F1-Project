@@ -103,7 +103,7 @@ def _pace_summary(true_pace_count: int, rank: int) -> RaceDecision:
         explanation=(
             f"True pace ranking computed from {true_pace_count} drivers. "
             "SC, pit in/out, and statistical outlier laps excluded. "
-            "Ranking reflects clean-air single-lap representative pace."
+            "Ranking reflects median clean-lap pace, not a single peak lap."
         ),
         confidence="High",
     )

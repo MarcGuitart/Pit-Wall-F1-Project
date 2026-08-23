@@ -60,7 +60,7 @@ export function generateSuggestedQuestions(
   if (paceSorted.length >= 2) {
     const p1 = paceSorted[0]
     const p2 = paceSorted[1]
-    const gap = Math.abs(p1.clean_pace - p2.clean_pace).toFixed(2)
+    const gap = Math.abs(p1.median_clean_lap - p2.median_clean_lap).toFixed(2)
     questions.push(`Why was ${p1.driver_code} ${gap}s faster on clean laps than ${p2.driver_code}?`)
   }
 

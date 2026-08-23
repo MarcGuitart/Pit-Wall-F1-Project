@@ -103,8 +103,8 @@ def compute_true_pace(
                 team_name=team,
                 team_colour=d_info.get("team_colour"),
                 rank=0,
-                median_lap=round(med, 3),
-                clean_pace=round(fastest, 3),
+                median_clean_lap=round(med, 3),
+                fastest_clean_lap=round(fastest, 3),
                 traffic_score=traffic,
                 sample_size=sample,
                 confidence=conf,  # type: ignore[arg-type]
@@ -113,7 +113,8 @@ def compute_true_pace(
             )
         )
 
-    rows.sort(key=lambda r: r.clean_pace)
+    # Sustained pace, not a single peak lap — median of the clean-lap set.
+    rows.sort(key=lambda r: r.median_clean_lap)
     for i, row in enumerate(rows):
         row.rank = i + 1
 

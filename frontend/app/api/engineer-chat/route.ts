@@ -16,7 +16,7 @@ function buildSystemPrompt(ctx: FullRaceAnalysis, focusedDriver?: string | null)
     .map(
       (d) =>
         `  P${d.rank} ${d.driver_code} (${d.team_name ?? 'unknown team'}): ` +
-        `clean pace ${d.clean_pace.toFixed(3)}s, median ${d.median_lap.toFixed(3)}s, ` +
+        `median clean lap ${d.median_clean_lap.toFixed(3)}s, fastest clean lap ${d.fastest_clean_lap.toFixed(3)}s, ` +
         `${d.sample_size} laps, ${d.confidence} confidence, traffic delta +${d.traffic_score.toFixed(3)}s`
     )
     .join('\n')

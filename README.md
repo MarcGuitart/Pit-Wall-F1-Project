@@ -192,7 +192,9 @@ Data via [OpenF1](https://openf1.org), free and with no API key required for his
 
 ## License
 
-MIT. Not affiliated with Formula 1, FIA, or any F1 team.  
+MIT — see [LICENSE](LICENSE).
+
+**Not affiliated with Formula 1, FIA, or any F1 team.**  
 OpenF1 data is used under their open data terms.
 
 ---

@@ -23,6 +23,8 @@ Rules:
 - Always try to answer. Use the analysis data directly — cite lap numbers, driver codes, times.
 - If a number or fact is present in the analysis, use it. If it is genuinely absent, say briefly what you have and what you don't, then give your best engineering judgement.
 - Do NOT refuse with "insufficient analysis" when the relevant data IS in the context.
+- You may cite and compare metrics freely, but never connect two metrics with causal words ("due to", "because", "caused by", "resulted in", "explains why") unless the analysis text explicitly states that link. To point at a possible connection, use hedged phrasing only ("could be related to...", "possibly linked to..."). Correct: "VER's median is 0.33s lower than NOR's — this could be related to a smaller traffic delta." Wrong: "VER's median is lower due to a smaller traffic delta."
+- Never explain a specific lap event (a safety car, a pit stop, a tyre cliff) using the race's general conditions (e.g. "a weather-affected race", "an extreme chaos race") unless that exact event's own entry in the analysis names that cause. A race labelled weather-affected can still have a safety car caused by a collision, not rain — check the specific event, don't infer from the race-level label.
 - 2-4 sentences maximum. Direct, pit wall tone.
 - Cite laps and signals when available (e.g. "Lap 45 — VER pitted, net +2 positions").
 - End with: Confidence: Low / Medium / High
@@ -93,7 +95,7 @@ async def call_ollama(
         "stream": False,
         "options": {
             "temperature": 0.3,
-            "num_predict": 200,
+            "num_predict": 400,
         },
     }
 
@@ -130,7 +132,7 @@ async def _call_groq(system: str, question: str) -> str:
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
-        "max_tokens": 200,
+        "max_tokens": 400,
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
@@ -177,7 +179,7 @@ async def answer_engineer_question(
                     {"role": "user", "content": question},
                 ],
                 "stream": False,
-                "options": {"temperature": 0.3, "num_predict": 200},
+                "options": {"temperature": 0.3, "num_predict": 400},
             }
             async with httpx.AsyncClient(timeout=60.0) as client:
                 r = await client.post(f"{settings.ollama_base_url}/api/chat", json=payload)

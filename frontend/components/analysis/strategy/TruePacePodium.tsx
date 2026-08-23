@@ -1,5 +1,5 @@
 import type { TruePaceRow } from '@/types'
-import { formatLapTime, formatDelta } from '@/lib/format'
+import { formatLapTime } from '@/lib/format'
 import { ConfidenceChip } from '@/components/ui/ConfidenceChip'
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
@@ -18,13 +18,11 @@ const SESSION_LABEL: Record<string, string> = {
 }
 
 function PodiumCard({
-  row, leader, isP1, onDriverClick,
+  row, isP1, onDriverClick,
 }: {
-  row: TruePaceRow; leader: number; isP1: boolean
+  row: TruePaceRow; isP1: boolean
   onDriverClick: (code: string, name: string) => void
 }) {
-  const delta = row.clean_pace - leader
-
   return (
     <div
       onClick={() => onDriverClick(row.driver_code, row.team_name ?? row.driver_code)}
@@ -46,9 +44,9 @@ function PodiumCard({
         </div>
       </div>
       <div>
-        <div className="font-mono font-bold text-[13px] text-text-primary tabular-nums">{formatLapTime(row.clean_pace)}</div>
-        <div className={`font-mono text-[9px] tabular-nums ${isP1 ? 'text-signal-green' : 'text-signal-amber'}`}>
-          {isP1 ? 'Fastest' : formatDelta(delta)}
+        <div className="font-mono font-bold text-[13px] text-text-primary tabular-nums">{formatLapTime(row.median_clean_lap)}</div>
+        <div className="font-mono text-[9px] tabular-nums text-text-muted">
+          Best {formatLapTime(row.fastest_clean_lap)}
         </div>
       </div>
       <ConfidenceChip confidence={row.confidence} />
@@ -83,13 +81,13 @@ export function TruePacePodium({ rows, onDriverClick, onViewAll, sessionType }: 
         {/* Podium layout: P2 | P1 | P3 */}
         <div className="grid grid-cols-3 gap-2 mb-2">
           {p2 ? (
-            <PodiumCard row={p2} leader={p1?.clean_pace ?? p2.clean_pace} isP1={false} onDriverClick={onDriverClick} />
+            <PodiumCard row={p2} isP1={false} onDriverClick={onDriverClick} />
           ) : <div className="bg-bg-elevated border border-border-subtle rounded-[4px] p-2.5 flex items-center justify-center"><span className="font-mono text-[9px] text-text-muted">No data</span></div>}
           {p1 ? (
-            <PodiumCard row={p1} leader={p1.clean_pace} isP1={true} onDriverClick={onDriverClick} />
+            <PodiumCard row={p1} isP1={true} onDriverClick={onDriverClick} />
           ) : <div />}
           {p3 ? (
-            <PodiumCard row={p3} leader={p1?.clean_pace ?? p3.clean_pace} isP1={false} onDriverClick={onDriverClick} />
+            <PodiumCard row={p3} isP1={false} onDriverClick={onDriverClick} />
           ) : <div className="bg-bg-elevated border border-border-subtle rounded-[4px] p-2.5 flex items-center justify-center"><span className="font-mono text-[9px] text-text-muted">No data</span></div>}
         </div>
 

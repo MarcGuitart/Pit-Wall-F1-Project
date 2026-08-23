@@ -1,7 +1,7 @@
 'use client'
 
 import type { TruePaceRow } from '@/types'
-import { formatLapTime, formatDelta } from '@/lib/format'
+import { formatLapTime } from '@/lib/format'
 
 type Props = {
   rows: TruePaceRow[]
@@ -16,8 +16,6 @@ const CONFIDENCE_STYLES = {
 }
 
 export function TruePaceTable({ rows, onDriverClick, selectedDriver }: Props) {
-  const leader = rows[0]?.clean_pace ?? 0
-
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       {/* Header */}
@@ -32,7 +30,7 @@ export function TruePaceTable({ rows, onDriverClick, selectedDriver }: Props) {
 
       {/* Column headers */}
       <div className="grid grid-cols-[32px_1fr_100px_60px_56px] gap-0 px-3 py-1.5 border-b border-border-subtle">
-        {['#', 'Driver', 'Pace', 'Sample', 'Conf.'].map((h) => (
+        {['#', 'Driver', 'Median', 'Sample', 'Conf.'].map((h) => (
           <span
             key={h}
             className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted"
@@ -45,7 +43,6 @@ export function TruePaceTable({ rows, onDriverClick, selectedDriver }: Props) {
       {/* Rows */}
       <div className="divide-y divide-border-subtle">
         {rows.map((row) => {
-          const delta = row.clean_pace - leader
           const isSelected = selectedDriver === row.driver_number
 
           return (
@@ -79,16 +76,14 @@ export function TruePaceTable({ rows, onDriverClick, selectedDriver }: Props) {
                 </div>
               </div>
 
-              {/* Pace */}
+              {/* Median clean-lap pace, with the single fastest clean lap as a secondary reference */}
               <div className="flex flex-col justify-center">
                 <span className="font-mono text-[12px] text-text-primary tabular-nums">
-                  {formatLapTime(row.clean_pace)}
+                  {formatLapTime(row.median_clean_lap)}
                 </span>
-                {row.rank > 1 && (
-                  <span className="font-mono text-[9px] text-signal-amber tabular-nums">
-                    {formatDelta(delta)}
-                  </span>
-                )}
+                <span className="font-mono text-[9px] text-text-muted tabular-nums">
+                  Best {formatLapTime(row.fastest_clean_lap)}
+                </span>
               </div>
 
               {/* Sample */}

@@ -94,8 +94,8 @@ export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngin
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Clean Pace', value: formatLapTime(driver.clean_pace) },
-                  { label: 'Median Lap', value: formatLapTime(driver.median_lap) },
+                  { label: 'Median Clean Lap', value: formatLapTime(driver.median_clean_lap) },
+                  { label: 'Fastest Clean Lap', value: formatLapTime(driver.fastest_clean_lap) },
                   { label: 'Traffic Score', value: `${driver.traffic_score.toFixed(1)}s` },
                   { label: 'Sample Size', value: `${driver.sample_size} laps` },
                 ].map(({ label, value }) => (
