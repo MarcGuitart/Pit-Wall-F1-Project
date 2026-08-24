@@ -16,7 +16,6 @@ import { TrafficAndPrepPanel } from './strategy/TrafficAndPrepPanel'
 import { WeatherOverlay } from './strategy/WeatherOverlay'
 import { DRSTrainDetector } from './strategy/DRSTrainDetector'
 import { CleanAirValueCard } from './CleanAirValueCard'
-import { RaceClassificationPanel } from './RaceClassificationPanel'
 
 // Stub fallbacks when data is unavailable
 import { WeatherOverlay as WeatherStub } from './stubs/WeatherOverlay'
@@ -58,7 +57,7 @@ export function StrategyViewGrid({ analysis, sessionType, focusedDriver, onDrive
       <div className="space-y-3">
         <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <TruePacePodium rows={true_pace} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
+          <TruePacePodium rows={true_pace} classification={analysis.race_classification} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
           <TrackEvolutionPanel degradationRows={tyre_degradation} notes={visibleNotes} sessionType={sessionType} />
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -80,7 +79,7 @@ export function StrategyViewGrid({ analysis, sessionType, focusedDriver, onDrive
       <div className="space-y-3">
         <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <TruePacePodium rows={true_pace} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
+          <TruePacePodium rows={true_pace} classification={analysis.race_classification} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
           <TrackEvolutionPanel degradationRows={tyre_degradation} notes={visibleNotes} sessionType={sessionType} />
         </div>
         <EngineerSignalSummary notes={visibleNotes} onViewAll={onSwitchToData} />
@@ -95,12 +94,9 @@ export function StrategyViewGrid({ analysis, sessionType, focusedDriver, onDrive
       <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
       {analysis.race_dna && <RaceDNACard dna={analysis.race_dna} />}
 
-      {/* Row 1.5: what actually happened, before the analysis of why */}
-      <RaceClassificationPanel rows={analysis.race_classification} onDriverClick={onDriverClick} />
-
       {/* Row 2: Pace | Cliff */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <TruePacePodium rows={true_pace} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
+        <TruePacePodium rows={true_pace} classification={analysis.race_classification} onDriverClick={onDriverClick} onViewAll={onSwitchToData} sessionType={sessionType} />
         <TyreCliffMap degradationRows={tyre_degradation} onDriverClick={click} sessionType={sessionType} />
       </div>
 
