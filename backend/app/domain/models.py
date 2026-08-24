@@ -34,6 +34,18 @@ class TruePaceRow(BaseModel):
     confidence: Literal["Low", "Medium", "High"]
     exclusion_log: list[str]
     verdict: str
+    # Actual race result — deliberately separate from `rank` (True Pace strips
+    # out pit/SC/traffic; the finishing position doesn't). Shown side by side
+    # so the two are never mistaken for one another.
+    finishing_position: Optional[int] = None
+
+
+class RaceClassificationRow(BaseModel):
+    driver_number: int
+    driver_code: str
+    team_name: Optional[str] = None
+    team_colour: Optional[str] = None
+    finishing_position: Optional[int] = None
 
 
 class TyreDegradationRow(BaseModel):
@@ -276,6 +288,8 @@ class FullRaceAnalysis(BaseModel):
     drs_trains: Optional[DRSAnalysisAggregated] = None
     # V4 — clean air value
     clean_air_value: Optional[CleanAirValue] = None
+    # Actual race result, independent of True Pace ranking
+    race_classification: list[RaceClassificationRow] = []
 
 
 class RaceListItem(BaseModel):

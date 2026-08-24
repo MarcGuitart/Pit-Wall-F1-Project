@@ -30,6 +30,16 @@ export type TruePaceRow = {
   confidence: 'Low' | 'Medium' | 'High'
   exclusion_log: string[]
   verdict: string
+  // Actual race result — independent of True Pace's rank, shown side by side
+  finishing_position: number | null
+}
+
+export type RaceClassificationRow = {
+  driver_number: number
+  driver_code: string
+  team_name: string | null
+  team_colour: string | null
+  finishing_position: number | null
 }
 
 export type TyreDegradationRow = {
@@ -274,6 +284,7 @@ export type FullRaceAnalysis = {
   weather_winners_losers: WeatherWinnersLosers | null
   drs_trains: DRSAnalysisAggregated | null
   clean_air_value: CleanAirValue | null
+  race_classification: RaceClassificationRow[]
 }
 
 // ── Race selector types ───────────────────────────────────────────────────────
