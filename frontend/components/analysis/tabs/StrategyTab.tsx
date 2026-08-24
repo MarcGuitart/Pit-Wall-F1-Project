@@ -64,6 +64,7 @@ export function StrategyTab({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               <TruePacePodium
                 rows={true_pace}
+                classification={analysis.race_classification}
                 onDriverClick={onDriverClick}
                 onViewAll={() => onAnalysisModeChange('data')}
                 sessionType={sessionType}

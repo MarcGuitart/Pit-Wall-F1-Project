@@ -1,11 +1,16 @@
-import type { TruePaceRow } from '@/types'
+'use client'
+
+import { useState } from 'react'
+import type { TruePaceRow, RaceClassificationRow } from '@/types'
 import { formatLapTime } from '@/lib/format'
 import { ConfidenceChip } from '@/components/ui/ConfidenceChip'
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
+import { RaceClassificationPanel } from '../RaceClassificationPanel'
 
 type Props = {
   rows: TruePaceRow[]
+  classification: RaceClassificationRow[]
   onDriverClick: (code: string, name: string) => void
   onViewAll: () => void
   sessionType: string
@@ -54,7 +59,46 @@ function PodiumCard({
   )
 }
 
-export function TruePacePodium({ rows, onDriverClick, onViewAll, sessionType }: Props) {
+function RealPodiumRow({ classification, onDriverClick }: {
+  classification: RaceClassificationRow[]
+  onDriverClick: (code: string, name: string) => void
+}) {
+  const podium = classification
+    .filter((r) => r.finishing_position != null && r.finishing_position <= 3)
+    .sort((a, b) => (a.finishing_position ?? 99) - (b.finishing_position ?? 99))
+
+  if (!podium.length) return null
+
+  return (
+    <div className="mb-2">
+      <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted mb-1">
+        Real Podium — race result
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {podium.map((r) => (
+          <button
+            key={r.driver_number}
+            onClick={() => onDriverClick(r.driver_code, r.team_name ?? r.driver_code)}
+            className="flex items-center gap-1.5 rounded-[3px] border border-border-subtle bg-bg-elevated px-2 py-1.5 hover:brightness-110 transition-all"
+          >
+            <span className="font-mono font-bold text-[10px] text-text-muted">P{r.finishing_position}</span>
+            <span
+              className="w-[3px] h-4 rounded-[1px] shrink-0"
+              style={{ backgroundColor: r.team_colour ?? '#8A94A6' }}
+            />
+            <span className="font-display font-bold text-[11px] uppercase text-text-primary truncate">
+              {r.driver_code}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function TruePacePodium({ rows, classification, onDriverClick, onViewAll, sessionType }: Props) {
+  const [showClassification, setShowClassification] = useState(false)
+
   const top3 = rows.filter((r) => r.rank <= 3).sort((a, b) => a.rank - b.rank)
 
   const p1 = top3.find((r) => r.rank === 1)
@@ -97,16 +141,49 @@ export function TruePacePodium({ rows, onDriverClick, onViewAll, sessionType }: 
           </p>
         )}
 
+        <RealPodiumRow classification={classification} onDriverClick={onDriverClick} />
+
         <div className="flex items-center justify-between pt-1.5 border-t border-border-subtle">
           <EstimatedLabel />
-          <button
-            onClick={onViewAll}
-            className="font-mono text-[10px] text-text-muted hover:text-signal-blue transition-colors"
-          >
-            Full table ({rows.length}) →
-          </button>
+          <div className="flex items-center gap-3">
+            {classification.length > 0 && (
+              <button
+                onClick={() => setShowClassification(true)}
+                className="font-mono text-[10px] text-text-muted hover:text-signal-blue transition-colors"
+              >
+                Full classification ({classification.length}) →
+              </button>
+            )}
+            <button
+              onClick={onViewAll}
+              className="font-mono text-[10px] text-text-muted hover:text-signal-blue transition-colors"
+            >
+              Full table ({rows.length}) →
+            </button>
+          </div>
         </div>
       </div>
+
+      {showClassification && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowClassification(false)}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <RaceClassificationPanel rows={classification} onDriverClick={onDriverClick} />
+            <button
+              onClick={() => setShowClassification(false)}
+              className="mt-2 w-full font-mono text-[10px] text-text-muted hover:text-text-primary transition-colors"
+            >
+              Close ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
