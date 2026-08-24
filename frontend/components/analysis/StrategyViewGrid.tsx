@@ -16,6 +16,7 @@ import { TrafficAndPrepPanel } from './strategy/TrafficAndPrepPanel'
 import { WeatherOverlay } from './strategy/WeatherOverlay'
 import { DRSTrainDetector } from './strategy/DRSTrainDetector'
 import { CleanAirValueCard } from './CleanAirValueCard'
+import { RaceClassificationPanel } from './RaceClassificationPanel'
 
 // Stub fallbacks when data is unavailable
 import { WeatherOverlay as WeatherStub } from './stubs/WeatherOverlay'
@@ -93,6 +94,9 @@ export function StrategyViewGrid({ analysis, sessionType, focusedDriver, onDrive
       {/* Row 1: Brain */}
       <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
       {analysis.race_dna && <RaceDNACard dna={analysis.race_dna} />}
+
+      {/* Row 1.5: what actually happened, before the analysis of why */}
+      <RaceClassificationPanel rows={analysis.race_classification} onDriverClick={onDriverClick} />
 
       {/* Row 2: Pace | Cliff */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">

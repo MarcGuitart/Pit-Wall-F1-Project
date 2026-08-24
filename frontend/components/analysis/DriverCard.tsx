@@ -63,7 +63,8 @@ export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngin
             </div>
           </div>
 
-          {/* Pace rank badge */}
+          {/* Pace rank badge + actual race result, side by side on purpose —
+              True Pace strips out pit/SC/traffic, the race result doesn't */}
           <div className="flex items-center gap-3">
             <div className="text-center">
               <div
@@ -76,6 +77,16 @@ export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngin
                 True Pace
               </div>
             </div>
+            {driver.finishing_position != null && (
+              <div className="text-center border-l border-border-subtle pl-3">
+                <div className="font-mono font-bold text-[28px] leading-none text-text-secondary">
+                  P{driver.finishing_position}
+                </div>
+                <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">
+                  Race Result
+                </div>
+              </div>
+            )}
             <button
               onClick={onClose}
               className="w-7 h-7 flex items-center justify-center rounded-[2px] bg-bg-elevated hover:bg-border-default transition-colors text-text-muted hover:text-text-primary font-mono text-[13px]"

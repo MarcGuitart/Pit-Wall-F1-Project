@@ -22,6 +22,7 @@ from app.services.race_dna_service import compute_race_dna
 from app.services.race_phase_service import classify_race_phases
 from app.services.crossover_service import detect_crossover_windows, compute_weather_winners_losers
 from app.services.clean_air_service import estimate_clean_air_value
+from app.services.classification_service import compute_race_classification
 from app.utils.time import is_session_historical
 
 router = APIRouter(tags=["analysis"])
@@ -277,6 +278,13 @@ async def get_analysis(
         tyre_degradation = compute_tyre_degradation(laps, stints, race_control, drivers)
         pit_impact       = compute_pit_impact(pit, position_data, laps, drivers)
         chaos            = compute_chaos_index(race_control, weather, position_data)
+
+        # Actual race result — independent of True Pace, attached onto each row
+        # so the two are shown side by side rather than mistaken for each other.
+        race_classification = compute_race_classification(position_data, drivers)
+        finish_by_driver = {r.driver_number: r.finishing_position for r in race_classification}
+        for row in true_pace:
+            row.finishing_position = finish_by_driver.get(row.driver_number)
         race_brain       = _build_race_brain(
             chaos.score, chaos.level, chaos.summary,
             true_pace, tyre_degradation, pit_impact,
@@ -362,6 +370,7 @@ async def get_analysis(
             weather_winners_losers=weather_winners_losers,
             drs_trains=drs_trains,
             clean_air_value=clean_air_value,
+            race_classification=race_classification,
         )
 
         # 7. Persist to disk
