@@ -282,9 +282,13 @@ async def get_analysis(
         # Actual race result — independent of True Pace, attached onto each row
         # so the two are shown side by side rather than mistaken for each other.
         race_classification = compute_race_classification(position_data, drivers)
-        finish_by_driver = {r.driver_number: r.finishing_position for r in race_classification}
+        result_by_driver = {r.driver_number: r for r in race_classification}
         for row in true_pace:
-            row.finishing_position = finish_by_driver.get(row.driver_number)
+            res = result_by_driver.get(row.driver_number)
+            if res:
+                row.grid_position = res.grid_position
+                row.finishing_position = res.finishing_position
+                row.positions_gained = res.positions_gained
         race_brain       = _build_race_brain(
             chaos.score, chaos.level, chaos.summary,
             true_pace, tyre_degradation, pit_impact,
