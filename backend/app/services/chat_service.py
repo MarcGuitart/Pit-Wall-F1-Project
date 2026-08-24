@@ -40,7 +40,9 @@ def build_chat_context(
                 "median_pace_seconds": r.median_clean_lap,
                 "best_clean_lap_seconds": r.fastest_clean_lap,
                 "true_pace_rank": r.rank,
+                "starting_grid_position": r.grid_position,
                 "actual_race_finish_position": r.finishing_position,
+                "positions_gained": r.positions_gained,
                 "verdict": r.verdict,
             }
             for r in pace_sorted[:3]
@@ -100,6 +102,32 @@ def build_chat_context(
             )[:6]
         ],
     }
+
+    # Grid-to-finish movement — the only place the starting grid appears, so
+    # questions about where drivers started are answerable from data, not guessed.
+    if analysis.race_classification:
+        movers = [r for r in analysis.race_classification if r.positions_gained is not None]
+        if movers:
+            ctx["grid_to_finish"] = {
+                "biggest_gainers": [
+                    {
+                        "driver": r.driver_code,
+                        "started": r.grid_position,
+                        "finished": r.finishing_position,
+                        "positions_gained": r.positions_gained,
+                    }
+                    for r in sorted(movers, key=lambda x: -(x.positions_gained or 0))[:3]
+                ],
+                "biggest_losers": [
+                    {
+                        "driver": r.driver_code,
+                        "started": r.grid_position,
+                        "finished": r.finishing_position,
+                        "positions_gained": r.positions_gained,
+                    }
+                    for r in sorted(movers, key=lambda x: (x.positions_gained or 0))[:3]
+                ],
+            }
 
     # ── V4 optional context (added only when available) ─────────────────────
 
@@ -162,7 +190,9 @@ def build_chat_context(
         if driver_pace:
             ctx["driver_pace"] = {
                 "true_pace_rank": driver_pace.rank,
+                "starting_grid_position": driver_pace.grid_position,
                 "actual_race_finish_position": driver_pace.finishing_position,
+                "positions_gained": driver_pace.positions_gained,
                 "median_pace_seconds": driver_pace.median_clean_lap,
                 "best_clean_lap_seconds": driver_pace.fastest_clean_lap,
                 "sample_size": driver_pace.sample_size,

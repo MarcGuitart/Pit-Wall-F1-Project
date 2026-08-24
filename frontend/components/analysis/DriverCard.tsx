@@ -85,6 +85,22 @@ export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngin
                 <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">
                   Race Result
                 </div>
+                {driver.grid_position != null && driver.positions_gained != null && (
+                  <div className="font-mono text-[9px] tabular-nums mt-0.5">
+                    <span className="text-text-muted">from P{driver.grid_position} </span>
+                    <span
+                      className={
+                        driver.positions_gained > 0
+                          ? 'text-signal-green'
+                          : driver.positions_gained < 0
+                            ? 'text-signal-red'
+                            : 'text-text-muted'
+                      }
+                    >
+                      {driver.positions_gained > 0 ? '+' : ''}{driver.positions_gained}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             <button

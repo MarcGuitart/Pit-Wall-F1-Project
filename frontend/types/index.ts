@@ -31,7 +31,9 @@ export type TruePaceRow = {
   exclusion_log: string[]
   verdict: string
   // Actual race result — independent of True Pace's rank, shown side by side
+  grid_position: number | null
   finishing_position: number | null
+  positions_gained: number | null
 }
 
 export type RaceClassificationRow = {
@@ -39,7 +41,9 @@ export type RaceClassificationRow = {
   driver_code: string
   team_name: string | null
   team_colour: string | null
+  grid_position: number | null
   finishing_position: number | null
+  positions_gained: number | null
 }
 
 export type TyreDegradationRow = {

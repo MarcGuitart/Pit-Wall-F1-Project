@@ -37,7 +37,9 @@ class TruePaceRow(BaseModel):
     # Actual race result — deliberately separate from `rank` (True Pace strips
     # out pit/SC/traffic; the finishing position doesn't). Shown side by side
     # so the two are never mistaken for one another.
+    grid_position: Optional[int] = None
     finishing_position: Optional[int] = None
+    positions_gained: Optional[int] = None
 
 
 class RaceClassificationRow(BaseModel):
@@ -45,7 +47,9 @@ class RaceClassificationRow(BaseModel):
     driver_code: str
     team_name: Optional[str] = None
     team_colour: Optional[str] = None
+    grid_position: Optional[int] = None
     finishing_position: Optional[int] = None
+    positions_gained: Optional[int] = None
 
 
 class TyreDegradationRow(BaseModel):
