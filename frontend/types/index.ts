@@ -114,7 +114,7 @@ export type RaceDecision = {
 
 export type WeatherEvent = {
   lap_number: number | null
-  event_type: 'RAIN_ONSET' | 'RAIN_END' | 'TEMP_SPIKE' | 'TEMP_DROP' | 'PEAK_RAIN'
+  event_type: 'RAIN_ONSET' | 'RAIN_END' | 'TEMP_SPIKE' | 'TEMP_DROP'
   track_temp: number
   air_temp: number
   rainfall: number
@@ -125,18 +125,17 @@ export type WeatherLap = {
   lap_number: number
   track_temp: number
   air_temp: number
-  rainfall: number
-  condition: 'DRY' | 'DAMP' | 'WET'
+  rainfall: number  // 1 = wet lap, 0 = dry (OpenF1 flag, not mm)
+  condition: 'DRY' | 'WET'
 }
 
 export type WeatherAnalysis = {
   dry_laps: number
-  damp_laps: number
   wet_laps: number
   avg_track_temp: number
   min_track_temp: number
   max_track_temp: number
-  peak_rainfall_lap: number | null
+  peak_rainfall_lap: number | null  // always null: rainfall is a 0/1 flag
   events: WeatherEvent[]
   lap_conditions: WeatherLap[]
   strategy_impact: 'None' | 'Low' | 'Medium' | 'High'

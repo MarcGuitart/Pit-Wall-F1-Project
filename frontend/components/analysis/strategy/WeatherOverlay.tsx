@@ -13,7 +13,6 @@ type Props = {
 
 const CONDITION_COLOR = {
   DRY:  { bar: '#23D18B', bg: 'rgba(35,209,139,.12)', text: 'text-signal-green' },
-  DAMP: { bar: '#FFB020', bg: 'rgba(255,176,32,.12)',  text: 'text-signal-amber' },
   WET:  { bar: '#4DA3FF', bg: 'rgba(77,163,255,.12)',  text: 'text-signal-blue' },
 }
 
@@ -22,7 +21,6 @@ const EVENT_COLOR: Record<string, string> = {
   RAIN_END:   '#23D18B',
   TEMP_SPIKE: '#FFB020',
   TEMP_DROP:  '#8A94A6',
-  PEAK_RAIN:  '#E8001D',
 }
 
 const IMPACT_PILL: Record<string, { cls: string; label: string }> = {
@@ -86,7 +84,7 @@ function TempSparkline({ laps }: { laps: WeatherLap[] }) {
 
 export function WeatherOverlay({ weather, totalLaps, crossoverWindows, weatherWinners, sessionType = 'Race' }: Props) {
   const impactCfg = IMPACT_PILL[weather.strategy_impact] ?? IMPACT_PILL.None
-  const totalCovered = weather.dry_laps + weather.damp_laps + weather.wet_laps
+  const totalCovered = weather.dry_laps + weather.wet_laps
   const total = totalCovered || totalLaps || 1
 
   return (
@@ -118,8 +116,8 @@ export function WeatherOverlay({ weather, totalLaps, crossoverWindows, weatherWi
           <ConditionBar laps={weather.lap_conditions} totalLaps={totalLaps} />
           {/* Condition legend */}
           <div className="flex items-center gap-3 mt-1.5">
-            {(['DRY', 'DAMP', 'WET'] as const).map((cond) => {
-              const count = cond === 'DRY' ? weather.dry_laps : cond === 'DAMP' ? weather.damp_laps : weather.wet_laps
+            {(['DRY', 'WET'] as const).map((cond) => {
+              const count = cond === 'DRY' ? weather.dry_laps : weather.wet_laps
               if (count === 0) return null
               const cfg = CONDITION_COLOR[cond]
               return (

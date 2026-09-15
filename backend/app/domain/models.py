@@ -123,7 +123,7 @@ class RaceDecision(BaseModel):
 
 class WeatherEvent(BaseModel):
     lap_number: Optional[int] = None
-    event_type: Literal["RAIN_ONSET", "RAIN_END", "TEMP_SPIKE", "TEMP_DROP", "PEAK_RAIN"]
+    event_type: Literal["RAIN_ONSET", "RAIN_END", "TEMP_SPIKE", "TEMP_DROP"]
     track_temp: float
     air_temp: float
     rainfall: float
@@ -134,18 +134,17 @@ class WeatherLap(BaseModel):
     lap_number: int
     track_temp: float
     air_temp: float
-    rainfall: float
-    condition: Literal["DRY", "DAMP", "WET"]
+    rainfall: float                 # 1.0 = wet lap, 0.0 = dry (OpenF1 flag, not mm)
+    condition: Literal["DRY", "WET"]
 
 
 class WeatherAnalysis(BaseModel):
     dry_laps: int
-    damp_laps: int
     wet_laps: int
     avg_track_temp: float
     min_track_temp: float
     max_track_temp: float
-    peak_rainfall_lap: Optional[int] = None
+    peak_rainfall_lap: Optional[int] = None   # always None: rainfall is a 0/1 flag
     events: list[WeatherEvent]
     lap_conditions: list[WeatherLap]
     strategy_impact: Literal["None", "Low", "Medium", "High"]

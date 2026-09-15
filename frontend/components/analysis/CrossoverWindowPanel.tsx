@@ -11,7 +11,6 @@ type Props = {
 
 const CONDITION_STYLE: Record<string, { color: string; bg: string }> = {
   DRY:  { color: '#23D18B', bg: 'rgba(35,209,139,0.12)' },
-  DAMP: { color: '#FFB020', bg: 'rgba(255,176,32,0.12)' },
   WET:  { color: '#4DA3FF', bg: 'rgba(77,163,255,0.12)' },
 }
 

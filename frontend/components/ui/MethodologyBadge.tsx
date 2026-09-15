@@ -18,9 +18,9 @@ const COPY: Record<Module, string> = {
   traffic:
     'Groups of 3+ drivers where each gap_to_leader delta ≤ 1.0s, sampled from OpenF1 intervals data in 10-second windows. Mapped to lap numbers via lap.date_start timestamps.',
   weather:
-    'OpenF1 weather telemetry (air/track temperature, rainfall) correlated with lap timestamps. Rain onset/end detected on rainfall > 0 transitions. Temperature trend from per-lap averages.',
+    'OpenF1 weather telemetry (air/track temperature, rainfall) correlated with lap timestamps. OpenF1 rainfall is a 0/1 flag: a rain period needs ≥3 consecutive wet minutes after the first lap, and dry gaps of ≤2 minutes inside a shower are ignored. Temperature trend from per-lap averages.',
   crossover:
-    'Crossover windows detected from rainfall and condition changes in OpenF1 weather data. Attribution is approximate — concurrent safety cars may explain some position changes.',
+    'Crossover windows detected from DRY↔WET changes between laps, using the same rain-period rule as the weather module. Attribution is approximate — concurrent safety cars may explain some position changes.',
   drs:
     'DRS trains detected from OpenF1 interval data (~4s resolution). Consecutive intervals where 3+ drivers are within 1.0s. Aggregated from raw snapshots by merging groups sharing ≥50% drivers. SC/VSC periods excluded.',
 }
