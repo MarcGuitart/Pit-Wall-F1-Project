@@ -1,3 +1,10 @@
+/**
+ * Error model shared by every backend call.
+ *
+ * `ApiError` carries the normalised `{code, message, details}` produced by
+ * `unwrapError` in lib/api.ts — consumers never look at the raw body.
+ */
+
 export type ErrorCode =
   | 'SESSION_NOT_HISTORICAL_YET'
   | 'SESSION_NOT_CACHED'
@@ -13,63 +20,43 @@ export type AnalysisError = {
   unlockAtUtc?: string
 }
 
+export type ErrorDetails = Record<string, unknown>
+
 export class ApiError extends Error {
   status: number
-  detail: unknown
+  code: string
+  details: ErrorDetails | null
 
-  constructor(status: number, message: string, detail?: unknown) {
+  constructor(status: number, code: string, message: string, details: ErrorDetails | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
-    this.detail = detail
+    this.code = code
+    this.details = details
   }
+}
+
+/** Backend codes → analysis-page UI state. The body is already unwrapped; only `code` matters here. */
+const CODE_TO_STATE: Record<string, ErrorCode> = {
+  SESSION_NOT_HISTORICAL_YET: 'SESSION_NOT_HISTORICAL_YET',
+  SESSION_NOT_CACHED: 'SESSION_NOT_CACHED',
+  OPENF1_RATE_LIMIT: 'OPENF1_RATE_LIMIT',
+  OPENF1_ERROR: 'OPENF1_ERROR',
+  ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+  // A crash inside /analysis is a failed analysis from the page's point of view.
+  INTERNAL_ERROR: 'ANALYSIS_FAILED',
 }
 
 export function parseAnalysisError(err: unknown): AnalysisError {
   if (err instanceof ApiError) {
-    if (err.status === 404) {
-      // FastAPI wraps detail in { detail: ... } — extract the inner code if present
-      const inner = (err.detail as { detail?: Record<string, unknown> } | undefined)?.detail
-      if (inner?.code === 'session_not_cached') {
-        return {
-          code: 'SESSION_NOT_CACHED',
-          message:
-            (inner.message as string | undefined) ??
-            'This session is not available in the production demo. Try Brasil 2024 (9636) or España 2024 (9539).',
-        }
-      }
-    }
-    if (err.status === 425) {
-      const detail = err.detail as Record<string, unknown> | undefined
-      return {
-        code: 'SESSION_NOT_HISTORICAL_YET',
-        message:
-          (detail?.message as string | undefined) ??
-          'This session is still in the live window. Try again after the session ends.',
-        retryAfterMinutes: detail?.retry_after_minutes as number | undefined,
-        unlockAtUtc: detail?.unlock_at_utc as string | undefined,
-      }
-    }
-    if (err.status === 429) {
-      return {
-        code: 'OPENF1_RATE_LIMIT',
-        message:
-          'OpenF1 throttled this request. Cached partial data was preserved. Retry in a moment — the analysis will resume from where it stopped.',
-      }
-    }
-    if (err.status === 503) {
-      return {
-        code: 'OPENF1_ERROR',
-        message:
-          (err.detail as Record<string, unknown> | undefined)?.detail as string ??
-          'OpenF1 returned an error for this session. The data may not yet be published or the session key may be invalid.',
-      }
-    }
-    if (err.status === 500) {
-      return {
-        code: 'ANALYSIS_FAILED',
-        message: 'Some modules could not be computed due to insufficient data. Available modules are shown below.',
-      }
+    const code = CODE_TO_STATE[err.code] ?? 'UNKNOWN'
+    const retry = err.details?.retry_after_minutes
+    const unlock = err.details?.unlock_at_utc
+    return {
+      code,
+      message: err.message,
+      retryAfterMinutes: typeof retry === 'number' ? retry : undefined,
+      unlockAtUtc: typeof unlock === 'string' ? unlock : undefined,
     }
   }
 

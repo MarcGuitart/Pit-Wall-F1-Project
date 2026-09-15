@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchRaces, fetchSessions } from '@/lib/api'
+import { ApiError } from '@/lib/errors'
 import { DEMO_RACES } from '@/lib/constants'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import type { RaceListItem, SessionInfo } from '@/types'
@@ -62,7 +63,9 @@ export function RaceSelector() {
       setLoadingRaces(true)
       fetchRaces(year)
         .then((data) => setRaces(data))
-        .catch(() => setBackendError('Backend offline — use featured races below'))
+        .catch((err) => setBackendError(
+          err instanceof ApiError ? err.message : 'Backend offline — use featured races below',
+        ))
         .finally(() => setLoadingRaces(false))
     }, 400)
 
@@ -101,7 +104,9 @@ export function RaceSelector() {
           if (raceSession) setSelectedSessionKey(raceSession.session_key)
         })
         .catch((err) => {
-          if (err.name !== 'AbortError') setSessions([])
+          if (err.name === 'AbortError') return
+          setSessions([])
+          if (err instanceof ApiError) setBackendError(err.message)
         })
         .finally(() => setLoadingSessions(false))
     }, 300)

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { FullRaceAnalysis } from '@/types'
 import { sendToEngineer, fetchChatHealth } from '@/lib/api'
+import { ApiError } from '@/lib/errors'
 import { useRaceStore } from '@/stores/raceStore'
 import { playRadioOpen, playRadioClose, playMessageReceived } from '@/lib/audio/radioFx'
 import { AudioToggle } from './AudioToggle'
@@ -164,11 +165,11 @@ export function RadioOverlay({ analysis, onClose }: Props) {
         })
         setMessages((prev) => [...prev, { role: 'engineer', content: res.answer }])
         playMessageReceived()
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'engineer', content: 'Comms interference. Unable to reach pit wall. Try again.' },
-        ])
+      } catch (err) {
+        const content = err instanceof ApiError
+          ? err.message
+          : 'Comms interference. Unable to reach pit wall. Try again.'
+        setMessages((prev) => [...prev, { role: 'engineer', content }])
       } finally {
         setIsSending(false)
       }
