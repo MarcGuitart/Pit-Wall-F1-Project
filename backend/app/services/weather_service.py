@@ -151,31 +151,36 @@ def compute_weather_analysis(
     events.sort(key=lambda e: e.lap_number or 0)
 
     # ── Strategy impact ───────────────────────────────────────────────────────
-    if wet_laps >= total_laps * 0.4 or len([e for e in events if e.event_type in ("RAIN_ONSET", "RAIN_END")]) >= 3:
+    rain_transitions = sum(1 for e in events if e.event_type in ("RAIN_ONSET", "RAIN_END"))
+    temp_events      = sum(1 for e in events if e.event_type in ("TEMP_SPIKE", "TEMP_DROP"))
+    if wet_laps >= total_laps * 0.4 or rain_transitions >= 3:
         strategy_impact = "High"
-    elif wet_laps > 0 or len(events) > 0:
-        strategy_impact = "Medium" if wet_laps >= 5 else "Low"
+    elif wet_laps >= 5:
+        strategy_impact = "Medium"
+    elif wet_laps > 0 or temp_events > 0:
+        strategy_impact = "Low"
     else:
         strategy_impact = "None"
 
-    # ── Summary ───────────────────────────────────────────────────────────────
-    if wet_laps == 0:
-        summary = (
-            f"Dry race. Track temperature ranged {min_track_temp}–{max_track_temp}°C. "
-            f"No weather strategy impact."
-        )
-    elif wet_laps >= total_laps * 0.6:
-        summary = (
-            f"Predominantly wet race. {wet_laps} wet laps. "
-            f"Track {min_track_temp}–{max_track_temp}°C. "
-            f"{len([e for e in events if e.event_type == 'RAIN_ONSET'])} rain onset(s)."
-        )
-    else:
-        summary = (
-            f"Mixed conditions: {dry_laps} dry, {wet_laps} wet laps. "
-            f"Track {min_track_temp}–{max_track_temp}°C. "
-            f"Strategy significantly influenced by weather."
-        )
+    # ── Summary — one sentence per strategy_impact level, never independent ──
+    conditions = (
+        f"Dry race. Track temperature ranged {min_track_temp}–{max_track_temp}°C."
+        if wet_laps == 0 else
+        f"Predominantly wet race. {wet_laps} wet laps. Track {min_track_temp}–{max_track_temp}°C."
+        if wet_laps >= total_laps * 0.6 else
+        f"Mixed conditions: {dry_laps} dry, {wet_laps} wet laps. Track {min_track_temp}–{max_track_temp}°C."
+    )
+    impact_sentence = {
+        "None":   "No weather strategy impact.",
+        "Low":    (
+            f"{temp_events} track temperature swing(s); minimal weather strategy impact."
+            if wet_laps == 0 else
+            f"Brief rain ({wet_laps} lap(s)); minimal weather strategy impact."
+        ),
+        "Medium": f"{rain_transitions} rain transition(s); weather shaped part of the strategy.",
+        "High":   f"{rain_transitions} rain transition(s); strategy significantly influenced by weather.",
+    }[strategy_impact]
+    summary = f"{conditions} {impact_sentence}"
 
     return WeatherAnalysis(
         dry_laps=dry_laps,
