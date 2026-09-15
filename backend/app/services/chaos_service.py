@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from app.domain.models import ChaosIndex, ChaosComponents
+from app.services.weather_conditions import count_rain_periods
 
 
 def _count_keywords(messages: list[dict], keywords: list[str]) -> int:
@@ -13,18 +14,6 @@ def _count_keywords(messages: list[dict], keywords: list[str]) -> int:
         if any(kw in txt for kw in keywords):
             count += 1
     return count
-
-
-def _count_rain_periods(weather: list[dict]) -> int:
-    """Count distinct transitions from dry to wet (not total wet records)."""
-    periods = 0
-    was_wet = False
-    for w in sorted(weather, key=lambda x: x.get("date") or ""):
-        is_wet = (w.get("rainfall") or 0) > 0
-        if is_wet and not was_wet:
-            periods += 1
-        was_wet = is_wet
-    return periods
 
 
 def _position_volatility(position_data: list[dict]) -> int:
@@ -76,6 +65,7 @@ def compute_chaos_index(
     race_control: list[dict],
     weather: list[dict],
     position_data: list[dict],
+    laps: list[dict],
 ) -> ChaosIndex:
     sc_count = _count_keywords(
         race_control, ["SAFETY CAR DEPLOYED", "VIRTUAL SAFETY CAR DEPLOYED"]
@@ -87,7 +77,8 @@ def compute_chaos_index(
     penalty_cnt = _count_keywords(
         race_control, ["TIME PENALTY", "DRIVE THROUGH", "STOP AND GO"]
     )
-    rain_periods = _count_rain_periods(weather)
+    # Rain periods per weather_conditions: in-race only, min duration, gaps filled
+    rain_periods = count_rain_periods(weather, laps)
     pos_vol = _position_volatility(position_data)
 
     sc_pts    = min(sc_count * 15, 30)

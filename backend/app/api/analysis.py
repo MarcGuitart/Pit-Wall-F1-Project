@@ -277,7 +277,7 @@ async def get_analysis(
         true_pace        = compute_true_pace(laps, stints, pit, race_control, drivers)
         tyre_degradation = compute_tyre_degradation(laps, stints, race_control, drivers)
         pit_impact       = compute_pit_impact(pit, position_data, laps, drivers)
-        chaos            = compute_chaos_index(race_control, weather, position_data)
+        chaos            = compute_chaos_index(race_control, weather, position_data, laps)
 
         # Actual race result — independent of True Pace, attached onto each row
         # so the two are shown side by side rather than mistaken for each other.
