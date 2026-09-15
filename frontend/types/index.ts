@@ -288,6 +288,15 @@ export type FullRaceAnalysis = {
   drs_trains: DRSAnalysisAggregated | null
   clean_air_value: CleanAirValue | null
   race_classification: RaceClassificationRow[]
+  /** Why a V4 field is empty, keyed by field name. Absent on caches older than the field. */
+  modules?: Record<string, ModuleStatus>
+}
+
+export type ModuleState = 'ok' | 'failed' | 'not_applicable'
+
+export type ModuleStatus = {
+  status: ModuleState
+  reason: string | null
 }
 
 // ── Race selector types ───────────────────────────────────────────────────────

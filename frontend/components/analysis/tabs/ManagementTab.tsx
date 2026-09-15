@@ -6,7 +6,7 @@ import { TyreCliffMap } from '../strategy/TyreCliffMap'
 import { PitSequenceSummary } from '../strategy/PitSequenceSummary'
 import { DRSTrainDetector } from '../strategy/DRSTrainDetector'
 import { CleanAirValueCard } from '../CleanAirValueCard'
-import { DRSTrainDetector as DRSStub } from '../stubs/DRSTrainDetector'
+import { ModuleUnavailable } from '../ModuleUnavailable'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -44,11 +44,14 @@ export function ManagementTab({
         />
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        {analysis.drs_trains
+        {analysis.drs_trains && analysis.drs_trains.meaningful_trains.length > 0
           ? <DRSTrainDetector drs={analysis.drs_trains} />
-          : <DRSStub />
+          : <ModuleUnavailable title="DRS Train Detector" analysis={analysis} field="drs_trains" />
         }
-        <CleanAirValueCard data={analysis.clean_air_value ?? null} />
+        {analysis.modules?.clean_air_value?.status === 'failed'
+          ? <ModuleUnavailable title="Clean Air Value" analysis={analysis} field="clean_air_value" />
+          : <CleanAirValueCard data={analysis.clean_air_value ?? null} />
+        }
       </div>
     </div>
   )

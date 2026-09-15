@@ -6,6 +6,7 @@ import type { SessionType } from '@/lib/utils'
 import { AnalysisModeToggle } from '../AnalysisModeToggle'
 import { RaceBrainV2 } from '../strategy/RaceBrainV2'
 import { RaceDNACard } from '../RaceDNACard'
+import { ModuleUnavailable } from '../ModuleUnavailable'
 import { TruePacePodium } from '../strategy/TruePacePodium'
 import { KeyDecisionCards } from '../strategy/KeyDecisionCards'
 import { DataViewTables } from '../data/DataViewTables'
@@ -60,7 +61,10 @@ export function StrategyTab({
             className="space-y-3"
           >
             <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
-            {analysis.race_dna && <RaceDNACard dna={analysis.race_dna} />}
+            {analysis.race_dna
+              ? <RaceDNACard dna={analysis.race_dna} />
+              : <ModuleUnavailable title="Race DNA" analysis={analysis} field="race_dna" />
+            }
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               <TruePacePodium
                 rows={true_pace}

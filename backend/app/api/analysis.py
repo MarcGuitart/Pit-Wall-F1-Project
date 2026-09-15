@@ -8,7 +8,7 @@ import httpx
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as analysis_cache
-from app.domain.models import FullRaceAnalysis, RaceMeta, RaceBrain
+from app.domain.models import FullRaceAnalysis, ModuleStatus, RaceMeta, RaceBrain
 from app.clients.openf1_client import OpenF1Error, OpenF1RateLimitError
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
@@ -319,51 +319,86 @@ async def get_analysis(
         )
         total_laps = timeline.total_laps or 70
 
-        # 8. DRS aggregation — passes timeline for SC filtering
-        drs_trains = compute_drs_trains(intervals, laps, drivers, timeline)
+        # 8-9. V4 modules — each wrapped so a partial failure never breaks the
+        # response. `modules` records ok / failed / not_applicable per field.
+        modules: dict[str, ModuleStatus] = {}
+
+        def _module(name: str, compute, is_empty, empty_reason: str):
+            try:
+                value = compute()
+            except Exception as exc:  # noqa: BLE001 — isolate the module, keep the page
+                logger.warning("[V4] %s failed: %s", name, exc, exc_info=True)
+                modules[name] = ModuleStatus(
+                    status="failed", reason=f"{type(exc).__name__}: {exc}"[:200]
+                )
+                return None
+            if is_empty(value):
+                modules[name] = ModuleStatus(status="not_applicable", reason=empty_reason)
+            else:
+                modules[name] = ModuleStatus(status="ok")
+            return value
+
+        modules["weather_analysis"] = (
+            ModuleStatus(status="ok") if weather_analysis is not None
+            else ModuleStatus(status="not_applicable", reason="No weather records for this session.")
+        )
+
+        drs_trains = _module(
+            "drs_trains",
+            lambda: compute_drs_trains(intervals, laps, drivers, timeline),
+            lambda v: v is None or not v.meaningful_trains,
+            "No sustained DRS trains (3+ cars within 1.0s) in this race.",
+        )
         meaningful_trains = drs_trains.meaningful_trains if drs_trains else []
 
-        # 9. V4 services — each wrapped so partial failures don't break the response
-        crossover_windows = []
-        weather_winners_losers = None
-        race_phases = []
-        race_dna = None
-        clean_air_value = None
+        crossover_windows = _module(
+            "crossover_windows",
+            lambda: detect_crossover_windows(timeline, stints, pit_impact),
+            lambda v: not v,
+            "No wet/dry transitions in this race.",
+        ) or []
 
-        try:
-            crossover_windows = detect_crossover_windows(timeline, stints, pit_impact)
-        except Exception as exc:
-            logger.warning("[V4] detect_crossover_windows failed: %s", exc)
-
-        try:
-            weather_winners_losers = compute_weather_winners_losers(
+        weather_winners_losers = _module(
+            "weather_winners_losers",
+            lambda: compute_weather_winners_losers(
                 crossover_windows, pit_impact, position_data, race_control, timeline
-            )
-        except Exception as exc:
-            logger.warning("[V4] compute_weather_winners_losers failed: %s", exc)
+            ),
+            lambda v: v is None,
+            (
+                "No crossover windows to attribute gains or losses to."
+                if not crossover_windows
+                else "No position changes attributable to crossover timing."
+            ),
+        )
 
-        try:
-            race_phases = classify_race_phases(
+        race_phases = _module(
+            "race_phases",
+            lambda: classify_race_phases(
                 timeline, tyre_degradation, pit_impact,
                 crossover_windows, meaningful_trains, total_laps,
-            )
-        except Exception as exc:
-            logger.warning("[V4] classify_race_phases failed: %s", exc)
+            ),
+            lambda v: not v,
+            "No distinct race phases identified.",
+        ) or []
 
-        try:
-            race_dna = compute_race_dna(
+        race_dna = _module(
+            "race_dna",
+            lambda: compute_race_dna(
                 chaos, weather_analysis, meaningful_trains,
                 true_pace, tyre_degradation, pit_impact, race_phases,
-            )
-        except Exception as exc:
-            logger.warning("[V4] compute_race_dna failed: %s", exc)
+            ),
+            lambda v: v is None,
+            "Not enough signals to characterise this race.",
+        )
 
-        try:
-            clean_air_value = estimate_clean_air_value(
+        clean_air_value = _module(
+            "clean_air_value",
+            lambda: estimate_clean_air_value(
                 meaningful_trains, true_pace, laps, timeline
-            )
-        except Exception as exc:
-            logger.warning("[V4] estimate_clean_air_value failed: %s", exc)
+            ),
+            lambda v: v is None or v.estimated_gain is None,
+            "No clean-air comparison available: needs DRS trains with clean laps before and after.",
+        )
 
         result = FullRaceAnalysis(
             race=race_meta,
@@ -382,6 +417,7 @@ async def get_analysis(
             drs_trains=drs_trains,
             clean_air_value=clean_air_value,
             race_classification=race_classification,
+            modules=modules,
         )
 
         # 7. Persist to disk

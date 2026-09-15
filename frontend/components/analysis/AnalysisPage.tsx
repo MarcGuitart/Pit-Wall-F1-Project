@@ -8,6 +8,7 @@ import { getSessionType } from '@/lib/utils'
 
 import { TabNav } from './TabNav'
 import { RacePhaseTimeline } from './RacePhaseTimeline'
+import { ModuleUnavailable } from './ModuleUnavailable'
 import { SessionTimelineBar } from './SessionTimelineBar'
 import { DriverFocusStrip } from './DriverFocusStrip'
 import { DriverCard } from './DriverCard'
@@ -103,6 +104,9 @@ export function AnalysisPage({ analysis }: Props) {
       </div>
 
       {/* Phase timeline — always visible above tabs */}
+      {sessionType === 'Race' && analysis.modules?.race_phases?.status === 'failed' && (
+        <ModuleUnavailable title="Race Phase Timeline" analysis={analysis} field="race_phases" />
+      )}
       {sessionType === 'Race' && (analysis.race_phases ?? []).length > 0
         ? (
           <RacePhaseTimeline

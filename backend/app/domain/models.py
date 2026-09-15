@@ -267,6 +267,18 @@ class CleanAirValue(BaseModel):
     strategic_implication: str
 
 
+# ── Per-module status ──────────────────────────────────────────────────────
+
+class ModuleStatus(BaseModel):
+    """
+    ok              — computed, has content
+    not_applicable  — computed fine, nothing to show for this race (dry race, no DRS trains…)
+    failed          — the service raised; the field is empty because of an error
+    """
+    status: Literal["ok", "failed", "not_applicable"]
+    reason: Optional[str] = None
+
+
 # ── Updated FullRaceAnalysis ───────────────────────────────────────────────
 
 class FullRaceAnalysis(BaseModel):
@@ -293,6 +305,8 @@ class FullRaceAnalysis(BaseModel):
     clean_air_value: Optional[CleanAirValue] = None
     # Actual race result, independent of True Pace ranking
     race_classification: list[RaceClassificationRow] = []
+    # V4 modules: why a field above is empty. Keyed by field name. Empty for old caches.
+    modules: dict[str, ModuleStatus] = {}
 
 
 class RaceListItem(BaseModel):
