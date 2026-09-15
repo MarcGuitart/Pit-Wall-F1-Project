@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from app.domain.models import EngineerNote, TyreDegradationRow, PitImpactRow, ChaosIndex
+from app.services.weather_conditions import (
+    detect_rain_periods, lap_for_period_start, lap_time_index,
+)
 
 
 # ─── Tyre degradation notes ───────────────────────────────────────────────────
@@ -163,42 +166,26 @@ def _chaos_notes(race_control: list[dict]) -> list[EngineerNote]:
 # ─── Weather notes ────────────────────────────────────────────────────────────
 
 def _weather_notes(weather: list[dict], laps_data: list[dict]) -> list[EngineerNote]:
-    """Emit one note per dry→wet transition (not per wet record)."""
+    """One note per rain period (as defined by weather_conditions), at the lap it started."""
     notes: list[EngineerNote] = []
-    was_wet = False
-    # Only laps that have a non-None date_start
-    laps_sorted = sorted(
-        [l for l in laps_data if l.get("date_start") is not None],
-        key=lambda l: l.get("date_start") or "",
-    )
-
-    for w in sorted(weather, key=lambda x: x.get("date") or ""):
-        is_wet = (w.get("rainfall") or 0) > 0
-        if is_wet and not was_wet:
-            w_date = w.get("date") or ""
-            nearest_lap: int | None = None
-            for lap in laps_sorted:
-                lap_ts = lap.get("date_start") or ""
-                if lap_ts <= w_date:
-                    nearest_lap = lap.get("lap_number")
-            # Skip notes with no resolvable lap number
-            if nearest_lap is None:
-                was_wet = is_wet
-                continue
-            notes.append(
-                EngineerNote(
-                    lap_number=nearest_lap,
-                    type="WEATHER",
-                    severity="High",
-                    title="Rainfall — strategy window opens",
-                    message=(
-                        f"Lap {nearest_lap} — Rainfall detected. "
-                        f"Track temp {w.get('track_temperature', '?')}°C. "
-                        "Intermediate/wet tyre transition window opens."
-                    ),
-                )
+    index = lap_time_index(laps_data)
+    for period in detect_rain_periods(weather, laps_data):
+        lap = lap_for_period_start(period, index)
+        if lap is None:
+            continue
+        notes.append(
+            EngineerNote(
+                lap_number=lap,
+                type="WEATHER",
+                severity="High",
+                title="Rainfall — strategy window opens",
+                message=(
+                    f"Lap {lap} — Rainfall detected. "
+                    f"Track temp {period.first_record.get('track_temperature', '?')}°C. "
+                    "Intermediate/wet tyre transition window opens."
+                ),
             )
-        was_wet = is_wet
+        )
     return notes
 
 
