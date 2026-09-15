@@ -2,12 +2,14 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 import httpx
 
 from app.core.config import settings
+from app.core.errors import AppError
 from app.core import cache as analysis_cache
 from app.domain.models import FullRaceAnalysis, RaceMeta, RaceBrain
+from app.clients.openf1_client import OpenF1RateLimitError
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
@@ -189,15 +191,13 @@ async def get_analysis(
                     0,
                     int((unlock_at - datetime.now(timezone.utc)).total_seconds() / 60),
                 )
-                raise HTTPException(
-                    status_code=425,
-                    detail={
-                        "code": "SESSION_NOT_HISTORICAL_YET",
-                        "message": (
-                            "This session may still be inside OpenF1's live window. "
-                            "Historical data should become available approximately "
-                            "30 minutes after the session ends."
-                        ),
+                raise AppError(
+                    "SESSION_NOT_HISTORICAL_YET",
+                    "This session may still be inside OpenF1's live window. "
+                    "Historical data should become available approximately "
+                    "30 minutes after the session ends.",
+                    status=425,
+                    details={
                         "unlock_at_utc": unlock_at.isoformat(),
                         "retry_after_minutes": minutes_remaining,
                     },
@@ -218,8 +218,15 @@ async def get_analysis(
         # 5. Fetch all data (respects per-endpoint cache + semaphore + jitter)
         try:
             data = await load_session(session_key)
+        except OpenF1RateLimitError as exc:
+            raise AppError(
+                "OPENF1_RATE_LIMIT",
+                "OpenF1 is rate-limiting requests. Endpoints already fetched are "
+                "cached; retry in a minute to resume.",
+                status=429,
+            ) from exc
         except RuntimeError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise AppError("OPENF1_ERROR", str(exc), status=503) from exc
 
         laps = data.get("laps", [])
         stints = data.get("stints", [])
@@ -235,32 +242,25 @@ async def get_analysis(
                 # session simply isn't available in the demo. With a token, the session
                 # is probably too recent for OpenF1 to have published it yet.
                 if not settings.openf1_api_token:
-                    raise HTTPException(
-                        status_code=404,
-                        detail={
-                            "code": "session_not_cached",
-                            "message": (
-                                "This session is not available in the production demo. "
-                                "Try Brasil 2024 (9636) or España 2024 (9539)."
-                            ),
-                        },
+                    raise AppError(
+                        "SESSION_NOT_CACHED",
+                        "This session is not available in the production demo. "
+                        "Try Brasil 2024 (9636) or España 2024 (9539).",
+                        status=404,
                     )
-                raise HTTPException(
-                    status_code=425,
-                    detail={
-                        "code": "SESSION_NOT_HISTORICAL_YET",
-                        "message": (
-                            "No session metadata or lap data found. "
-                            "This session may not yet be available in OpenF1. "
-                            "Historical data typically becomes available 30 minutes after the session ends."
-                        ),
-                        "unlock_at_utc": None,
-                        "retry_after_minutes": 30,
-                    },
+                raise AppError(
+                    "SESSION_NOT_HISTORICAL_YET",
+                    "No session metadata or lap data found. "
+                    "This session may not yet be available in OpenF1. "
+                    "Historical data typically becomes available 30 minutes after the session ends.",
+                    status=425,
+                    details={"unlock_at_utc": None, "retry_after_minutes": 30},
                 )
-            raise HTTPException(
-                status_code=404,
-                detail=f"No lap data found for session {session_key}",
+            raise AppError(
+                "OPENF1_ERROR",
+                f"OpenF1 returned no lap data for session {session_key}.",
+                status=503,
+                details={"endpoint": "laps"},
             )
 
         race_meta = RaceMeta(

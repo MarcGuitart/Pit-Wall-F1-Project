@@ -3,15 +3,30 @@ import logging
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from app.core.config import settings
+from app.core.errors import AppError
 from app.core import cache as race_cache
 from app.domain.models import RaceListItem, SessionInfo
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["races"])
+
+
+def _openf1_status_error(exc: httpx.HTTPStatusError, endpoint: str) -> AppError:
+    """Map an upstream OpenF1 HTTP error to our envelope; 429 keeps its own code."""
+    upstream = exc.response.status_code
+    if upstream == 429:
+        return AppError(
+            "OPENF1_RATE_LIMIT", "OpenF1 is rate-limiting requests. Retry in a minute.",
+            status=429, details={"endpoint": endpoint},
+        )
+    return AppError(
+        "OPENF1_ERROR", f"OpenF1 returned HTTP {upstream} for {endpoint}.",
+        status=503, details={"endpoint": endpoint, "upstream_status": upstream},
+    )
 
 
 @router.get("/races", response_model=list[RaceListItem])
@@ -35,12 +50,15 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
         cached = race_cache.get_meetings(year)
         if cached:
             return cached
-        raise HTTPException(status_code=503, detail=f"OpenF1 unreachable: {exc}") from exc
+        raise AppError(
+            "OPENF1_ERROR", f"OpenF1 unreachable while listing {year} races.",
+            status=503, details={"endpoint": "meetings"},
+        ) from exc
     except httpx.HTTPStatusError as exc:
         cached = race_cache.get_meetings(year)
         if cached:
             return cached
-        raise HTTPException(status_code=exc.response.status_code, detail="OpenF1 error") from exc
+        raise _openf1_status_error(exc, "meetings") from exc
 
     items: list[RaceListItem] = []
     for m in meetings:
@@ -127,16 +145,24 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
                     logger.info("[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s", len(fallback), meeting_key)
                     race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
                     return fallback
-                raise HTTPException(
-                    status_code=404,
-                    detail="Session list not in cache and OpenF1 requires authentication. Set OPENF1_API_TOKEN.",
+                raise AppError(
+                    "SESSION_NOT_CACHED",
+                    "No sessions for this meeting are in the demo cache, and listing "
+                    "them from OpenF1 requires an API token.",
+                    status=404,
+                    details={"meeting_key": meeting_key},
                 )
             resp.raise_for_status()
             sessions = resp.json()
-    except HTTPException:
+    except AppError:
         raise
+    except httpx.HTTPStatusError as exc:
+        raise _openf1_status_error(exc, "sessions") from exc
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"OpenF1 unreachable: {exc}") from exc
+        raise AppError(
+            "OPENF1_ERROR", "OpenF1 unreachable while listing sessions.",
+            status=503, details={"endpoint": "sessions", "meeting_key": meeting_key},
+        ) from exc
 
     result = [
         SessionInfo(

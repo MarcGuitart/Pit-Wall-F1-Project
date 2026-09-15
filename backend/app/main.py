@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.errors import ErrorEnvelopeMiddleware, install_error_handlers
 from app.api.races import router as races_router
 from app.api.analysis import router as analysis_router
 from app.api.admin import router as admin_router
@@ -18,6 +19,9 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Order matters: middlewares added later wrap the ones added earlier, so the
+# error envelope sits inside CORS and its 500s carry CORS headers.
+app.add_middleware(ErrorEnvelopeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -25,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+install_error_handlers(app)
 
 app.include_router(races_router)
 app.include_router(analysis_router)

@@ -10,11 +10,11 @@ FastF1 is never loaded on Render (it would OOM the 512 MB free tier container).
 """
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Query
 
 from app.core import cache
 from app.core.config import settings
+from app.core.errors import AppError
 from app.domain.models import TelemetryData
 
 # telemetry_service is imported lazily inside the dev-path branch only.
@@ -98,27 +98,23 @@ async def get_telemetry(
         _session_name = _meta.get("session_name") or _meta.get("session_type")
 
     if _session_name and _session_name != "Race":
-        return JSONResponse(
-            status_code=503,
-            content={
-                "error": "telemetry_race_only",
-                "message": "Circuit telemetry replay is only available for Race sessions.",
-            },
+        raise AppError(
+            "TELEMETRY_RACE_ONLY",
+            "Circuit telemetry replay is only available for Race sessions.",
+            status=400,
+            details={"session_name": _session_name},
         )
 
     # 4. Production guard — FastF1 downloads 50-200 MB and would OOM Render free tier.
     #    If we reach here in production it means the precompute workflow hasn't run yet.
     if settings.environment == "production":
-        return JSONResponse(
-            status_code=503,
-            content={
-                "error": "telemetry_not_precomputed",
-                "message": (
-                    f"Telemetry for session {session_key} with drivers "
-                    f"{','.join(driver_list)} has not been precomputed yet. "
-                    "Run the 'Precompute Telemetry Cache' workflow on GitHub Actions."
-                ),
-            },
+        raise AppError(
+            "TELEMETRY_NOT_PRECOMPUTED",
+            f"Telemetry for session {session_key} with drivers "
+            f"{','.join(driver_list)} has not been precomputed yet. "
+            "Run the 'Precompute Telemetry Cache' workflow on GitHub Actions.",
+            status=503,
+            details={"drivers": driver_list, "lap_mode": lap_mode},
         )
 
     # 5. Development path — session metadata must already be in the analysis cache
@@ -128,12 +124,10 @@ async def get_telemetry(
 
     analysis = cache.get_full_analysis(session_key)
     if not analysis:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "code": "ANALYSIS_NOT_FOUND",
-                "message": "Run /analysis/{session_key} first to load session metadata.",
-            },
+        raise AppError(
+            "ANALYSIS_NOT_FOUND",
+            f"Run /analysis/{session_key} first to load session metadata.",
+            status=404,
         )
 
     race = analysis["race"]
@@ -159,12 +153,11 @@ async def get_telemetry(
         )
 
     if tel_data is None:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "code": "TELEMETRY_UNAVAILABLE",
-                "message": "FastF1 telemetry not available for this session.",
-            },
+        raise AppError(
+            "TELEMETRY_UNAVAILABLE",
+            "FastF1 telemetry not available for this session.",
+            status=404,
+            details={"drivers": driver_list, "lap_mode": lap_mode},
         )
 
     # 7. Persist for next request

@@ -10,11 +10,12 @@ from __future__ import annotations
 import logging
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core import cache
 from app.core.config import settings
+from app.core.errors import AppError
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
 from app.clients.ollama_client import answer_engineer_question
@@ -73,20 +74,22 @@ async def chat(req: ChatRequest) -> ChatResponse:
     # 1. Load analysis from cache (must have been computed via /analysis first)
     raw = cache.get_analysis(req.session_key)
     if raw is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"No analysis cached for session {req.session_key}. "
-                f"Call GET /analysis/{req.session_key} first."
-            ),
+        raise AppError(
+            "ANALYSIS_NOT_FOUND",
+            f"No analysis cached for session {req.session_key}. "
+            f"Open the race analysis first, then ask the engineer.",
+            status=404,
         )
 
     try:
         analysis = FullRaceAnalysis.model_validate(raw)
     except Exception as exc:
         logger.error("Failed to deserialise cached analysis: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Cached analysis is corrupted."
+        raise AppError(
+            "ANALYSIS_FAILED",
+            "The cached analysis for this session no longer matches the current "
+            "schema. Reload the race analysis to regenerate it.",
+            status=500,
         ) from exc
 
     # 2. Build compact context string
