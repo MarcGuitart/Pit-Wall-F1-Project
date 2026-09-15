@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import random
+import time
+from collections import deque
 from typing import Any
 
 import httpx
@@ -11,6 +13,35 @@ from app.core import cache
 logger = logging.getLogger(__name__)
 
 _semaphore = asyncio.Semaphore(2)
+
+# OpenF1's documented limit is 30 requests per 10 s per IP. Keep a margin so
+# the semaphore + jitter can never burst past it.
+RATE_LIMIT_REQUESTS = 25
+RATE_LIMIT_WINDOW_S = 10.0
+
+
+class _SlidingWindowLimiter:
+    """Blocks until fewer than `limit` requests were started in the last `window` seconds."""
+
+    def __init__(self, limit: int, window: float) -> None:
+        self.limit = limit
+        self.window = window
+        self._stamps: deque[float] = deque()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            while True:
+                now = time.monotonic()
+                while self._stamps and now - self._stamps[0] >= self.window:
+                    self._stamps.popleft()
+                if len(self._stamps) < self.limit:
+                    self._stamps.append(now)
+                    return
+                await asyncio.sleep(self._stamps[0] + self.window - now)
+
+
+_limiter = _SlidingWindowLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_S)
 
 RACE_ENDPOINTS = [
     "laps",
@@ -27,8 +58,20 @@ _MAX_ATTEMPTS = 4
 _BACKOFF = [2, 5, 10, 20]
 
 
-class OpenF1RateLimitError(RuntimeError):
-    pass
+class OpenF1Error(RuntimeError):
+    """An endpoint could not be fetched after all retries."""
+
+    def __init__(self, endpoint: str, attempts: int, message: str | None = None) -> None:
+        super().__init__(message or f"OpenF1 unreachable after {attempts} attempts: {endpoint}")
+        self.endpoint = endpoint
+        self.attempts = attempts
+
+
+class OpenF1RateLimitError(OpenF1Error):
+    """OpenF1 answered 429 on every retry."""
+
+    def __init__(self, endpoint: str, attempts: int) -> None:
+        super().__init__(endpoint, attempts, f"Rate limit after {attempts} attempts on {endpoint}")
 
 
 async def _fetch_endpoint(
@@ -48,6 +91,7 @@ async def _fetch_endpoint(
             async with _semaphore:
                 # Jitter prevents burst of requests hitting OpenF1 simultaneously
                 await asyncio.sleep(random.uniform(0.2, 0.6))
+                await _limiter.acquire()
                 resp = await client.get(
                     f"{settings.openf1_base_url}/{endpoint}",
                     params={"session_key": session_key},
@@ -71,9 +115,7 @@ async def _fetch_endpoint(
                     endpoint, session_key, attempt + 1, retry_after,
                 )
                 if attempt >= _MAX_ATTEMPTS - 1:
-                    raise OpenF1RateLimitError(
-                        f"Rate limit after {_MAX_ATTEMPTS} attempts on {endpoint}"
-                    )
+                    raise OpenF1RateLimitError(endpoint, _MAX_ATTEMPTS)
                 await asyncio.sleep(retry_after)
                 continue
 
@@ -92,15 +134,16 @@ async def _fetch_endpoint(
             if attempt < _MAX_ATTEMPTS - 1:
                 await asyncio.sleep(wait)
 
-    raise RuntimeError(
-        f"OpenF1 unreachable after {_MAX_ATTEMPTS} attempts: {endpoint}"
-    ) from last_exc
+    raise OpenF1Error(endpoint, _MAX_ATTEMPTS) from last_exc
 
 
 async def fetch_all(session_key: int) -> dict[str, list[dict]]:
     """
     Fetch all race endpoints for a session, checking file cache first.
     Sequential per-endpoint loop with jitter prevents 429 bursts.
+
+    Raises OpenF1RateLimitError / OpenF1Error on the first endpoint that fails;
+    endpoints fetched before it are already cached, so a retry resumes there.
     """
     results: dict[str, list[dict]] = {}
 
@@ -109,16 +152,14 @@ async def fetch_all(session_key: int) -> dict[str, list[dict]]:
             cached = cache.get(session_key, endpoint)
             if cached is not None:
                 results[endpoint] = cached
-            else:
-                logger.info("[FETCHING] %s for %s", endpoint, session_key)
-                try:
-                    data = await _fetch_endpoint(client, endpoint, session_key)
-                    cache.set(session_key, endpoint, data)
-                    results[endpoint] = data
-                except (RuntimeError, OpenF1RateLimitError) as exc:
-                    logger.error(
-                        "[FETCH FAILED] %s for %s: %s", endpoint, session_key, exc
-                    )
-                    # Continue with other endpoints; caller decides what to do with gaps
+                continue
+            logger.info("[FETCHING] %s for %s", endpoint, session_key)
+            try:
+                data = await _fetch_endpoint(client, endpoint, session_key)
+            except OpenF1Error as exc:
+                logger.error("[FETCH FAILED] %s for %s: %s", endpoint, session_key, exc)
+                raise
+            cache.set(session_key, endpoint, data)
+            results[endpoint] = data
 
     return results

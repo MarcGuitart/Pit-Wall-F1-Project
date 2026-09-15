@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as analysis_cache
 from app.domain.models import FullRaceAnalysis, RaceMeta, RaceBrain
-from app.clients.openf1_client import OpenF1RateLimitError
+from app.clients.openf1_client import OpenF1Error, OpenF1RateLimitError
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
@@ -221,12 +221,19 @@ async def get_analysis(
         except OpenF1RateLimitError as exc:
             raise AppError(
                 "OPENF1_RATE_LIMIT",
-                "OpenF1 is rate-limiting requests. Endpoints already fetched are "
-                "cached; retry in a minute to resume.",
+                f"OpenF1 is rate-limiting requests (while fetching {exc.endpoint}). "
+                "Endpoints already fetched are cached; retry in a minute to resume.",
                 status=429,
+                details={"endpoint": exc.endpoint, "attempts": exc.attempts},
             ) from exc
-        except RuntimeError as exc:
-            raise AppError("OPENF1_ERROR", str(exc), status=503) from exc
+        except OpenF1Error as exc:
+            raise AppError(
+                "OPENF1_ERROR",
+                f"OpenF1 did not return {exc.endpoint} for session {session_key} "
+                f"after {exc.attempts} attempts.",
+                status=503,
+                details={"endpoint": exc.endpoint, "attempts": exc.attempts},
+            ) from exc
 
         laps = data.get("laps", [])
         stints = data.get("stints", [])
