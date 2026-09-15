@@ -17,28 +17,11 @@ from app.domain.race_timeline import RaceTimeline
 
 
 def _compute_crossover_impact(from_cond: str, to_cond: str) -> str:
-    if {from_cond, to_cond} == {"DRY", "WET"} or (from_cond == "WET" and to_cond == "DRY"):
+    # Conditions are DRY/WET only (weather_conditions), so any change is a
+    # slick <-> inter/wet crossover.
+    if {from_cond, to_cond} == {"DRY", "WET"}:
         return "High"
-    if "DAMP" in (from_cond, to_cond) and "WET" in (from_cond, to_cond):
-        return "Medium"
-    if from_cond == "DRY" and to_cond == "DAMP":
-        return "Medium"
     return "Low"
-
-
-def _confidence_for_crossover(
-    from_cond: str, to_cond: str, concurrent_sc: bool
-) -> str:
-    if {from_cond, to_cond} in ({"DRY", "WET"},):
-        base = "High"
-    else:
-        base = "Medium"
-    # SC concurrent: downgrade one level
-    if concurrent_sc:
-        if base == "High":
-            return "Medium"
-        return "Low"
-    return base
 
 
 def _generate_crossover_summary(

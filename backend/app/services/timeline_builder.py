@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from app.domain.race_timeline import LapSignals, RaceTimeline
+from app.services.weather_conditions import DRY, WET, detect_rain_periods, wet_lap_numbers
 
 
 def _parse_ts(s: str | None) -> datetime | None:
@@ -99,14 +100,6 @@ def _build_sc_vsc_maps(
     return sc_laps, vsc_laps
 
 
-def _weather_condition(rainfall: float) -> str:
-    if rainfall >= 1.0:
-        return "WET"
-    if rainfall > 0:
-        return "DAMP"
-    return "DRY"
-
-
 def build_race_timeline(
     laps_data: list[dict],
     weather_data: list[dict],
@@ -156,6 +149,8 @@ def build_race_timeline(
                 yellow_laps.add(lap)
 
     # ── Weather per lap ────────────────────────────────────────────────────────
+    # Temperatures come from the records inside each lap; wet/dry comes from
+    # weather_conditions so every service agrees on which laps were wet.
     lap_weather_records: dict[int, list[dict]] = defaultdict(list)
     for w in weather_data:
         t = _parse_ts(w.get("date"))
@@ -163,6 +158,7 @@ def build_race_timeline(
             ln = _lap_for_time(t, lap_index)
             if ln:
                 lap_weather_records[ln].append(w)
+    wet_laps = wet_lap_numbers(detect_rain_periods(weather_data, laps_data), lap_index)
 
     # ── Pits per lap ──────────────────────────────────────────────────────────
     pits_per_lap: dict[int, list[int]] = defaultdict(list)
@@ -218,21 +214,12 @@ def build_race_timeline(
     for lap_num in range(1, total_laps + 1):
         # Weather
         wx_records = lap_weather_records.get(lap_num, [])
-        if wx_records:
-            track_temps = [r.get("track_temperature") for r in wx_records if r.get("track_temperature") is not None]
-            air_temps   = [r.get("air_temperature")   for r in wx_records if r.get("air_temperature")   is not None]
-            rainfalls   = [r.get("rainfall") or 0 for r in wx_records]
-            max_rain = max(rainfalls)
-            track_temp = round(statistics.mean(track_temps), 1) if track_temps else None
-            air_temp   = round(statistics.mean(air_temps), 1)   if air_temps   else None
-            condition  = _weather_condition(max_rain)
-            has_rain   = max_rain > 0
-        else:
-            track_temp = None
-            air_temp   = None
-            condition  = "DRY"
-            has_rain   = False
-            max_rain   = 0.0
+        track_temps = [r.get("track_temperature") for r in wx_records if r.get("track_temperature") is not None]
+        air_temps   = [r.get("air_temperature")   for r in wx_records if r.get("air_temperature")   is not None]
+        track_temp = round(statistics.mean(track_temps), 1) if track_temps else None
+        air_temp   = round(statistics.mean(air_temps), 1)   if air_temps   else None
+        is_wet     = lap_num in wet_laps
+        condition  = WET if is_wet else DRY
 
         # Intervals
         lap_ivs = interval_per_lap.get(lap_num, [])
@@ -244,7 +231,7 @@ def build_race_timeline(
         laps_map[lap_num] = LapSignals(
             lap_number=lap_num,
             condition=condition,
-            rainfall=has_rain,
+            rainfall=is_wet,
             track_temp=track_temp,
             air_temp=air_temp,
             sc_active=lap_num in sc_laps,

@@ -14,8 +14,8 @@ from typing import Optional
 class LapSignals:
     lap_number: int
     # ── Weather ────────────────────────────────────────────────────────────────
-    condition: str = "DRY"          # "DRY" | "DAMP" | "WET"
-    rainfall: bool = False
+    condition: str = "DRY"          # "DRY" | "WET" (see services/weather_conditions)
+    rainfall: bool = False          # condition == "WET"
     track_temp: Optional[float] = None
     air_temp: Optional[float] = None
     # ── Race control ───────────────────────────────────────────────────────────
@@ -52,8 +52,8 @@ class RaceTimeline:
         return {n for n, s in self.laps.items() if s.sc_active or s.vsc_active}
 
     def wet_laps(self) -> set[int]:
-        """Lap numbers with DAMP or WET conditions."""
-        return {n for n, s in self.laps.items() if s.condition in ("DAMP", "WET")}
+        """Lap numbers with WET conditions."""
+        return {n for n, s in self.laps.items() if s.condition == "WET"}
 
     def pit_laps(self, driver_number: int) -> set[int]:
         """Lap numbers where the given driver pitted."""
