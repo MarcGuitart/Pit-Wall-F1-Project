@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
 
+    # /chat rate limit (in-memory sliding window). Per browser session first,
+    # per IP as a much higher secondary cap so a classroom behind one NAT
+    # still works during a live demo.
+    chat_rate_limit_per_session: int = 10
+    chat_rate_limit_per_ip: int = 100
+    chat_rate_limit_window_s: int = 3600
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @field_validator("cors_origins", mode="before")

@@ -89,9 +89,32 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Stable id for this browser session — the /chat rate limit is keyed on it
+ * (with a much higher per-IP cap behind it, so a classroom on one NAT still works).
+ * Kept in localStorage when available; per page load otherwise.
+ */
+let memoryClientId: string | null = null
+export function getClientId(): string {
+  if (memoryClientId) return memoryClientId
+  const fresh = () =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  try {
+    const stored = window.localStorage.getItem('pwiq_client_id')
+    if (stored) return (memoryClientId = stored)
+    const id = fresh()
+    window.localStorage.setItem('pwiq_client_id', id)
+    return (memoryClientId = id)
+  } catch {
+    return (memoryClientId = fresh())
+  }
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': getClientId() },
     next: { revalidate: 0 },
     ...options,
   })

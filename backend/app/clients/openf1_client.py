@@ -1,14 +1,13 @@
 import asyncio
 import logging
 import random
-import time
-from collections import deque
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
 from app.core import cache
+from app.core.ratelimit import BlockingLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -20,28 +19,7 @@ RATE_LIMIT_REQUESTS = 25
 RATE_LIMIT_WINDOW_S = 10.0
 
 
-class _SlidingWindowLimiter:
-    """Blocks until fewer than `limit` requests were started in the last `window` seconds."""
-
-    def __init__(self, limit: int, window: float) -> None:
-        self.limit = limit
-        self.window = window
-        self._stamps: deque[float] = deque()
-        self._lock = asyncio.Lock()
-
-    async def acquire(self) -> None:
-        async with self._lock:
-            while True:
-                now = time.monotonic()
-                while self._stamps and now - self._stamps[0] >= self.window:
-                    self._stamps.popleft()
-                if len(self._stamps) < self.limit:
-                    self._stamps.append(now)
-                    return
-                await asyncio.sleep(self._stamps[0] + self.window - now)
-
-
-_limiter = _SlidingWindowLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_S)
+_limiter = BlockingLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_S)
 
 RACE_ENDPOINTS = [
     "laps",

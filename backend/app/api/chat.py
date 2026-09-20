@@ -10,18 +10,67 @@ from __future__ import annotations
 import logging
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.core import cache
 from app.core.config import settings
 from app.core.errors import AppError
+from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
 from app.clients.ollama_client import answer_engineer_question
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
+
+
+CLIENT_ID_HEADER = "X-Client-Id"
+
+_session_limiter = SlidingWindow(settings.chat_rate_limit_per_session, settings.chat_rate_limit_window_s)
+_ip_limiter = SlidingWindow(settings.chat_rate_limit_per_ip, settings.chat_rate_limit_window_s)
+
+
+def _client_ip(request: Request) -> str:
+    # Render terminates TLS in front of us; the first X-Forwarded-For entry is the caller.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def enforce_chat_rate_limit(request: Request) -> None:
+    """
+    Sliding-window limit per browser session (X-Client-Id) with a higher
+    per-IP cap behind it. Raises RATE_LIMITED (429) with the seconds to wait.
+    Both counters are only hit when the request is allowed.
+    """
+    ip = _client_ip(request)
+    client_id = request.headers.get(CLIENT_ID_HEADER, "").strip() or f"ip:{ip}"
+
+    checks = (
+        ("session", _session_limiter, client_id),
+        ("ip", _ip_limiter, ip),
+    )
+    for scope, limiter, key in checks:
+        wait = limiter.retry_after(key)
+        if wait > 0:
+            retry_after = int(wait) + 1
+            raise AppError(
+                "RATE_LIMITED",
+                f"Message limit reached ({limiter.limit} per {limiter.window // 60:.0f} min"
+                f"{' for this browser session' if scope == 'session' else ' for this network'}). "
+                f"Try again in {retry_after} s.",
+                status=429,
+                details={
+                    "retry_after_seconds": retry_after,
+                    "scope": scope,
+                    "limit": limiter.limit,
+                    "window_seconds": int(limiter.window),
+                },
+            )
+    for _, limiter, key in checks:
+        limiter.hit(key)
 
 
 class ChatRequest(BaseModel):
@@ -70,7 +119,10 @@ async def chat_health() -> dict:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
+async def chat(req: ChatRequest, request: Request) -> ChatResponse:
+    # 0. Rate limit before anything that costs LLM quota
+    enforce_chat_rate_limit(request)
+
     # 1. Load analysis from cache (must have been computed via /analysis first)
     raw = cache.get_analysis(req.session_key)
     if raw is None:

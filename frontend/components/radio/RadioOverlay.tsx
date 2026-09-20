@@ -10,6 +10,13 @@ import { AudioToggle } from './AudioToggle'
 import { EngineerOfflineState } from './EngineerOfflineState'
 import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
 
+function formatWait(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return s ? `${m}m ${s}s` : `${m}m`
+}
+
 type Message = {
   role: 'engineer' | 'user'
   content: string
@@ -66,6 +73,9 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
+  // Epoch ms until which /chat is rate-limited for this client (0 = not limited)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [cooldownLeft, setCooldownLeft] = useState(0)
   const feedRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { focusedDriver } = useRaceStore()
@@ -166,9 +176,15 @@ export function RadioOverlay({ analysis, onClose }: Props) {
         setMessages((prev) => [...prev, { role: 'engineer', content: res.answer }])
         playMessageReceived()
       } catch (err) {
-        const content = err instanceof ApiError
-          ? err.message
-          : 'Comms interference. Unable to reach pit wall. Try again.'
+        let content = 'Comms interference. Unable to reach pit wall. Try again.'
+        if (err instanceof ApiError) {
+          content = err.message
+          if (err.code === 'RATE_LIMITED') {
+            const secs = Number(err.details?.retry_after_seconds ?? 60)
+            setCooldownUntil(Date.now() + secs * 1000)
+            content = `Radio silence — message limit reached. Channel reopens in ${formatWait(secs)}.`
+          }
+        }
         setMessages((prev) => [...prev, { role: 'engineer', content }])
       } finally {
         setIsSending(false)
@@ -176,6 +192,20 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     },
     [analysis, isSending, focusedDriver]
   )
+
+  // Tick the rate-limit countdown once a second while it is active
+  useEffect(() => {
+    if (!cooldownUntil) return
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000))
+      setCooldownLeft(left)
+      if (left === 0) setCooldownUntil(0)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [cooldownUntil])
+  const rateLimited = cooldownUntil > 0 && cooldownLeft > 0
 
   // Opening line varies when a driver is focused
   const channelLine = focusedDriver
@@ -398,22 +428,24 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                       sendMessage(input)
                     }
                   }}
-                  placeholder="Ask about strategy, tyres, pit timing…"
+                  placeholder={rateLimited ? `Message limit reached — reopens in ${formatWait(cooldownLeft)}` : 'Ask about strategy, tyres, pit timing…'}
                   rows={2}
                   className="flex-1 bg-bg-elevated border border-border-default rounded-[3px] px-3 py-2 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-signal-blue resize-none"
-                  disabled={isSending}
+                  disabled={isSending || rateLimited}
                 />
                 <button
                   onClick={() => sendMessage(input)}
-                  disabled={!input.trim() || isSending}
+                  disabled={!input.trim() || isSending || rateLimited}
                   className="px-4 py-2 bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] transition-all shrink-0"
                 >
                   Send
                 </button>
               </div>
               <div className="flex items-center justify-between mt-1.5">
-                <span className="font-mono text-[9px] text-text-muted">
-                  Grounded mode · answers cite session signals
+                <span className={`font-mono text-[9px] ${rateLimited ? 'text-signal-amber' : 'text-text-muted'}`}>
+                  {rateLimited
+                    ? `Rate limited · try again in ${formatWait(cooldownLeft)}`
+                    : 'Grounded mode · answers cite session signals'}
                 </span>
                 <span className="font-mono text-[9px] text-text-muted">Shift+Enter newline</span>
               </div>
