@@ -81,7 +81,8 @@ def test_valid_ids_are_returned_with_lap_and_title(client, monkeypatch, analysis
     assert [c["id"] for c in body["cited_signals"]] == [second, first]      # order kept, duplicate dropped
     assert body["cited_signals"][0]["title"] == catalog[second].title
     assert body["cited_signals"][0]["lap_number"] == catalog[second].lap_number
-    assert body["confidence"] == "High"
+    assert body["confidence"] == "High"                 # 2 valid citations: declared High stands
+    assert body["declared_confidence"] == "High"
     assert body["provider"] == "groq" and body["model"] == "m"
 
 
@@ -91,6 +92,7 @@ def test_invented_ids_are_dropped(client, monkeypatch, analysis_9539):
 
     body = ask(client).json()
     assert [c["id"] for c in body["cited_signals"]] == [real]
+    assert body["confidence"] == "Medium"               # 1 valid citation caps at Medium
 
 
 def test_missing_block_gives_empty_citations_and_no_confidence(client, monkeypatch):
@@ -99,7 +101,43 @@ def test_missing_block_gives_empty_citations_and_no_confidence(client, monkeypat
     body = ask(client).json()
     assert body["answer"] == "Plain prose answer."
     assert body["cited_signals"] == []
-    assert body["confidence"] is None
+    assert body["confidence"] is None                   # no structured block: nothing to cap
+    assert body["declared_confidence"] is None
+
+
+# ── structural confidence ────────────────────────────────────────────────────
+
+def test_declared_high_with_no_valid_citation_is_low(client, monkeypatch):
+    _stub(monkeypatch, EngineerReply("A.", "groq", "m", ["S999"], "High"))
+    body = ask(client).json()
+    assert body["cited_signals"] == []
+    assert body["confidence"] == "Low" and body["declared_confidence"] == "High"
+
+
+def test_declared_high_with_one_citation_is_medium(client, monkeypatch, analysis_9539):
+    real = next(iter(signal_catalog(analysis_9539)))
+    _stub(monkeypatch, EngineerReply("A.", "groq", "m", [real], "High"))
+    assert ask(client).json()["confidence"] == "Medium"
+
+
+def test_declared_high_with_two_citations_stays_high(client, monkeypatch, analysis_9539):
+    a, b = list(signal_catalog(analysis_9539))[:2]
+    _stub(monkeypatch, EngineerReply("A.", "groq", "m", [a, b], "High"))
+    assert ask(client).json()["confidence"] == "High"
+
+
+def test_cap_never_raises_a_low_declaration(client, monkeypatch, analysis_9539):
+    a, b = list(signal_catalog(analysis_9539))[:2]
+    _stub(monkeypatch, EngineerReply("A.", "groq", "m", [a, b], "Low"))
+    assert ask(client).json()["confidence"] == "Low"
+
+
+def test_structural_confidence_table():
+    from app.api.chat import structural_confidence as sc
+    assert sc("High", 0) == "Low" and sc("Medium", 0) == "Low" and sc("Low", 0) == "Low"
+    assert sc("High", 1) == "Medium" and sc("Low", 1) == "Low"
+    assert sc("High", 2) == "High" and sc("Medium", 3) == "Medium"
+    assert sc(None, 5) is None
 
 
 def test_provider_rate_limit_is_not_reported_as_offline(client, monkeypatch):

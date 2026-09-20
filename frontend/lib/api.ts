@@ -179,8 +179,9 @@ export async function sendToEngineer(payload: {
   answer: string
   /** Engineer notes the model declared it used, validated server-side; empty if none. */
   cited_signals?: { id: string; lap_number: number | null; title: string }[]
-  /** Model-declared; null when the model returned no structured block. */
+  /** Model declaration capped by validated citations (0 → Low, 1 → Medium); null without a structured block. */
   confidence?: string | null
+  declared_confidence?: string | null
   provider?: string
   model?: string | null
 }> {

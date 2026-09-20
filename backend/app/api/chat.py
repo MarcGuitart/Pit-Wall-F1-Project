@@ -73,6 +73,21 @@ def enforce_chat_rate_limit(request: Request) -> None:
         limiter.hit(key)
 
 
+_CONF_RANK = {"Low": 0, "Medium": 1, "High": 2}
+
+
+def structural_confidence(declared: str | None, valid_citations: int) -> str | None:
+    """
+    Cap the model's declared confidence by the evidence it actually cited:
+    0 validated signals -> at most Low, 1 -> at most Medium, 2+ -> as declared.
+    An answer that cites nothing did not read the data, whatever it says.
+    """
+    if declared is None:
+        return None
+    cap = "Low" if valid_citations == 0 else "Medium" if valid_citations == 1 else "High"
+    return declared if _CONF_RANK[declared] <= _CONF_RANK[cap] else cap
+
+
 class ChatRequest(BaseModel):
     session_key: int
     question: str
@@ -90,8 +105,11 @@ class ChatResponse(BaseModel):
     # Engineer notes the model declared it used, validated against the catalogue
     # it was given. Empty when it cited none (or none that exist) — never guessed.
     cited_signals: list[CitedSignal] = []
-    # The model's own declaration; None when it returned no structured block.
+    # Structural confidence: the model's own declaration capped by how many
+    # validated signals back the answer (see structural_confidence). None only
+    # when the model returned no structured block at all.
     confidence: str | None = None
+    declared_confidence: str | None = None
     provider: str
     model: str | None = None
 
@@ -200,7 +218,8 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     return ChatResponse(
         answer=reply.answer,
         cited_signals=cited,
-        confidence=reply.confidence,
+        confidence=structural_confidence(reply.confidence, len(cited)),
+        declared_confidence=reply.confidence,
         provider=reply.provider,
         model=reply.model,
     )

@@ -10,6 +10,13 @@ import { AudioToggle } from './AudioToggle'
 import { EngineerOfflineState } from './EngineerOfflineState'
 import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
 
+const CONFIDENCE_CLASS: Record<string, string> = {
+  High:   'text-signal-green border-signal-green/40 bg-signal-green/10',
+  Medium: 'text-signal-amber border-signal-amber/40 bg-signal-amber/10',
+  Low:    'text-signal-red border-signal-red/40 bg-signal-red/10',
+  none:   'text-text-muted border-border-default',
+}
+
 function formatWait(seconds: number): string {
   if (seconds < 60) return `${seconds}s`
   const m = Math.floor(seconds / 60)
@@ -19,6 +26,10 @@ function formatWait(seconds: number): string {
 
 type Message = {
   role: 'engineer' | 'user'
+  /** Structural confidence from /chat (model declaration capped by validated citations). */
+  confidence?: string | null
+  /** Engineer notes the answer is grounded on, validated server-side. */
+  cited?: { id: string; lap_number: number | null; title: string }[]
   content: string
 }
 
@@ -173,7 +184,10 @@ export function RadioOverlay({ analysis, onClose }: Props) {
           question,
           focused_driver: focusedDriver?.code ?? null,
         })
-        setMessages((prev) => [...prev, { role: 'engineer', content: res.answer }])
+        setMessages((prev) => [
+          ...prev,
+          { role: 'engineer', content: res.answer, confidence: res.confidence ?? null, cited: res.cited_signals ?? [] },
+        ])
         playMessageReceived()
       } catch (err) {
         let content = 'Comms interference. Unable to reach pit wall. Try again.'
@@ -380,6 +394,28 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                     <p className="font-mono text-[11px] text-text-secondary leading-relaxed">
                       {msg.content}
                     </p>
+                    {msg.role === 'engineer' && msg.confidence !== undefined && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${CONFIDENCE_CLASS[msg.confidence ?? 'none']}`}
+                          title="Model confidence capped by the engineer notes it actually cited: none → Low, one → Medium, two or more → as declared"
+                        >
+                          {msg.confidence ? `${msg.confidence} confidence` : 'Unverified'}
+                        </span>
+                        {(msg.cited ?? []).map((c) => (
+                          <span
+                            key={c.id}
+                            className="px-1.5 py-0.5 border border-border-default rounded-[2px] font-mono text-[8px] text-text-muted"
+                            title={c.title}
+                          >
+                            {c.lap_number != null ? `L${c.lap_number} · ` : ''}{c.title}
+                          </span>
+                        ))}
+                        {(msg.cited ?? []).length === 0 && msg.confidence && (
+                          <span className="font-mono text-[8px] text-text-muted">no signals cited</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

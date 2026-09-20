@@ -31,7 +31,9 @@ AI race engineer, grounded on the cached analysis (Ollama → Groq → offline t
 `/analysis/{session_key}` must have been called first.
 Request: `{ "session_key": int, "question": str, "focused_driver": str | null }`
 Headers: `X-Client-Id` — stable id per browser session; the rate limit is keyed on it.
-Response: `{ "answer": str, "cited_signals": [{ "id", "lap_number", "title" }], "confidence": "Low"|"Medium"|"High"|null, "provider": "ollama"|"groq"|"offline", "model": str|null }`
+Response: `{ "answer": str, "cited_signals": [{ "id", "lap_number", "title" }], "confidence": "Low"|"Medium"|"High"|null, "declared_confidence": same|null, "provider": "ollama"|"groq"|"offline", "model": str|null }`
+`confidence` is structural: the model's declaration capped by the validated citations
+(0 → Low, 1 → Medium, 2+ → as declared); `declared_confidence` is the raw declaration.
 The model receives every engineer note with a stable id (`S1..Sn`) and replies
 in a JSON schema `{answer, cited_signal_ids, confidence}`; `cited_signals` are
 the ids it declared that exist in that catalogue (unknown ids dropped, empty if
