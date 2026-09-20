@@ -73,10 +73,10 @@ def _tyre_notes(degradation: list[TyreDegradationRow]) -> list[EngineerNote]:
 def _pit_notes(pit_impact: list[PitImpactRow]) -> list[EngineerNote]:
     """
     Emit notes for outlier pit stops only, judged on lane_duration against the
-    race baseline (median lane time of racing stops). Stops under SC/VSC or a
-    red flag are not judged — their lane time is not a pit-crew performance.
+    race baseline (median lane time of stops at racing speed — racing and
+    SC/VSC alike). Red-flag holds are not stops and are not judged.
     """
-    valid = [p for p in pit_impact if p.lane_duration and p.stop_type == "racing"]
+    valid = [p for p in pit_impact if p.lane_duration and p.stop_type != "red_flag"]
     if not valid:
         return []
 
@@ -223,6 +223,56 @@ def _undercut_notes(pit_cycles: list[PitCycle]) -> list[EngineerNote]:
     return [n for _, n in candidates[:5]]
 
 
+# ─── Stops under SC/VSC — relative gain vs green-flag stoppers ────────────────
+
+MIN_RELATIVE_GAIN = 1.5     # places gained vs the average green-flag stopper of the same cycle
+
+
+def _neutralised_stop_notes(pit_impact: list[PitImpactRow], pit_cycles: list[PitCycle]) -> list[EngineerNote]:
+    """
+    A stop made inside an SC/VSC has a small absolute delta (everyone is
+    bunched) but a real gain *relative* to the rivals who stopped at green in
+    the same cycle. That relative gain is the fact worth a note.
+    """
+    rows_by_cycle: dict[int, list[PitImpactRow]] = {}
+    for r in pit_impact:
+        if r.cycle_id is not None:
+            rows_by_cycle.setdefault(r.cycle_id, []).append(r)
+
+    candidates: list[tuple[float, EngineerNote]] = []
+    for cycle in pit_cycles:
+        rows = rows_by_cycle.get(cycle.cycle_id, [])
+        deltas = {p.driver_code: p.delta for p in cycle.participants}
+        types: dict[str, set[str]] = {}
+        for r in rows:
+            types.setdefault(r.driver_code, set()).add(r.stop_type)
+        green = [deltas[c] for c, t in types.items() if t == {"racing"} and c in deltas]
+        if not green:
+            continue
+        green_mean = sum(green) / len(green)
+        for code, t in types.items():
+            if "safety_car" not in t or code not in deltas:
+                continue
+            rel = deltas[code] - green_mean
+            if rel < MIN_RELATIVE_GAIN:
+                continue
+            stop = next(r for r in rows if r.driver_code == code and r.stop_type == "safety_car")
+            candidates.append((rel, EngineerNote(
+                lap_number=stop.lap_number,
+                type="PIT_IMPACT",
+                severity="High" if rel >= 3 else "Medium",
+                title=f"{code} pitted under SC/VSC — L{stop.lap_number}",
+                message=(
+                    f"Lap {stop.lap_number} — {code} stopped inside the neutralisation "
+                    f"({stop.lane_duration:.1f}s lane). Net {deltas[code]:+d} through the pit cycle "
+                    f"(L{cycle.lap_start}–{cycle.close_lap}) against {green_mean:+.1f} on average for the "
+                    f"{len(green)} driver(s) who stopped at green: {rel:+.1f} places relative gain."
+                ),
+            )))
+    candidates.sort(key=lambda x: -x[0])
+    return [n for _, n in candidates[:3]]
+
+
 # ─── Main entry point ─────────────────────────────────────────────────────────
 
 def generate_engineer_notes(
@@ -240,6 +290,7 @@ def generate_engineer_notes(
     notes.extend(_pit_notes(pit_impact))
     notes.extend(_tyre_notes(degradation))
     notes.extend(_undercut_notes(pit_cycles or []))
+    notes.extend(_neutralised_stop_notes(pit_impact, pit_cycles or []))
 
     # De-duplicate by (type, lap_number, title)
     seen: set[tuple] = set()

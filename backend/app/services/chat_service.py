@@ -67,13 +67,15 @@ def select_signals(
         return (-pts, int(sid[1:]))          # highest score first, then catalogue order
 
     ranked = sorted(catalog.items(), key=score)
-    # First pass: at most MAX_PER_GROUP notes per (type, lap) — five "HAM undercut
-    # on X" notes from one pit cycle must not crowd out the SC two laps later.
+    # First pass: at most MAX_PER_GROUP notes of the same kind on the same lap
+    # (kind = type + title with driver codes stripped, so "X slow stop L27" and
+    # "X pitted under SC/VSC — L27" are different kinds) — a handful of
+    # same-shaped notes from one pit cycle must not crowd out the SC two laps later.
     chosen: list[tuple[str, EngineerNote]] = []
-    per_group: dict[tuple[str, int | None], int] = {}
+    per_group: dict[tuple[str, int | None, str], int] = {}
     leftovers: list[tuple[str, EngineerNote]] = []
     for sid, n in ranked:
-        key = (n.type, n.lap_number)
+        key = (n.type, n.lap_number, _CODE_RE.sub("", n.title).strip()[:24])
         if per_group.get(key, 0) < MAX_PER_GROUP:
             per_group[key] = per_group.get(key, 0) + 1
             chosen.append((sid, n))
