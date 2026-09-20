@@ -112,6 +112,37 @@ def test_session_not_cached_404(client, monkeypatch, fake_openf1, tmp_path):
 
     err = envelope(client.get("/analysis/424242"), 404, "SESSION_NOT_CACHED")
     assert "9636" in err["message"]
+    # A 401 is an error, not an answer: nothing may be written to the cache.
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_openf1_unauthorized_503_with_token(client, monkeypatch, fake_openf1, tmp_path):
+    """Token configured but rejected -> OPENF1_UNAUTHORIZED, and still nothing cached."""
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "openf1_api_token", "bad-token")
+
+    def handler(req):
+        if req.url.path.endswith("/sessions"):
+            return httpx.Response(200, json=[])
+        return httpx.Response(401, json={"detail": "auth"})
+    fake_openf1(handler)
+
+    err = envelope(client.get("/analysis/424242"), 503, "OPENF1_UNAUTHORIZED")
+    assert err["details"] == {"endpoint": "laps"}
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_non_list_payload_is_an_error_and_not_cached(client, monkeypatch, fake_openf1, tmp_path):
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "openf1_api_token", "token")
+    monkeypatch.setattr(
+        cache, "get_session_meta",
+        lambda key: {"session_key": key, "date_start": "2024-01-01T00:00:00+00:00", "session_type": "Race"},
+    )
+    fake_openf1(lambda req: httpx.Response(200, json={"message": "maintenance"}))
+
+    envelope(client.get("/analysis/424249"), 503, "OPENF1_ERROR")
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_session_not_historical_yet_425(client, monkeypatch):
@@ -164,6 +195,8 @@ def test_openf1_error_503_when_no_laps(client, monkeypatch, fake_openf1, tmp_pat
 
     err = envelope(client.get("/analysis/424246"), 503, "OPENF1_ERROR")
     assert err["details"] == {"endpoint": "laps"}
+    # A genuine 200 [] is a real answer and IS cached (unlike a 401).
+    assert (tmp_path / "424246" / "laps.json").read_text().strip() == "[]"
 
 
 # ── /chat ────────────────────────────────────────────────────────────────────

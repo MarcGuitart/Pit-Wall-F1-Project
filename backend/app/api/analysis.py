@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as analysis_cache
 from app.domain.models import FullRaceAnalysis, ModuleStatus, RaceMeta, RaceBrain
-from app.clients.openf1_client import OpenF1Error, OpenF1RateLimitError
+from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLimitError
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
@@ -218,6 +218,22 @@ async def get_analysis(
         # 5. Fetch all data (respects per-endpoint cache + semaphore + jitter)
         try:
             data = await load_session(session_key)
+        except OpenF1AuthError as exc:
+            if not settings.openf1_api_token:
+                # Demo mode: nothing cached for this session and no token to fetch it.
+                raise AppError(
+                    "SESSION_NOT_CACHED",
+                    "This session is not available in the production demo. "
+                    "Try Brasil 2024 (9636) or España 2024 (9539).",
+                    status=404,
+                    details={"endpoint": exc.endpoint},
+                ) from exc
+            raise AppError(
+                "OPENF1_UNAUTHORIZED",
+                f"OpenF1 rejected the configured API token while fetching {exc.endpoint}.",
+                status=503,
+                details={"endpoint": exc.endpoint},
+            ) from exc
         except OpenF1RateLimitError as exc:
             raise AppError(
                 "OPENF1_RATE_LIMIT",

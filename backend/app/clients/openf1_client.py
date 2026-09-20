@@ -74,6 +74,13 @@ class OpenF1RateLimitError(OpenF1Error):
         super().__init__(endpoint, attempts, f"Rate limit after {attempts} attempts on {endpoint}")
 
 
+class OpenF1AuthError(OpenF1Error):
+    """OpenF1 answered 401: no token, or the token was rejected. Not retried."""
+
+    def __init__(self, endpoint: str) -> None:
+        super().__init__(endpoint, 1, f"OpenF1 requires a valid API token for {endpoint}")
+
+
 async def _fetch_endpoint(
     client: httpx.AsyncClient,
     endpoint: str,
@@ -99,12 +106,13 @@ async def _fetch_endpoint(
                 )
 
             if resp.status_code == 401:
-                # Fast-fail: retrying won't help without a valid token
+                # Fast-fail: retrying won't help without a valid token. Never
+                # return [] here — the caller would cache it as a real answer.
                 logger.error(
                     "[401 UNAUTHORIZED] %s for %s — set OPENF1_API_TOKEN to fetch new sessions",
                     endpoint, session_key,
                 )
-                return []
+                raise OpenF1AuthError(endpoint)
 
             if resp.status_code == 429:
                 retry_after = int(
@@ -120,10 +128,15 @@ async def _fetch_endpoint(
                 continue
 
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            if not isinstance(data, list):
+                # OpenF1 always answers with a JSON array; anything else is an
+                # error page and must not be cached.
+                raise OpenF1Error(endpoint, attempt + 1, f"Unexpected OpenF1 payload for {endpoint}")
+            return data   # a legitimate empty list is a valid, cacheable answer
 
-        except OpenF1RateLimitError:
-            raise
+        except OpenF1Error:
+            raise   # 401, final 429, bad payload: no retry
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             last_exc = exc
             wait = _BACKOFF[min(attempt, 3)]
