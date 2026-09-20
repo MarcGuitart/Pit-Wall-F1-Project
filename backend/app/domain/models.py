@@ -65,12 +65,16 @@ class TyreDegradationRow(BaseModel):
     confidence: Literal["Low", "Medium", "High"]
 
 
+StopType = Literal["racing", "safety_car", "red_flag"]
+
+
 class PitImpactRow(BaseModel):
     driver_number: int
     driver_code: str
     lap_number: int
-    lane_duration: Optional[float] = None
-    stop_duration: Optional[float] = None
+    lane_duration: Optional[float] = None       # primary metric
+    stop_duration: Optional[float] = None       # stationary time; only from USGP 2024 on, informational
+    stop_type: StopType = "racing"              # see pit_service: red-flag/SC stops are not judged
     position_before: Optional[int] = None
     position_after: Optional[int] = None
     net_position_change: Optional[int] = None

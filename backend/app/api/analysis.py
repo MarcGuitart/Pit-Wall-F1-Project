@@ -13,7 +13,7 @@ from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLi
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
-from app.services.pit_service import compute_pit_impact
+from app.services.pit_service import compute_pit_impact, is_slow_stop
 from app.services.chaos_service import METHOD_VERSION as CHAOS_METHOD_VERSION, compute_chaos_index
 from app.services.notes_service import generate_engineer_notes
 from app.services.decisions_service import compute_decisions
@@ -150,7 +150,7 @@ def _build_race_brain(
         f"Tyre cliff risk: {', '.join(set(cliff_drivers[:3]))}. " if cliff_drivers else ""
     )
 
-    slow_stops = [p for p in pit_rows if p.lane_duration and p.lane_duration > 25.0]
+    slow_stops = [p for p in pit_rows if is_slow_stop(p)]
     stop_str = (
         f"{len(slow_stops)} slow pit stop{'s' if len(slow_stops) != 1 else ''}. "
         if slow_stops
@@ -330,7 +330,7 @@ async def get_analysis(
             # 7. Run V1/V2/V3 services
             true_pace        = compute_true_pace(laps, stints, pit, race_control, drivers)
             tyre_degradation = compute_tyre_degradation(laps, stints, race_control, drivers)
-            pit_impact       = compute_pit_impact(pit, position_data, laps, drivers)
+            pit_impact       = compute_pit_impact(pit, position_data, laps, drivers, timeline)
             chaos            = compute_chaos_index(timeline, race_control, laps, position_data, pit)
 
             # Actual race result — independent of True Pace, attached onto each row

@@ -63,8 +63,9 @@ export type PitImpactRow = {
   driver_number: number
   driver_code: string
   lap_number: number
-  lane_duration: number | null
-  stop_duration: number | null
+  lane_duration: number | null            // primary metric
+  stop_duration: number | null            // stationary time; only from USGP 2024 on
+  stop_type: 'racing' | 'safety_car' | 'red_flag'   // red-flag/SC stops are not judged on lane time
   position_before: number | null
   position_after: number | null
   net_position_change: number | null

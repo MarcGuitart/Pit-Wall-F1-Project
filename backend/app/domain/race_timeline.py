@@ -19,8 +19,9 @@ class LapSignals:
     track_temp: Optional[float] = None
     air_temp: Optional[float] = None
     # ── Race control ───────────────────────────────────────────────────────────
-    sc_active: bool = False
+    sc_active: bool = False         # also True on red-flag laps (the field is neutralised)
     vsc_active: bool = False
+    red_flag: bool = False          # red-flag lap or the restart lap after it
     yellow_active: bool = False
     race_control_messages: list[str] = field(default_factory=list)
     # ── Pace ───────────────────────────────────────────────────────────────────

@@ -73,9 +73,9 @@ def build_chat_context(
                 "delta": r.net_position_change,
                 "verdict": r.verdict,
             }
-            for r in analysis.pit_impact
-            if (r.net_position_change or 0) > 0 and (r.stop_duration or 0) > 0.5
-        ][:4],
+            for r in sorted(analysis.pit_impact, key=lambda r: (-(r.net_position_change or 0), r.lap_number))
+            if (r.net_position_change or 0) > 0 and r.lane_duration and r.stop_type != "red_flag"
+        ][:5],
         "pit_losers": [
             {
                 "driver": r.driver_code,
@@ -83,9 +83,9 @@ def build_chat_context(
                 "delta": r.net_position_change,
                 "verdict": r.verdict,
             }
-            for r in analysis.pit_impact
-            if (r.net_position_change or 0) < 0 and (r.stop_duration or 0) > 0.5
-        ][:4],
+            for r in sorted(analysis.pit_impact, key=lambda r: (r.net_position_change or 0, r.lap_number))
+            if (r.net_position_change or 0) < 0 and r.lane_duration and r.stop_type != "red_flag"
+        ][:5],
         "key_decisions": [
             {
                 "rank": d.rank,
@@ -222,6 +222,7 @@ def build_chat_context(
             {
                 "lap": r.lap_number,
                 "lane": r.lane_duration,
+                "type": r.stop_type,
                 "net_pos": r.net_position_change,
                 "verdict": r.verdict,
             }

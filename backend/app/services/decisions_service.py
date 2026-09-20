@@ -14,12 +14,10 @@ from app.domain.models import RaceDecision, PitImpactRow, TyreDegradationRow, Ch
 
 def _pit_decisions(pit_impact: list[PitImpactRow], rank_start: int) -> list[RaceDecision]:
     decisions: list[RaceDecision] = []
-    # Only include stops with valid stationary time (exclude red-flag holds)
+    # Red-flag stops are not strategic decisions
     valid_pits = [
         p for p in pit_impact
-        if p.net_position_change is not None
-        and p.stop_duration is not None
-        and p.stop_duration > 0.5
+        if p.net_position_change is not None and p.stop_type != "red_flag"
     ]
     # Prefer gains first, then losses — sort by signed delta descending (gains at top)
     pits_sorted = sorted(valid_pits, key=lambda p: abs(p.net_position_change or 0), reverse=True)

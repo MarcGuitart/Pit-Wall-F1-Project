@@ -70,15 +70,11 @@ def _tyre_notes(degradation: list[TyreDegradationRow]) -> list[EngineerNote]:
 
 def _pit_notes(pit_impact: list[PitImpactRow]) -> list[EngineerNote]:
     """
-    Emit notes for outlier pit stops only.
-    Uses race-baseline lane time (lowest quartile of stops with valid stop_duration).
-    Red-flag holds (stop_duration==0, lane_duration>>normal) are excluded.
+    Emit notes for outlier pit stops only, judged on lane_duration against the
+    race baseline (median lane time of racing stops). Stops under SC/VSC or a
+    red flag are not judged — their lane time is not a pit-crew performance.
     """
-    # Valid stops: must have stop_duration > 0 (means car was actually stationary)
-    valid = [
-        p for p in pit_impact
-        if p.lane_duration and p.stop_duration and p.stop_duration > 0.5
-    ]
+    valid = [p for p in pit_impact if p.lane_duration and p.stop_type == "racing"]
     if not valid:
         return []
 
@@ -91,11 +87,7 @@ def _pit_notes(pit_impact: list[PitImpactRow]) -> list[EngineerNote]:
 
     notes: list[EngineerNote] = []
     slow_count = 0
-    for row in sorted(pit_impact, key=lambda r: r.lane_duration or 9999):
-        if not row.lane_duration or not row.stop_duration:
-            continue
-        if row.stop_duration <= 0.5:
-            continue  # red flag hold, not a real stop
+    for row in sorted(valid, key=lambda r: r.lane_duration or 9999):
 
         net_str = (
             f"{row.net_position_change:+d}" if row.net_position_change is not None else "–"

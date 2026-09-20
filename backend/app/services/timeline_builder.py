@@ -52,6 +52,24 @@ def _lap_for_time(
     return None
 
 
+_RED_FLAG_RE = re.compile(r"(^|\s)RED FLAG")   # word-bounded: "CHEQUERED FLAG" contains "RED FLAG"
+
+
+def _is_red_flag(msg: dict) -> bool:
+    txt = (msg.get("message") or "").upper()
+    return (msg.get("flag") or "").upper() == "RED" or bool(_RED_FLAG_RE.search(txt))
+
+
+def red_flag_laps(race_control: list[dict]) -> set[int]:
+    """Red-flag lap and the restart lap after it — the one place this is decided."""
+    laps: set[int] = set()
+    for msg in race_control:
+        lap = msg.get("lap_number")
+        if lap and _is_red_flag(msg):
+            laps.update((lap, lap + 1))
+    return laps
+
+
 def _build_sc_vsc_maps(
     race_control: list[dict],
 ) -> tuple[set[int], set[int]]:
@@ -75,8 +93,7 @@ def _build_sc_vsc_maps(
         is_vsc_deploy = "VIRTUAL SAFETY CAR DEPLOYED" in txt
         is_sc_end = "SAFETY CAR IN THIS LAP" in txt
         is_vsc_end = "VIRTUAL SAFETY CAR ENDING" in txt
-        # word-boundary: "CHEQUERED FLAG" also contains "RED FLAG"
-        is_red = (msg.get("flag") or "").upper() == "RED" or bool(re.search(r"(^|\s)RED FLAG", txt))
+        is_red = _is_red_flag(msg)
 
         if is_red and lap:
             if sc_deploy_lap is not None:
@@ -153,6 +170,7 @@ def build_race_timeline(
 
     # ── SC/VSC per lap ────────────────────────────────────────────────────────
     sc_laps, vsc_laps = _build_sc_vsc_maps(race_control_data)
+    red_laps = red_flag_laps(race_control_data)
 
     # ── Yellow flags per lap (from race_control lap_number field) ─────────────
     yellow_laps: set[int] = set()
@@ -253,6 +271,7 @@ def build_race_timeline(
             air_temp=air_temp,
             sc_active=lap_num in sc_laps,
             vsc_active=lap_num in vsc_laps,
+            red_flag=lap_num in red_laps,
             yellow_active=lap_num in yellow_laps,
             race_control_messages=rc_messages_per_lap.get(lap_num, []),
             has_clean_laps=bool(clean_durs),

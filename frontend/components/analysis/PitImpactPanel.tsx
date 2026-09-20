@@ -24,8 +24,9 @@ const VERDICT_STYLE = (verdict: string) => {
 }
 
 export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
-  // Show only stops with valid stationary time to avoid red-flag hold spam
-  const validRows = rows.filter((r) => r.stop_duration == null || r.stop_duration > 0.5)
+  // Red-flag stops are tyre changes under a suspension, not strategic stops — listed apart
+  const validRows = rows.filter((r) => r.stop_type !== 'red_flag')
+  const redFlagStops = rows.length - validRows.length
 
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
@@ -38,6 +39,11 @@ export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
         </span>
       </div>
 
+      {redFlagStops > 0 && (
+        <div className="px-3 py-1.5 border-b border-border-subtle font-mono text-[9px] text-text-muted">
+          {redFlagStops} stop{redFlagStops === 1 ? '' : 's'} under red flag not shown — tyres changed during the suspension.
+        </div>
+      )}
       <div className="divide-y divide-border-subtle">
         {validRows.map((row, i) => {
           const isFocused = focusedDriver === row.driver_code
@@ -70,6 +76,11 @@ export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
                   <span className="font-mono text-[9px] text-text-muted">
                     {formatLapNumber(row.lap_number)}
                   </span>
+                  {row.stop_type === 'safety_car' && (
+                    <span className="px-1 py-0.5 border border-signal-amber/40 text-signal-amber rounded-[2px] font-display font-bold text-[7px] uppercase tracking-[0.5px]">
+                      under SC
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <div>

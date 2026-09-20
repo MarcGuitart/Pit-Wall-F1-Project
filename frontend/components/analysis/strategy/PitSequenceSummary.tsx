@@ -18,7 +18,7 @@ function NetDelta({ delta }: { delta: number | null }) {
 export function PitSequenceSummary({ pitImpactRows, onDriverClick, onViewAll, sessionType }: Props) {
   if (sessionType !== 'Race') return null
 
-  const valid = pitImpactRows.filter((r) => r.stop_duration == null || r.stop_duration > 0.5)
+  const valid = pitImpactRows.filter((r) => r.stop_type !== 'red_flag')
   const noData = valid.length === 0
   const allMissingLane = valid.every((r) => r.lane_duration == null)
 
