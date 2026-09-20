@@ -1,7 +1,7 @@
 import json as _json
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings
 
 # Absolute path so cache resolution is independent of the process working
@@ -12,8 +12,17 @@ _DEFAULT_CACHE_DIR = str(Path(__file__).parents[2] / "cache")
 
 class Settings(BaseSettings):
     openf1_base_url: str = "https://api.openf1.org/v1"
-    # Optional: OpenF1 API token for fetching sessions not in the static cache
+    # Paid account: username/password → bearer token, renewed automatically
+    # (app/clients/openf1_auth.py). Without them the client is anonymous.
+    openf1_username: str = ""
+    openf1_password: SecretStr = SecretStr("")
+    openf1_token_url: str = "https://api.openf1.org/token"
+    # Legacy: a static bearer token (no renewal). Ignored when username/password are set.
     openf1_api_token: str = ""
+    # Outgoing rate limit to OpenF1 (sliding window). Anonymous documented limit
+    # is 30 req / 10 s; the paid limit is higher — measure with scripts/openf1_rate_probe.py.
+    openf1_rate_limit_requests: int = 25
+    openf1_rate_limit_window_s: float = 10.0
     cache_dir: str = _DEFAULT_CACHE_DIR
     environment: str = "development"
     cors_origins: list[str] = [
@@ -52,6 +61,11 @@ class Settings(BaseSettings):
             except (_json.JSONDecodeError, ValueError):
                 return [o.strip() for o in v.split(",") if o.strip()]
         return v
+
+    @property
+    def openf1_credentials_configured(self) -> bool:
+        """True when any OpenF1 credential is set (account or static token)."""
+        return bool(self.openf1_username and self.openf1_password.get_secret_value()) or bool(self.openf1_api_token)
 
     @property
     def cache_path(self) -> Path:
