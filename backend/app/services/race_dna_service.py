@@ -30,23 +30,27 @@ def _derive_secondary_factor(
     """Return the second-biggest race influence, never duplicating primary."""
     factors: list[tuple[str, int]] = []
 
-    sc_score = chaos.components.safety_car
-    if sc_score >= 10:
-        factors.append(("Safety Car Timing", sc_score))
+    # Components are compared on their 0-1 normalised value, not on points,
+    # so this does not depend on the weights in chaos_service.
+    sc_norm = chaos.breakdown["safety_car"].normalized
+    if sc_norm >= 0.33:
+        factors.append(("Safety Car Timing", round(sc_norm * 30)))
 
     if any(t.impact in ("High", "Medium") for t in meaningful_trains):
         factors.append(("Track Position / DRS", 15 if any(t.impact == "High" for t in meaningful_trains) else 8))
 
-    if chaos.components.weather >= 10:
-        factors.append(("Weather", chaos.components.weather))
+    wx_norm = chaos.breakdown["weather"].normalized
+    if wx_norm >= 0.33:
+        factors.append(("Weather", round(wx_norm * 20)))
 
     if tyre_degradation:
         avg_slope = statistics.mean(r.degradation_slope for r in tyre_degradation)
         if avg_slope >= 0.06:
             factors.append(("Tyre Degradation", int(avg_slope * 200)))
 
-    if chaos.components.investigations + chaos.components.penalties >= 3:
-        factors.append(("Race Control Incidents", chaos.components.investigations + chaos.components.penalties))
+    st_norm = chaos.breakdown["stewarding"].normalized
+    if st_norm >= 0.25:
+        factors.append(("Race Control Incidents", round(st_norm * 20)))
 
     # Remove factors already covered by primary (avoid duplicate labels)
     filtered = [(name, score) for name, score in factors if name not in primary]
@@ -72,7 +76,7 @@ def compute_race_dna(
     Priority logic: Weather + SC > Weather > SC > DRS > Pace.
     """
     # ── Primary factor ────────────────────────────────────────────────────────
-    has_high_sc = chaos.components.safety_car >= 20
+    has_high_sc = chaos.breakdown["safety_car"].normalized >= 0.5
     has_high_weather = (
         weather_analysis is not None
         and weather_analysis.strategy_impact == "High"

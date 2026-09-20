@@ -42,9 +42,10 @@ def test_9539_emits_no_rain_notes(esp):
 
 
 def test_9539_chaos_weather_component_is_zero(esp):
-    chaos = compute_chaos_index(esp["race_control"], esp["weather"], esp["position"], esp["laps"])
+    chaos = compute_chaos_index(_timeline(9539, esp), esp["race_control"], esp["laps"], esp["position"], esp["pit"])
     assert chaos.components.weather == 0
-    assert "rain period" not in chaos.summary
+    assert chaos.breakdown["weather"].raw == 0
+    assert "wet" not in chaos.summary
 
 
 def test_9539_has_no_weather_crossovers(esp):
@@ -82,11 +83,11 @@ def test_9636_rain_notes_match_periods(bra):
     assert notes[0].lap_number == 1        # raining from the start
 
 
-def test_9636_chaos_weather_component_stays_capped(bra):
-    chaos = compute_chaos_index(bra["race_control"], bra["weather"], bra["position"], bra["laps"])
-    assert chaos.components.weather > 0
+def test_9636_chaos_weather_component_is_high(bra):
+    chaos = compute_chaos_index(_timeline(9636, bra), bra["race_control"], bra["laps"], bra["position"], bra["pit"])
+    assert chaos.breakdown["weather"].raw > 0.6      # ~72 % of laps wet
+    assert chaos.components.weather >= 18
     assert chaos.level == "Extreme"
-    assert chaos.score == 100
 
 
 def test_9636_weather_analysis_is_still_high_impact(bra):

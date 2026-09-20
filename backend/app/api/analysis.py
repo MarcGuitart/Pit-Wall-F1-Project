@@ -91,22 +91,17 @@ def _build_race_brain(
         }
         best_compound = min(compound_avg, key=compound_avg.__getitem__)
 
-    if chaos_score >= 80:
-        phase = "Weather-affected race"
-        tension = "High"
-        question = "Which teams managed the chaos and tyre transitions best?"
-    elif chaos_score >= 50:
-        phase = "High-incident race"
-        tension = "High"
-        question = "Did SC/VSC timing create or destroy the race outcome?"
-    elif chaos_score >= 25:
-        phase = "Strategic race"
-        tension = "Medium"
-        question = "Did the tyre strategy calls match the degradation windows?"
-    else:
-        phase = "Clean race"
-        tension = "Low"
-        question = "Who had the true pace advantage and was it enough?"
+    # Phase follows chaos.level — the thresholds live in chaos_service only.
+    phase, tension, question = {
+        "Extreme": ("Weather-affected race", "High",
+                    "Which teams managed the chaos and tyre transitions best?"),
+        "High":    ("High-incident race", "High",
+                    "Did SC/VSC timing create or destroy the race outcome?"),
+        "Medium":  ("Strategic race", "Medium",
+                    "Did the tyre strategy calls match the degradation windows?"),
+        "Low":     ("Clean race", "Low",
+                    "Who had the true pace advantage and was it enough?"),
+    }[chaos_level]
 
     top3 = [r.driver_code for r in pace_rows[:3]]
     top3_str = " › ".join(top3) if top3 else "–"
@@ -279,11 +274,24 @@ async def get_analysis(
             year=session_meta.get("year", 2024),
         )
 
-        # 6. Run V1/V2/V3 services
+        # 6. Shared RaceTimeline (built ONCE — chaos and all V4 services read from it)
+        intervals = data.get("intervals", [])
+        timeline = build_race_timeline(
+            laps_data=laps,
+            weather_data=weather,
+            race_control_data=race_control,
+            pit_data=pit,
+            interval_data=intervals,
+            position_data=position_data,
+            session_key=session_key,
+        )
+        total_laps = timeline.total_laps or 70
+
+        # 7. Run V1/V2/V3 services
         true_pace        = compute_true_pace(laps, stints, pit, race_control, drivers)
         tyre_degradation = compute_tyre_degradation(laps, stints, race_control, drivers)
         pit_impact       = compute_pit_impact(pit, position_data, laps, drivers)
-        chaos            = compute_chaos_index(race_control, weather, position_data, laps)
+        chaos            = compute_chaos_index(timeline, race_control, laps, position_data, pit)
 
         # Actual race result — independent of True Pace, attached onto each row
         # so the two are shown side by side rather than mistaken for each other.
@@ -304,19 +312,6 @@ async def get_analysis(
         )
         decisions        = compute_decisions(pit_impact, tyre_degradation, chaos, len(true_pace))
         weather_analysis = compute_weather_analysis(weather, laps)
-
-        # 7. Build shared RaceTimeline (called ONCE — all V4 services read from it)
-        intervals = data.get("intervals", [])
-        timeline = build_race_timeline(
-            laps_data=laps,
-            weather_data=weather,
-            race_control_data=race_control,
-            pit_data=pit,
-            interval_data=intervals,
-            position_data=position_data,
-            session_key=session_key,
-        )
-        total_laps = timeline.total_laps or 70
 
         # 8-9. V4 modules — each wrapped so a partial failure never breaks the
         # response. `modules` records ok / failed / not_applicable per field.

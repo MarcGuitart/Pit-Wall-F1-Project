@@ -78,11 +78,22 @@ class PitImpactRow(BaseModel):
     confidence: Literal["Low", "Medium", "High"]
 
 
+class ChaosComponent(BaseModel):
+    """One auditable term of the Chaos Index: raw measurement → 0-1 → points."""
+    raw: float
+    raw_unit: str
+    normalized: float           # min(1, raw / full_scale)
+    full_scale: float           # raw value that earns the full weight
+    weight: int                 # max points
+    points: float               # normalized * weight
+    note: Optional[str] = None
+
+
 class ChaosComponents(BaseModel):
+    """Points per component (rounded) — the quick view; see ChaosIndex.breakdown for the audit."""
     safety_car: int
     yellow_flags: int
-    investigations: int
-    penalties: int
+    stewarding: int             # incidents noted + penalties (v1 had investigations + penalties)
     weather: int
     position_volatility: int
 
@@ -92,7 +103,9 @@ class ChaosIndex(BaseModel):
     level: Literal["Low", "Medium", "High", "Extreme"]
     peak_chaos_lap: Optional[int] = None
     components: ChaosComponents
+    breakdown: dict[str, ChaosComponent] = {}
     summary: str
+    method_version: str = "1.0"     # "2.0" = fraction-of-race method (chaos_service.METHOD_VERSION)
 
 
 class EngineerNote(BaseModel):
