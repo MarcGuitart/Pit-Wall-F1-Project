@@ -190,3 +190,91 @@ def test_error_responses_are_never_cached(fake, account, monkeypatch, tmp_path):
 def test_credentials_error_message_has_no_secret():
     err = OpenF1CredentialsError("OpenF1 token endpoint answered 401")
     assert "hunter2" not in str(err) and "password" not in str(err).lower()
+
+
+# ── 404 "No results found" is an empty result, not an error ──────────────────
+
+def _install_404(monkeypatch, body, status=404):
+    real = httpx.AsyncClient
+    calls: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(req.url.path)
+        return httpx.Response(status, json=body) if body is not None else httpx.Response(status, text="gone")
+
+    class Patched(real):
+        def __init__(self, *a, **kw):
+            kw["transport"] = httpx.MockTransport(handler)
+            super().__init__(*a, **kw)
+    monkeypatch.setattr(httpx, "AsyncClient", Patched)
+    monkeypatch.setattr(openf1_client, "_BACKOFF", [0, 0, 0, 0])
+    monkeypatch.setattr(openf1_client, "_semaphore", asyncio.Semaphore(2))
+    monkeypatch.setattr(openf1_client, "_limiter", BlockingLimiter(1000, 10))
+    return calls
+
+
+def test_404_no_results_is_an_empty_list_without_retries(monkeypatch):
+    calls = _install_404(monkeypatch, {"detail": "No results found."})
+    assert asyncio.run(_get("pit")) == []
+    assert len(calls) == 1
+
+
+def test_404_no_results_is_cached_as_a_legitimate_answer(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    _install_404(monkeypatch, {"detail": "No results found."})
+    data = asyncio.run(openf1_client.fetch_all(424242))
+    assert data == {ep: [] for ep in openf1_client.RACE_ENDPOINTS}
+    for ep in openf1_client.RACE_ENDPOINTS:
+        assert (tmp_path / "424242" / f"{ep}.json").read_text().strip() == "[]"
+
+
+def test_404_with_another_body_is_an_error_and_not_cached(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    calls = _install_404(monkeypatch, {"detail": "Not Found"})
+    with pytest.raises(openf1_client.OpenF1Error) as exc:
+        asyncio.run(openf1_client.fetch_all(424243))
+    assert exc.value.upstream_status == 404 and exc.value.attempts == 4
+    assert len(calls) == 4                              # real 404s are still retried
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_404_without_json_body_is_an_error(monkeypatch):
+    _install_404(monkeypatch, None)
+    with pytest.raises(openf1_client.OpenF1Error):
+        asyncio.run(_get("laps"))
+
+
+# ── limiter follows the auth mode ────────────────────────────────────────────
+
+def test_limiter_defaults_by_mode(monkeypatch):
+    monkeypatch.setattr(settings, "openf1_rate_limit_requests", 0)
+    anon = openf1_client._limiter_for_mode()
+    assert (anon.limit, anon.window) == (openf1_client.RATE_LIMIT_ANONYMOUS, 60.0) == (27, 60.0)
+    monkeypatch.setattr(settings, "openf1_username", "u")
+    monkeypatch.setattr(settings, "openf1_password", SecretStr("p"))
+    acc = openf1_client._limiter_for_mode()
+    assert (acc.limit, acc.window) == (openf1_client.RATE_LIMIT_ACCOUNT, 60.0) == (55, 60.0)
+
+
+def test_limiter_env_override_wins(monkeypatch):
+    monkeypatch.setattr(settings, "openf1_rate_limit_requests", 10)
+    monkeypatch.setattr(settings, "openf1_rate_limit_window_s", 5.0)
+    lim = openf1_client._limiter_for_mode()
+    assert (lim.limit, lim.window) == (10, 5.0)
+
+
+def test_429_backoff_still_applies_above_the_limiter(fake, account, monkeypatch):
+    """The limiter paces us under the budget; if OpenF1 still answers 429 the retry/backoff path runs."""
+    hits = {"n": 0}
+
+    class Throttling(FakeOpenF1):
+        def __call__(self, req):
+            if req.url.path == "/token":
+                return super().__call__(req)
+            hits["n"] += 1
+            if hits["n"] <= 2:
+                return httpx.Response(429, headers={"Retry-After": "0"}, json={"detail": "Rate limit exceeded. Max 60 requests/minute."})
+            return httpx.Response(200, json=[{"lap_number": 1}])
+    fake(Throttling())
+    assert asyncio.run(_get("laps")) == [{"lap_number": 1}]
+    assert hits["n"] == 3                               # two 429s absorbed by the backoff, third succeeds

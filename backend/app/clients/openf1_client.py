@@ -14,14 +14,23 @@ logger = logging.getLogger(__name__)
 
 _semaphore = asyncio.Semaphore(2)
 
-# Outgoing limit: OPENF1_RATE_LIMIT_REQUESTS / OPENF1_RATE_LIMIT_WINDOW_S
-# (default 25 / 10 s — the anonymous documented limit is 30 / 10 s per IP;
-# the paid limit is measured with scripts/openf1_rate_probe.py).
-RATE_LIMIT_REQUESTS = settings.openf1_rate_limit_requests
-RATE_LIMIT_WINDOW_S = settings.openf1_rate_limit_window_s
+# Outgoing limit. Measured 2026-09-20 (scripts/openf1_rate_probe.py): OpenF1
+# enforces 60 requests/minute with an account and 30/minute anonymous, over a
+# one-minute window. Defaults sit just under each; OPENF1_RATE_LIMIT_REQUESTS /
+# OPENF1_RATE_LIMIT_WINDOW_S override both modes when set.
+RATE_LIMIT_WINDOW_S = 60.0
+RATE_LIMIT_ACCOUNT = 55
+RATE_LIMIT_ANONYMOUS = 27
 
 
-_limiter = BlockingLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_S)
+def _limiter_for_mode() -> BlockingLimiter:
+    if settings.openf1_rate_limit_requests:
+        return BlockingLimiter(settings.openf1_rate_limit_requests, settings.openf1_rate_limit_window_s or RATE_LIMIT_WINDOW_S)
+    limit = RATE_LIMIT_ACCOUNT if token_manager.configured else RATE_LIMIT_ANONYMOUS
+    return BlockingLimiter(limit, RATE_LIMIT_WINDOW_S)
+
+
+_limiter = _limiter_for_mode()
 
 RACE_ENDPOINTS = [
     "laps",
@@ -76,6 +85,14 @@ class OpenF1AuthError(OpenF1Error):
         self.reason = reason
 
 
+def _is_no_results(resp: httpx.Response) -> bool:
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("detail") == "No results found."
+
+
 async def _get(
     client: httpx.AsyncClient,
     endpoint: str,
@@ -125,6 +142,13 @@ async def _get(
                 reason = "token rejected after renewal" if auth_retried else "anonymous access"
                 logger.error("[401 UNAUTHORIZED] %s %s — %s", endpoint, params, reason)
                 raise OpenF1AuthError(endpoint, reason)
+
+            if resp.status_code == 404 and _is_no_results(resp):
+                # OpenF1's way of saying "empty result set" — a legitimate answer
+                # (a session with no pit stops, intervals for a practice). Cached
+                # like any []. Any other 404 body is a real error below.
+                logger.info("[404 NO RESULTS] %s %s → []", endpoint, params)
+                return []
 
             if resp.status_code == 429:
                 retry_after = int(
