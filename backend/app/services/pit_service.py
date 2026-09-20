@@ -9,9 +9,9 @@ Each stop is typed from the race-control timestamps, not just the lap number:
 - racing      — a normal stop; lane time is judged and slow/fast verdicts apply.
                 A stop made after 'VIRTUAL SAFETY CAR ENDING' on the VSC lap is
                 a racing stop.
-- safety_car  — the pit timestamp falls inside an SC/VSC period; a cheap stop
-                whose position delta partly reflects the neutralisation, so lane
-                time is not judged
+- safety_car  — the pit timestamp falls inside an SC/VSC period; the lane time
+                is judged like any other, only the position delta is relativised
+                (part of it is the neutralisation)
 - red_flag    — pitted on a red-flag lap (or a 'lane time' of 10+ minutes);
                 tyres changed under suspension. Not a strategic stop.
 
@@ -48,34 +48,43 @@ def _net_text(net_change: int | None) -> str:
     return f" Net: {net_change} position{'s' if abs(net_change) > 1 else ''} lost."
 
 
+def _lane_quality(lane_dur: float | None) -> str | None:
+    """Lane time is judged for every stop that happened at racing speed (racing or SC/VSC)."""
+    if lane_dur is None:
+        return None
+    if lane_dur < 21.5:
+        return f"Excellent stop ({lane_dur:.1f}s lane, benchmark class)."
+    if lane_dur < 23.5:
+        return f"Good stop ({lane_dur:.1f}s lane)."
+    if lane_dur < SLOW_LANE_S:
+        return f"Standard stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target)."
+    return f"Slow stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target — costly)."
+
+
 def _verdict(stop_type: StopType, lane_dur: float | None, net_change: int | None) -> tuple[str, str]:
-    """Return (verdict_text, confidence)."""
+    """
+    (verdict_text, confidence). The lane time is judged the same way whatever
+    the flag — 35 s is slow under a VSC too. Only the *position delta* is
+    relativised: under SC/VSC part of it is the neutralisation, under a red
+    flag it means nothing.
+    """
     if stop_type == "red_flag":
         return (
             "Red-flag stop — tyres changed under the suspension, not a strategic stop."
             + _net_text(net_change),
             "Low",
         )
+
+    quality = _lane_quality(lane_dur)
+    if quality is None:
+        return "No lane timing data available.", "Low"
+
     if stop_type == "safety_car":
-        lane = f" ({lane_dur:.1f}s lane)" if lane_dur is not None else ""
         return (
-            f"Stop under SC/VSC{lane} — cheap stop; position delta partly reflects the neutralisation."
+            quality + " Under SC/VSC — the position delta partly reflects the neutralisation."
             + _net_text(net_change),
             "Medium",
         )
-
-    if lane_dur is None:
-        return "No lane timing data available.", "Low"
-
-    if lane_dur < 21.5:
-        quality = f"Excellent stop ({lane_dur:.1f}s lane, benchmark class)."
-    elif lane_dur < 23.5:
-        quality = f"Good stop ({lane_dur:.1f}s lane)."
-    elif lane_dur < SLOW_LANE_S:
-        quality = f"Standard stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target)."
-    else:
-        quality = f"Slow stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target — costly)."
-
     if net_change is None:
         return quality, "Medium"
     return quality + _net_text(net_change), "High"
@@ -106,8 +115,8 @@ def stop_type_for(
 
 
 def is_slow_stop(row: PitImpactRow) -> bool:
-    """A racing stop over SLOW_LANE_S. SC/red-flag stops are never 'slow'."""
-    return row.stop_type == "racing" and row.lane_duration is not None and row.lane_duration > SLOW_LANE_S
+    """Any stop at racing speed over SLOW_LANE_S — under SC/VSC too. Red-flag holds are not stops."""
+    return row.stop_type != "red_flag" and row.lane_duration is not None and row.lane_duration > SLOW_LANE_S
 
 
 def compute_pit_impact_with_cycles(
