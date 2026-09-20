@@ -17,7 +17,7 @@ import pytest
 
 from app.services.chaos_service import (
     FULL_SCALE, METHOD_VERSION, THRESHOLDS, WEIGHTS,
-    compute_chaos_index, count_stewarding, level_for,
+    compute_chaos_index, count_stewarding, level_for, stewarding_per_lap,
 )
 from app.services.timeline_builder import build_race_timeline
 
@@ -97,6 +97,28 @@ def test_stewarding_counts_an_incident_once():
         {"message": "FIA STEWARDS: 10 SECOND STOP/GO PENALTY FOR CAR 30 (LAW) - UNSAFE RELEASE"},
     ]
     assert count_stewarding(rc) == (2, 2)   # v1 counted 3 'investigations' + 1 penalty here
+
+
+def test_penalty_is_attributed_to_the_lap_of_its_incident():
+    rc = [
+        {"lap_number": 1, "date": "t1", "message": "TURN 1 INCIDENT INVOLVING CARS 1 (VER) AND 81 (PIA) NOTED - CAUSING A COLLISION"},
+        {"lap_number": 4, "date": "t2", "message": "FIA STEWARDS: TURN 1 INCIDENT INVOLVING CARS 1 (VER) AND 81 (PIA) UNDER INVESTIGATION"},
+        {"lap_number": 5, "date": "t3", "message": "FIA STEWARDS: 10 SECOND TIME PENALTY FOR CAR 1 (VER) - CAUSING A COLLISION"},
+        {"lap_number": 58, "date": "t4", "message": "FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 18 (STR) - TRACK LIMITS"},
+    ]
+    assert stewarding_per_lap(rc) == {1: (1, 1), 58: (0, 1)}   # STR: no noted incident -> issue lap
+
+
+def test_peak_chaos_lap_follows_the_altered_state_signals(scores):
+    # Abu Dhabi 2024: lap-1 VER/PIA collision (+ penalty attributed to lap 1), not
+    # the last-lap track-limits penalty and not v1's 'most messages' lap
+    assert scores[9662].peak_chaos_lap == 1
+    # Hungary 2024: the VER/HAM collision + yellow on lap 63
+    assert scores[9566].peak_chaos_lap == 63
+    # São Paulo 2024: inside the SC/red-flag/wet stretch, not the lap-28 VSC
+    assert 30 <= scores[9636].peak_chaos_lap <= 43
+    for c in scores.values():
+        assert c.peak_chaos_lap is not None and c.peak_chaos_lap >= 1
 
 
 # ── Synthetic: same pattern, different race length ───────────────────────────

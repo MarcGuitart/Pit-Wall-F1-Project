@@ -83,6 +83,11 @@ score = Σ  weight_c · min(1, raw_c / full_scale_c)        (0–100)
 | `weather` | wet laps / total laps (rain periods per `weather_conditions`) | 0.75 | 20 |
 | `position_volatility` | competitive place changes per driver-lap: ranks recomputed each lap among drivers who did not pit in the last 3 laps, on laps not under SC/VSC — pit-cycle and neutralisation shuffles are excluded | 0.12 | 20 |
 
+`chaos.peak_chaos_lap` is the lap with the highest weighted concentration of the
+same signals (SC 3 · VSC 1.5 · local yellow 1 · incident noted 1 · penalty 2, attributed
+to the lap of the incident it sanctions · wet lap 1 · competitive place change 0.25,
+start lap excluded); earliest lap wins a tie.
+
 `chaos.breakdown[<component>]` exposes `raw`, `raw_unit`, `normalized`,
 `full_scale`, `weight`, `points` and a `note`; `chaos.components` keeps the
 rounded points for the quick view.
