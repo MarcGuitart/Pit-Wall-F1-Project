@@ -13,7 +13,7 @@ from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLi
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
-from app.services.pit_service import compute_pit_impact, is_slow_stop
+from app.services.pit_service import compute_pit_impact_with_cycles, is_slow_stop
 from app.services.chaos_service import METHOD_VERSION as CHAOS_METHOD_VERSION, compute_chaos_index
 from app.services.notes_service import generate_engineer_notes
 from app.services.decisions_service import compute_decisions
@@ -330,7 +330,9 @@ async def get_analysis(
             # 7. Run V1/V2/V3 services
             true_pace        = compute_true_pace(laps, stints, pit, race_control, drivers)
             tyre_degradation = compute_tyre_degradation(laps, stints, race_control, drivers)
-            pit_impact       = compute_pit_impact(pit, position_data, laps, drivers, timeline)
+            pit_impact, pit_cycles = compute_pit_impact_with_cycles(
+                pit, position_data, laps, drivers, race_control, timeline
+            )
             chaos            = compute_chaos_index(timeline, race_control, laps, position_data, pit)
 
             # Actual race result — independent of True Pace, attached onto each row
@@ -348,9 +350,9 @@ async def get_analysis(
                 true_pace, tyre_degradation, pit_impact,
             )
             engineer_notes   = generate_engineer_notes(
-                tyre_degradation, pit_impact, chaos, race_control, weather, laps
+                tyre_degradation, pit_impact, chaos, race_control, weather, laps, pit_cycles
             )
-            decisions        = compute_decisions(pit_impact, tyre_degradation, chaos, len(true_pace))
+            decisions        = compute_decisions(pit_impact, tyre_degradation, chaos, len(true_pace), pit_cycles)
             weather_analysis = compute_weather_analysis(weather, laps)
 
             # 8-9. V4 modules — each wrapped so a partial failure never breaks the
@@ -442,6 +444,7 @@ async def get_analysis(
                 true_pace=true_pace[:20],
                 tyre_degradation=tyre_degradation,
                 pit_impact=pit_impact,
+                pit_cycles=pit_cycles,
                 chaos=chaos,
                 engineer_notes=engineer_notes,
                 decisions=decisions,

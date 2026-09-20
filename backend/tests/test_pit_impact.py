@@ -11,7 +11,8 @@ import pytest
 
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
-from app.services.pit_service import SLOW_LANE_S, compute_pit_impact, is_slow_stop
+from app.services.pit_service import SLOW_LANE_S, compute_pit_impact_with_cycles, is_slow_stop
+from app.services.notes_service import _undercut_notes
 from app.services.timeline_builder import build_race_timeline
 from app.services.notes_service import _pit_notes
 
@@ -22,9 +23,19 @@ def bra(session_data):
 
 
 @pytest.fixture
-def rows(bra):
+def rows_and_cycles(bra):
     tl = build_race_timeline(bra["laps"], bra["weather"], bra["race_control"], bra["pit"], bra["intervals"], bra["position"], 9636)
-    return compute_pit_impact(bra["pit"], bra["position"], bra["laps"], bra["drivers"], tl)
+    return compute_pit_impact_with_cycles(bra["pit"], bra["position"], bra["laps"], bra["drivers"], bra["race_control"], tl)
+
+
+@pytest.fixture
+def rows(rows_and_cycles):
+    return rows_and_cycles[0]
+
+
+@pytest.fixture
+def cycles(rows_and_cycles):
+    return rows_and_cycles[1]
 
 
 def test_rus_lap_28_stop_is_a_minus_four(rows):
@@ -32,6 +43,72 @@ def test_rus_lap_28_stop_is_a_minus_four(rows):
     assert rus.stop_duration is None                  # the field v1 filtered on
     assert rus.lane_duration == pytest.approx(25.6, abs=0.1)
     assert (rus.position_before, rus.position_after, rus.net_position_change) == (1, 5, -4)
+
+
+# ── stop typing by timestamp ─────────────────────────────────────────────────
+
+def test_rus_stopped_after_the_vsc_ended_so_it_is_a_racing_stop(rows):
+    """VSC 16:28:21–16:29:50 on lap 28; RUS pitted at 16:30:26 — same lap, after the VSC."""
+    rus = next(r for r in rows if r.driver_code == "RUS" and r.lap_number == 28)
+    assert rus.stop_type == "racing"
+    assert rus.verdict.startswith("Standard stop (25.6s lane")
+    assert "Net: -4 positions lost" in rus.verdict
+    assert rus.confidence == "High"
+
+
+def test_ham_stopped_inside_the_vsc(rows):
+    """HAM pitted at 16:29:21, inside the VSC window — that is the 'undercut' on RUS."""
+    ham = next(r for r in rows if r.driver_code == "HAM" and r.lap_number == 27)
+    assert ham.stop_type == "safety_car"
+    assert "under SC/VSC" in ham.verdict
+
+
+def test_lap_28_stops_after_the_vsc_ending_message_are_racing(rows):
+    after = {r.driver_code for r in rows if r.lap_number == 28}
+    assert after == {"RUS", "NOR", "TSU", "LAW", "ZHO"}
+    assert all(r.stop_type == "racing" for r in rows if r.lap_number == 28)
+
+
+# ── pit cycles ───────────────────────────────────────────────────────────────
+
+def test_9636_has_one_pit_cycle_before_the_red_flag(cycles):
+    assert len(cycles) == 1
+    c = cycles[0]
+    assert (c.lap_start, c.lap_end, c.close_lap) == (24, 30, 32)
+    assert c.stops == 18 and c.neutralised
+
+
+def test_cycle_participants_include_non_stoppers(cycles):
+    c = cycles[0]
+    stopped = {p.driver_code for p in c.participants if p.stopped}
+    not_stopped = {p.driver_code for p in c.participants if not p.stopped}
+    assert "RUS" in stopped and "VER" in not_stopped      # VER did not stop before the red flag
+    ver = next(p for p in c.participants if p.driver_code == "VER")
+    assert ver.delta == 4                                  # gained through others' stops
+    rus = next(p for p in c.participants if p.driver_code == "RUS")
+    assert rus.delta == -4
+
+
+def test_stop_rows_carry_their_cycle_and_are_read_at_its_close(rows, cycles):
+    for r in rows:
+        if r.stop_type == "red_flag":
+            assert r.cycle_id is None
+        else:
+            assert r.cycle_id == 1
+
+
+def test_undercuts_are_between_close_rivals_only(cycles):
+    pairs = {(u.attacker, u.target) for u in cycles[0].undercuts}
+    assert ("HAM", "RUS") not in pairs                     # P11 vs P1 was never an undercut
+    assert pairs == {("ALO", "LAW"), ("PIA", "LAW")}
+
+
+def test_one_undercut_note_per_attacker_per_cycle(cycles):
+    notes = _undercut_notes(cycles)
+    titles = [n.title for n in notes]
+    assert titles == ["ALO undercut LAW", "PIA undercut LAW"]
+    assert all(n.type == "UNDERCUT" for n in notes)
+    assert len({(n.title.split()[0], n.lap_number) for n in notes}) == len(notes)
 
 
 def test_rus_appears_in_chat_pit_losers(rows, bra):
@@ -57,13 +134,15 @@ def test_red_flag_stops_are_their_own_category(rows):
 def test_slow_stops_exclude_red_flag_and_sc(rows):
     slow = [r for r in rows if is_slow_stop(r)]
     assert all(r.stop_type == "racing" and r.lane_duration > SLOW_LANE_S for r in slow)
-    assert len(slow) == 4                   # was 33 when the 1 400 s holds counted
+    # was 33 when the 1 400 s holds counted; HUL 59.0 s, LAW 28.2 s, ZHO 27.1 s remain
+    # (BEA/PER/PIA pitted inside the VSC and are not judged on lane time)
+    assert {(r.driver_code, r.lap_number) for r in slow} == {("HUL", 27), ("LAW", 28), ("ZHO", 28)}
 
 
-def test_race_brain_reports_four_slow_stops():
+def test_race_brain_reports_three_slow_stops():
     from app.core import cache
     analysis = cache.get_full_analysis(9636)
-    assert "4 slow pit stops" in analysis["race_brain"]["summary"]
+    assert "3 slow pit stops" in analysis["race_brain"]["summary"]
     assert "33 slow" not in analysis["race_brain"]["summary"]
 
 

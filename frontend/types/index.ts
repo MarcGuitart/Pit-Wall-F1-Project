@@ -66,11 +66,37 @@ export type PitImpactRow = {
   lane_duration: number | null            // primary metric
   stop_duration: number | null            // stationary time; only from USGP 2024 on
   stop_type: 'racing' | 'safety_car' | 'red_flag'   // red-flag/SC stops are not judged on lane time
-  position_before: number | null
-  position_after: number | null
+  cycle_id: number | null                 // PitCycle this stop belongs to
+  position_before: number | null          // start of the stop lap
+  position_after: number | null           // close of the pit cycle (red flag: lap + 3)
   net_position_change: number | null
   verdict: string
   confidence: 'Low' | 'Medium' | 'High'
+}
+
+export type PitCycleDriver = {
+  driver_number: number
+  driver_code: string
+  stopped: boolean
+  stop_laps: number[]
+  position_before: number
+  position_after: number
+  delta: number
+}
+
+export type Undercut = { attacker: string; target: string; attacker_lap: number; target_lap: number }
+
+/** A window of laps in which a group of rivals stopped; deltas are read at close_lap. */
+export type PitCycle = {
+  cycle_id: number
+  lap_start: number
+  lap_end: number
+  close_lap: number
+  stops: number
+  neutralised: boolean
+  participants: PitCycleDriver[]
+  undercuts: Undercut[]
+  summary: string
 }
 
 export type ChaosComponent = {
@@ -293,6 +319,7 @@ export type FullRaceAnalysis = {
   true_pace: TruePaceRow[]
   tyre_degradation: TyreDegradationRow[]
   pit_impact: PitImpactRow[]
+  pit_cycles: PitCycle[]
   chaos: ChaosIndex
   engineer_notes: EngineerNote[]
   decisions: RaceDecision[]

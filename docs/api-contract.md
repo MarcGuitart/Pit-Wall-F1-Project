@@ -63,6 +63,20 @@ fallback in development). `drivers`: up to 5 codes. `lap_mode`:
 ### POST /admin/clear-cache/{session_key}
 Clears filesystem cache for a session. Dev only.
 
+## Pit cycles
+
+`pit_cycles[]` is the unit pit-stop position changes are read on. A cycle is a
+maximal run of racing/SC stops no more than 2 laps apart (`CYCLE_GAP_LAPS`);
+it opens on its first stop lap and is read at `close_lap` = last stop lap + 2.
+Every driver classified at the lap before the open and at the close is a
+participant, stopped or not — `delta` is the places gained through the whole
+cycle. `undercuts[]` are attacker/target pairs where the attacker stopped
+earlier, the target was ahead by at most 4 places at the open, and the
+attacker is ahead at the close. `neutralised` marks SC/VSC inside the window.
+`pit_impact[].position_after` / `net_position_change` are read at the stop's
+cycle close (red-flag holds: lap + 3), and `stop_type` is decided by the pit
+timestamp against the SC/VSC message timestamps, not by the lap number alone.
+
 ## Chaos Index — method 2.0
 
 `chaos.method_version` says which formula produced `chaos.score`. **2.0 replaces

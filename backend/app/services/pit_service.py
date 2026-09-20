@@ -5,18 +5,31 @@ lane_duration is the primary metric (always present in OpenF1 pit data);
 stop_duration (stationary time) exists only from USGP 2024 onwards and is
 carried as secondary information, never used to filter.
 
-Each stop is typed from the race timeline:
-- racing      — a normal stop; lane time is judged and slow/fast verdicts apply
-- safety_car  — pitted on a lap under SC/VSC; a cheap stop whose position
-                delta partly reflects the neutralisation, so lane time is not judged
-- red_flag    — pitted on a red-flag lap; tyres changed under suspension, the
-                'lane time' is the length of the stoppage. Not a strategic stop.
+Each stop is typed from the race-control timestamps, not just the lap number:
+- racing      — a normal stop; lane time is judged and slow/fast verdicts apply.
+                A stop made after 'VIRTUAL SAFETY CAR ENDING' on the VSC lap is
+                a racing stop.
+- safety_car  — the pit timestamp falls inside an SC/VSC period; a cheap stop
+                whose position delta partly reflects the neutralisation, so lane
+                time is not judged
+- red_flag    — pitted on a red-flag lap (or a 'lane time' of 10+ minutes);
+                tyres changed under suspension. Not a strategic stop.
+
+Position deltas: position_before is read at the start of the stop lap;
+position_after at the close of the stop's pit cycle (pit_cycle_service), so a
+stop is judged once the rivals around it have stopped too. Red-flag holds keep
+the old fixed +3-lap read — their delta is not meaningful either way.
 """
 from __future__ import annotations
 
-from app.domain.models import PitImpactRow, StopType
+from app.domain.models import PitCycle, PitImpactRow, StopType
 from app.domain.race_timeline import RaceTimeline
+from app.services.pit_cycle_service import detect_pit_cycles
+from app.services.timeline_builder import NeutralisationPeriod, _build_lap_time_index, neutralisation_periods
+from app.services.weather_conditions import parse_ts
 from app.utils.time import position_at_lap
+
+RED_FLAG_READ_LAPS = 3    # red-flag holds: position read lap + 3 (no cycle)
 
 SLOW_LANE_S = 26.0        # racing stop slower than this is reported as slow
 TARGET_LANE_S = 22.5
@@ -68,17 +81,26 @@ def _verdict(stop_type: StopType, lane_dur: float | None, net_change: int | None
     return quality + _net_text(net_change), "High"
 
 
-def stop_type_for_lap(lap: int, timeline: RaceTimeline | None, lane_dur: float | None = None) -> StopType:
+def stop_type_for(
+    lap: int,
+    stop_date: str | None,
+    timeline: RaceTimeline | None,
+    periods: list[NeutralisationPeriod],
+    lane_dur: float | None = None,
+) -> StopType:
     # A car that entered the lane just before the red flag is logged on the
     # previous lap with the whole stoppage as lane time.
     if lane_dur is not None and lane_dur >= RED_FLAG_LANE_S:
         return "red_flag"
     sig = timeline.laps.get(lap) if timeline else None
-    if sig is None:
-        return "racing"
-    if sig.red_flag:
+    if sig is not None and sig.red_flag:
         return "red_flag"
-    if sig.sc_active or sig.vsc_active:
+    t = parse_ts(stop_date)
+    if t is not None and periods:
+        # Timestamp decides: inside an SC/VSC period or not, whatever the lap number says
+        return "safety_car" if any(p.kind in ("SC", "VSC") and p.contains(t) for p in periods) else "racing"
+    # No timestamp: fall back to the lap map
+    if sig is not None and (sig.sc_active or sig.vsc_active):
         return "safety_car"
     return "racing"
 
@@ -88,14 +110,16 @@ def is_slow_stop(row: PitImpactRow) -> bool:
     return row.stop_type == "racing" and row.lane_duration is not None and row.lane_duration > SLOW_LANE_S
 
 
-def compute_pit_impact(
+def compute_pit_impact_with_cycles(
     pit: list[dict],
     position_data: list[dict],
     laps: list[dict],
     drivers: list[dict],
+    race_control: list[dict] | None = None,
     timeline: RaceTimeline | None = None,
-) -> list[PitImpactRow]:
+) -> tuple[list[PitImpactRow], list[PitCycle]]:
     driver_map = {d["driver_number"]: d for d in drivers if "driver_number" in d}
+    periods = neutralisation_periods(race_control or [], _build_lap_time_index(laps)) if race_control else []
     rows: list[PitImpactRow] = []
 
     for stop in pit:
@@ -103,37 +127,45 @@ def compute_pit_impact(
         ln = stop.get("lap_number")
         if not dn or not ln:
             continue
-
         lane_dur = stop.get("lane_duration")
-        stop_dur = stop.get("stop_duration")
-        stop_type = stop_type_for_lap(ln, timeline, lane_dur)
-
-        # Position snapshot: 1 lap before pit, 3 laps after (let traffic clear)
-        pos_before = position_at_lap(dn, ln - 1, position_data, laps)
-        pos_after = position_at_lap(dn, ln + 3, position_data, laps)
-
-        net_change: int | None = None
-        if pos_before is not None and pos_after is not None:
-            # positive = gained positions (smaller position number = higher up)
-            net_change = pos_before - pos_after
-
-        verdict_txt, conf = _verdict(stop_type, lane_dur, net_change)
+        stop_type = stop_type_for(ln, stop.get("date"), timeline, periods, lane_dur)
         d_info = driver_map.get(dn, {})
-
         rows.append(
             PitImpactRow(
                 driver_number=dn,
                 driver_code=d_info.get("name_acronym", f"D{dn}"),
                 lap_number=ln,
                 lane_duration=lane_dur,
-                stop_duration=stop_dur,
+                stop_duration=stop.get("stop_duration"),
                 stop_type=stop_type,
-                position_before=pos_before,
-                position_after=pos_after,
-                net_position_change=net_change,
-                verdict=verdict_txt,
-                confidence=conf,  # type: ignore[arg-type]
+                position_before=position_at_lap(dn, ln, position_data, laps),
+                verdict="",
+                confidence="Low",
             )
         )
+    rows.sort(key=lambda r: r.lap_number)
 
-    return sorted(rows, key=lambda r: r.lap_number)
+    # Cycles set cycle_id on the rows; position_after is read at each cycle's close
+    cycles = detect_pit_cycles(rows, position_data, laps, drivers, timeline) if timeline else []
+    close_by_cycle = {c.cycle_id: c.close_lap for c in cycles}
+    for r in rows:
+        read_lap = close_by_cycle.get(r.cycle_id) if r.cycle_id else r.lap_number + RED_FLAG_READ_LAPS
+        if read_lap is None:
+            read_lap = r.lap_number + RED_FLAG_READ_LAPS
+        r.position_after = position_at_lap(r.driver_number, read_lap, position_data, laps)
+        if r.position_before is not None and r.position_after is not None:
+            r.net_position_change = r.position_before - r.position_after   # positive = gained
+        r.verdict, r.confidence = _verdict(r.stop_type, r.lane_duration, r.net_position_change)  # type: ignore[assignment]
+
+    return rows, cycles
+
+
+def compute_pit_impact(
+    pit: list[dict],
+    position_data: list[dict],
+    laps: list[dict],
+    drivers: list[dict],
+    timeline: RaceTimeline | None = None,
+    race_control: list[dict] | None = None,
+) -> list[PitImpactRow]:
+    return compute_pit_impact_with_cycles(pit, position_data, laps, drivers, race_control, timeline)[0]

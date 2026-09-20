@@ -75,11 +75,42 @@ class PitImpactRow(BaseModel):
     lane_duration: Optional[float] = None       # primary metric
     stop_duration: Optional[float] = None       # stationary time; only from USGP 2024 on, informational
     stop_type: StopType = "racing"              # see pit_service: red-flag/SC stops are not judged
-    position_before: Optional[int] = None
-    position_after: Optional[int] = None
+    cycle_id: Optional[int] = None              # PitCycle this stop belongs to (None for red-flag holds)
+    position_before: Optional[int] = None       # at the start of the stop lap
+    position_after: Optional[int] = None        # at the close of the pit cycle (red flag: lap + 3)
     net_position_change: Optional[int] = None
     verdict: str
     confidence: Literal["Low", "Medium", "High"]
+
+
+class PitCycleDriver(BaseModel):
+    driver_number: int
+    driver_code: str
+    stopped: bool                               # False: in the cycle only because others stopped
+    stop_laps: list[int] = []
+    position_before: int                        # start of the lap before the cycle opened
+    position_after: int                         # start of close_lap
+    delta: int                                  # positive = gained places through the cycle
+
+
+class Undercut(BaseModel):
+    attacker: str
+    target: str
+    attacker_lap: int
+    target_lap: int
+
+
+class PitCycle(BaseModel):
+    """A window of laps in which a group of rivals stopped — see pit_cycle_service."""
+    cycle_id: int
+    lap_start: int
+    lap_end: int
+    close_lap: int
+    stops: int
+    neutralised: bool                           # SC/VSC inside the window: timing attribution unreliable
+    participants: list[PitCycleDriver]
+    undercuts: list[Undercut] = []
+    summary: str
 
 
 class ChaosComponent(BaseModel):
@@ -308,6 +339,7 @@ class FullRaceAnalysis(BaseModel):
     true_pace: list[TruePaceRow]
     tyre_degradation: list[TyreDegradationRow]
     pit_impact: list[PitImpactRow]
+    pit_cycles: list[PitCycle] = []
     chaos: ChaosIndex
     engineer_notes: list[EngineerNote]
     decisions: list[RaceDecision]
