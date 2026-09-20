@@ -236,8 +236,8 @@ async def get_analysis(
         try:
             data = await load_session(session_key)
         except OpenF1AuthError as exc:
-            if not settings.openf1_api_token:
-                # Demo mode: nothing cached for this session and no token to fetch it.
+            if not settings.openf1_credentials_configured:
+                # Demo mode: nothing cached for this session and no account to fetch it.
                 raise AppError(
                     "SESSION_NOT_CACHED",
                     "This session is not available in the production demo. "
@@ -247,7 +247,7 @@ async def get_analysis(
                 ) from exc
             raise AppError(
                 "OPENF1_UNAUTHORIZED",
-                f"OpenF1 rejected the configured API token while fetching {exc.endpoint}.",
+                f"OpenF1 rejected the configured credentials while fetching {exc.endpoint} ({exc.reason}).",
                 status=503,
                 details={"endpoint": exc.endpoint},
             ) from exc
@@ -281,7 +281,7 @@ async def get_analysis(
                 # Distinguish: no token means we're in static-cache-only mode and this
                 # session simply isn't available in the demo. With a token, the session
                 # is probably too recent for OpenF1 to have published it yet.
-                if not settings.openf1_api_token:
+                if not settings.openf1_credentials_configured:
                     raise AppError(
                         "SESSION_NOT_CACHED",
                         "This session is not available in the production demo. "
