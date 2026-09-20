@@ -175,7 +175,15 @@ export async function sendToEngineer(payload: {
   session_key: number
   question: string
   focused_driver?: string | null
-}): Promise<{ answer: string; cited_signals?: string[]; confidence?: string }> {
+}): Promise<{
+  answer: string
+  /** Engineer notes the model declared it used, validated server-side; empty if none. */
+  cited_signals?: { id: string; lap_number: number | null; title: string }[]
+  /** Model-declared; null when the model returned no structured block. */
+  confidence?: string | null
+  provider?: string
+  model?: string | null
+}> {
   return apiFetch(`/chat`, { method: 'POST', body: JSON.stringify(payload) })
 }
 

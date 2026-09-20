@@ -6,7 +6,15 @@ from __future__ import annotations
 
 import json
 
-from app.domain.models import FullRaceAnalysis
+from app.domain.models import EngineerNote, FullRaceAnalysis
+
+
+def signal_catalog(analysis: FullRaceAnalysis) -> dict[str, EngineerNote]:
+    """
+    Stable ids for the engineer notes of a cached analysis: S1..Sn in the
+    order they are stored. The model cites these ids; /chat validates them.
+    """
+    return {f"S{i}": n for i, n in enumerate(analysis.engineer_notes, start=1)}
 
 
 def build_chat_context(
@@ -88,18 +96,17 @@ def build_chat_context(
             }
             for d in analysis.decisions
         ],
-        "top_signals": [
+        # Every engineer note with its id — cite ids from here, nothing else.
+        "signals": [
             {
+                "id": sid,
                 "lap": n.lap_number,
                 "type": n.type,
                 "severity": n.severity,
                 "title": n.title,
                 "message": n.message,
             }
-            for n in sorted(
-                analysis.engineer_notes,
-                key=lambda x: {"High": 0, "Medium": 1, "Low": 2}[x.severity],
-            )[:6]
+            for sid, n in signal_catalog(analysis).items()
         ],
     }
 

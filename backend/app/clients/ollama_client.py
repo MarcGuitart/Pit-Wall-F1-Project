@@ -8,8 +8,9 @@ Priority:
 """
 from __future__ import annotations
 
+import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -29,8 +30,12 @@ Rules:
 - `true_pace_rank`, `starting_grid_position` and `actual_race_finish_position` are three different things — never use one to mean another. True Pace strips out pit stops, safety cars and traffic; the grid slot is where they started; the finish position is where they ended. A driver can be true_pace_rank 1, start P17 and finish P1. Never say a driver "won" or "finished" a position based on true_pace_rank alone, and never infer a grid slot from the finish order — when starting_grid_position is present, use it; it is real data, not an estimate.
 - 2-4 sentences maximum. Direct, pit wall tone.
 - Cite laps and signals when available (e.g. "Lap 45 — VER pitted, net +2 positions").
-- End with: Confidence: Low / Medium / High
 - No markdown, no bullet points.
+
+Reply as a single JSON object with exactly these keys:
+- "answer": the reply text.
+- "cited_signal_ids": the "id" values from `signals` whose content you actually used in the answer. Only ids that exist there. An empty list if you used none.
+- "confidence": "Low", "Medium" or "High" — how well the analysis data supports the answer.
 
 {focused_driver_note}
 
@@ -121,11 +126,49 @@ async def call_ollama(
         return "Engineer radio unavailable. Try again."
 
 
+REPLY_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string"},
+        "cited_signal_ids": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "string", "enum": ["Low", "Medium", "High"]},
+    },
+    "required": ["answer", "cited_signal_ids", "confidence"],
+    "additionalProperties": False,
+}
+
+
 @dataclass
 class EngineerReply:
     answer: str
-    provider: str        # "ollama" | "groq" | "offline"
-    model: str | None    # model that actually answered
+    provider: str                       # "ollama" | "groq" | "offline"
+    model: str | None                   # model that actually answered
+    cited_signal_ids: list[str] = field(default_factory=list)   # as declared by the model, unvalidated
+    confidence: str | None = None       # as declared by the model; None if it sent no structured block
+
+
+def parse_reply(text: str) -> tuple[str, list[str], str | None]:
+    """
+    (answer, cited_signal_ids, confidence) from the model output.
+    Accepts the JSON object, optionally inside a ``` fence. Anything else is
+    treated as a plain-text answer with no citations and no confidence.
+    """
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:]
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return text.strip(), [], None
+    if not isinstance(data, dict) or not isinstance(data.get("answer"), str):
+        return text.strip(), [], None
+    ids = data.get("cited_signal_ids")
+    ids = [i for i in ids if isinstance(i, str)] if isinstance(ids, list) else []
+    conf = data.get("confidence")
+    conf = conf if conf in ("Low", "Medium", "High") else None
+    return data["answer"].strip(), ids, conf
 
 
 def _groq_supports_reasoning_effort(model: str) -> bool:
@@ -145,16 +188,27 @@ async def _call_groq(system: str, question: str) -> str:
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
-        "max_tokens": 400,
+        "max_tokens": 600,
     }
     if _groq_supports_reasoning_effort(settings.groq_model):
         payload["reasoning_effort"] = settings.groq_reasoning_effort
+    payload["response_format"] = {
+        "type": "json_schema",
+        "json_schema": {"name": "engineer_reply", "strict": True, "schema": REPLY_SCHEMA},
+    }
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
             json=payload,
         )
+        if r.status_code == 400 and "response_format" in r.text:
+            # Model without structured-output support: ask for plain JSON instead
+            logger.warning("[AI] Groq rejected json_schema for %s — retrying with json_object", settings.groq_model)
+            payload["response_format"] = {"type": "json_object"}
+            r = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload,
+            )
         if not r.is_success:
             logger.error("[AI] Groq HTTP %s — body: %s", r.status_code, r.text)
         r.raise_for_status()
@@ -195,22 +249,25 @@ async def answer_engineer_question(
                     {"role": "user", "content": question},
                 ],
                 "stream": False,
-                "options": {"temperature": 0.3, "num_predict": 400},
+                "format": REPLY_SCHEMA,      # Ollama structured output (>= 0.5)
+                "options": {"temperature": 0.3, "num_predict": 600},
             }
             async with httpx.AsyncClient(timeout=60.0) as client:
                 r = await client.post(f"{settings.ollama_base_url}/api/chat", json=payload)
                 r.raise_for_status()
                 logger.info("[AI] Answered via Ollama model=%s", model)
-                return EngineerReply(r.json()["message"]["content"].strip(), "ollama", model)
+                answer, ids, conf = parse_reply(r.json()["message"]["content"])
+                return EngineerReply(answer, "ollama", model, ids, conf)
         except Exception as exc:
             logger.warning("[AI] Ollama failed, will try Groq: %s", exc)
 
     # 2. Fall back to Groq (cloud)
     if settings.groq_api_key:
         try:
-            answer = await _call_groq(system, question)
+            text = await _call_groq(system, question)
             logger.info("[AI] Answered via Groq model=%s", settings.groq_model)
-            return EngineerReply(answer, "groq", settings.groq_model)
+            answer, ids, conf = parse_reply(text)
+            return EngineerReply(answer, "groq", settings.groq_model, ids, conf)
         except Exception as exc:
             logger.error("[AI] Groq also failed: %s", exc)
 

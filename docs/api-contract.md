@@ -31,7 +31,11 @@ AI race engineer, grounded on the cached analysis (Ollama → Groq → offline t
 `/analysis/{session_key}` must have been called first.
 Request: `{ "session_key": int, "question": str, "focused_driver": str | null }`
 Headers: `X-Client-Id` — stable id per browser session; the rate limit is keyed on it.
-Response: `{ "answer": str, "cited_signals": str[], "confidence": str }`
+Response: `{ "answer": str, "cited_signals": [{ "id", "lap_number", "title" }], "confidence": "Low"|"Medium"|"High"|null, "provider": "ollama"|"groq"|"offline", "model": str|null }`
+The model receives every engineer note with a stable id (`S1..Sn`) and replies
+in a JSON schema `{answer, cited_signal_ids, confidence}`; `cited_signals` are
+the ids it declared that exist in that catalogue (unknown ids dropped, empty if
+none) and `confidence` is its own declaration (null when no structured block came back).
 Rate limit: 10 messages / hour per `X-Client-Id`, 100 / hour per IP
 (sliding window, in memory) → `429 RATE_LIMITED`.
 

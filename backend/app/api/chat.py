@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
-from app.services.chat_service import build_chat_context
+from app.services.chat_service import build_chat_context, signal_catalog
 from app.clients.ollama_client import active_model, answer_engineer_question
 
 router = APIRouter(tags=["chat"])
@@ -79,10 +79,21 @@ class ChatRequest(BaseModel):
     focused_driver: str | None = None
 
 
+class CitedSignal(BaseModel):
+    id: str
+    lap_number: int | None = None
+    title: str
+
+
 class ChatResponse(BaseModel):
     answer: str
-    cited_signals: list[str] = []
-    confidence: str = "Medium"
+    # Engineer notes the model declared it used, validated against the catalogue
+    # it was given. Empty when it cited none (or none that exist) — never guessed.
+    cited_signals: list[CitedSignal] = []
+    # The model's own declaration; None when it returned no structured block.
+    confidence: str | None = None
+    provider: str
+    model: str | None = None
 
 
 @router.get("/chat/health")
@@ -161,9 +172,26 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     reply = await answer_engineer_question(
         context, req.question.strip(), session_name, req.focused_driver
     )
-    answer = reply.answer
 
-    # 4. Simple cited-signals: list note titles from context
-    cited = [n.title for n in analysis.engineer_notes[:3]]
+    # 4. Cited signals: only ids the model declared AND that exist in the catalogue
+    catalog = signal_catalog(analysis)
+    seen: set[str] = set()
+    cited: list[CitedSignal] = []
+    for sid in reply.cited_signal_ids:
+        note = catalog.get(sid)
+        if note is None or sid in seen:
+            continue
+        seen.add(sid)
+        cited.append(CitedSignal(id=sid, lap_number=note.lap_number, title=note.title))
+    if len(cited) != len(reply.cited_signal_ids):
+        logger.info(
+            "[CHAT] model cited %d id(s), %d valid", len(reply.cited_signal_ids), len(cited)
+        )
 
-    return ChatResponse(answer=answer, cited_signals=cited)
+    return ChatResponse(
+        answer=reply.answer,
+        cited_signals=cited,
+        confidence=reply.confidence,
+        provider=reply.provider,
+        model=reply.model,
+    )
