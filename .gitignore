@@ -1,8 +1,9 @@
 # ── Internal dev documentation (not for public repo) ───────────────────────
-CLAUDE.md
-CLAUDE_V2.md
-CLAUDE_V3.md
-CLAUDE_V4.md
+# Root-level only: docs/ is versioned (see docs/api-contract.md).
+/CLAUDE.md
+/CLAUDE_V2.md
+/CLAUDE_V3.md
+/CLAUDE_V4.md
 PROMPTS.md
 PROMPTS_V2.md
 PROMPTS_V3.md
@@ -12,9 +13,6 @@ PROMPTS_V4_VALIDATION_COMPLETE.md
 PROMPTS_V4_CALIBRATION.md
 PROMPT_README_GENERATION.md
 VALIDATION_CHECKLIST.md
-docs/
-api-contract.md
-OLLAMA_setup.md
 
 # ── Backend ─────────────────────────────────────────────────────────────────
 backend/.venv/
