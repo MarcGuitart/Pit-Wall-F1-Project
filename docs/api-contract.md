@@ -21,6 +21,8 @@ Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`
 and `frontend/types/index.ts`).
 First load (no cache): 3–12 seconds. Cached: under 1 second.
 Query: `force_refresh=true` recomputes from the cached raw endpoints.
+A cached analysis from an older Chaos method (`chaos.method_version` missing or
+≠ current) or an older schema is recomputed transparently and rewritten.
 Includes `modules[<field>]` = `{status: ok|failed|not_applicable, reason}` for
 every V4 field (see Errors).
 
@@ -100,7 +102,7 @@ Every non-2xx response, whatever raised it, has the same body:
 | OPENF1_UNAUTHORIZED | 503 | /analysis, /races — token configured but rejected by OpenF1 (without a token the same 401 is SESSION_NOT_CACHED) |
 | RATE_LIMITED | 429 | /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
 | ANALYSIS_NOT_FOUND | 404 | /chat, /telemetry — run /analysis/{session_key} first |
-| ANALYSIS_FAILED | 500 | /chat — cached analysis no longer matches the schema |
+| ANALYSIS_FAILED | 500 | /analysis — cached file unreadable (discarded; retry recomputes) or the computation itself crashed; /chat — cached analysis no longer matches the schema |
 | TELEMETRY_RACE_ONLY | 400 | /telemetry — session is not a Race |
 | TELEMETRY_NOT_PRECOMPUTED | 503 | /telemetry — production, no precomputed file |
 | TELEMETRY_UNAVAILABLE | 404 | /telemetry — FastF1/OpenF1 returned nothing |

@@ -58,8 +58,13 @@ def set(session_key: int, endpoint: str, data: list[Any]) -> None:
 
 # ── Computed FullRaceAnalysis cache ────────────────────────────────────────
 
+def has_full_analysis(session_key: int) -> bool:
+    """True if an _analysis.json exists on disk (readable or not)."""
+    return _analysis_path(session_key).exists()
+
+
 def get_full_analysis(session_key: int) -> dict | None:
-    """Return the cached FullRaceAnalysis dict, or None if not cached."""
+    """Return the cached FullRaceAnalysis dict, or None if not cached (unreadable files are deleted)."""
     p = _analysis_path(session_key)
     if not p.exists():
         logger.info("[CACHE MISS] _analysis.json for %s", session_key)
