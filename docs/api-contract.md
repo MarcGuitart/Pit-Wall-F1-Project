@@ -131,10 +131,14 @@ historical endpoints are public as of Sept 2026). The token lives in memory
 only. `OPENF1_API_TOKEN` (static token, no renewal) is still honoured when no
 account is set.
 
-Outgoing rate limit: `OPENF1_RATE_LIMIT_REQUESTS` / `OPENF1_RATE_LIMIT_WINDOW_S`
-(default 25 / 10 s). Measured with `scripts/openf1_rate_probe.py` on 2026-09-20:
+Outgoing rate limit: measured with `scripts/openf1_rate_probe.py` on 2026-09-20,
 OpenF1 enforces **30 requests/minute anonymous** and **60 requests/minute with the
-account** (`Retry-After: 60`). Diagnostics: `scripts/openf1_auth_check.py`.
+account** (`Retry-After: 60`). The client paces itself at 27/min anonymous and
+55/min with an account, chosen by whether credentials are configured;
+`OPENF1_RATE_LIMIT_REQUESTS` / `OPENF1_RATE_LIMIT_WINDOW_S` override both.
+A `404 {"detail": "No results found."}` from OpenF1 is an empty result set and
+is cached as `[]`; any other 404, and every 401/429/5xx, is never cached.
+Diagnostics: `scripts/openf1_auth_check.py`.
 
 ## Errors
 

@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     openf1_token_url: str = "https://api.openf1.org/token"
     # Legacy: a static bearer token (no renewal). Ignored when username/password are set.
     openf1_api_token: str = ""
-    # Outgoing rate limit to OpenF1 (sliding window). Anonymous documented limit
-    # is 30 req / 10 s; the paid limit is higher — measure with scripts/openf1_rate_probe.py.
-    openf1_rate_limit_requests: int = 25
-    openf1_rate_limit_window_s: float = 10.0
+    # Outgoing rate limit to OpenF1. 0 = pick by mode (55/min with an account,
+    # 27/min anonymous — measured limits are 60 and 30). Set both to override.
+    openf1_rate_limit_requests: int = 0
+    openf1_rate_limit_window_s: float = 60.0
     cache_dir: str = _DEFAULT_CACHE_DIR
     environment: str = "development"
     cors_origins: list[str] = [
