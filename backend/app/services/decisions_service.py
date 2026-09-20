@@ -9,48 +9,81 @@ Ranking priority:
 """
 from __future__ import annotations
 
-from app.domain.models import RaceDecision, PitImpactRow, TyreDegradationRow, ChaosIndex
+from app.domain.models import ChaosIndex, PitCycle, PitImpactRow, RaceDecision, TyreDegradationRow
 
 
-def _pit_decisions(pit_impact: list[PitImpactRow], rank_start: int) -> list[RaceDecision]:
-    decisions: list[RaceDecision] = []
-    # Red-flag stops are not strategic decisions
-    valid_pits = [
-        p for p in pit_impact
-        if p.net_position_change is not None and p.stop_type != "red_flag"
-    ]
-    # Prefer gains first, then losses — sort by signed delta descending (gains at top)
-    pits_sorted = sorted(valid_pits, key=lambda p: abs(p.net_position_change or 0), reverse=True)
+# How much a position delta counts by how the stop happened. A red-flag hold
+# is not a decision; an SC/VSC stop is half timing, half neutralisation.
+STOP_TYPE_WEIGHT = {"racing": 1.0, "safety_car": 0.5, "red_flag": 0.0}
+CYCLE_WEIGHT = 1.5          # a whole pit window outranks a single stop of the same swing
+NEUTRALISED_FACTOR = 0.5    # SC/VSC inside the window: attribution unreliable
 
-    for stop in pits_sorted[:2]:
-        delta = stop.net_position_change or 0
+
+def _pit_decisions(
+    pit_impact: list[PitImpactRow], pit_cycles: list[PitCycle], rank_start: int
+) -> list[RaceDecision]:
+    """
+    Top-2 pit decisions among (a) pit cycles with at least two stoppers, scored
+    on the biggest gain plus the biggest loss inside them, and (b) individual
+    stops scored on |delta| weighted by stop_type.
+    """
+    candidates: list[tuple[float, RaceDecision]] = []
+
+    for c in pit_cycles:
+        stoppers = [p for p in c.participants if p.stopped]
+        if len(stoppers) < 2:
+            continue
+        gain = max((p.delta for p in c.participants), default=0)
+        loss = min((p.delta for p in c.participants), default=0)
+        score = CYCLE_WEIGHT * (max(gain, 0) + abs(min(loss, 0)))
+        if c.neutralised:
+            score *= NEUTRALISED_FACTOR
+        top_gain = max(c.participants, key=lambda p: p.delta)
+        top_loss = min(c.participants, key=lambda p: p.delta)
+        candidates.append((score, RaceDecision(
+            rank=0,
+            lap_number=c.lap_start,
+            title=f"Pit window L{c.lap_start}–{c.lap_end}",
+            impact=f"{top_gain.driver_code} {top_gain.delta:+d} · {top_loss.driver_code} {top_loss.delta:+d}",
+            explanation=c.summary,
+            confidence="Medium" if c.neutralised else "High",
+        )))
+
+    for stop in pit_impact:
+        delta = stop.net_position_change
+        weight = STOP_TYPE_WEIGHT.get(stop.stop_type, 0.0)
+        if delta is None or weight == 0.0:
+            continue
+        score = abs(delta) * weight
         if delta > 0:
             impact_str = f"+{delta} position{'s' if delta != 1 else ''}"
         elif delta < 0:
             impact_str = f"{delta} position{'s' if abs(delta) != 1 else ''}"
         else:
             impact_str = "Neutral"
-
         if stop.position_before and stop.position_after and stop.lane_duration:
             explanation = (
                 f"{stop.driver_code} pitted on lap {stop.lap_number} "
                 f"({stop.lane_duration:.1f}s lane time). "
-                f"Emerged P{stop.position_after} from P{stop.position_before}. "
-                f"{stop.verdict}"
+                f"Emerged P{stop.position_after} from P{stop.position_before} "
+                f"at the close of the pit cycle. {stop.verdict}"
             )
         else:
             explanation = stop.verdict
+        candidates.append((score, RaceDecision(
+            rank=0,
+            lap_number=stop.lap_number,
+            title=f"{stop.driver_code} pit L{stop.lap_number}",
+            impact=impact_str,
+            explanation=explanation,
+            confidence=stop.confidence,
+        )))
 
-        decisions.append(
-            RaceDecision(
-                rank=rank_start + len(decisions),
-                lap_number=stop.lap_number,
-                title=f"{stop.driver_code} pit L{stop.lap_number}",
-                impact=impact_str,
-                explanation=explanation,
-                confidence=stop.confidence,
-            )
-        )
+    candidates.sort(key=lambda x: -x[0])
+    decisions: list[RaceDecision] = []
+    for _, d in candidates[:2]:
+        d.rank = rank_start + len(decisions)
+        decisions.append(d)
     return decisions
 
 
@@ -112,10 +145,11 @@ def compute_decisions(
     degradation: list[TyreDegradationRow],
     chaos: ChaosIndex,
     true_pace_count: int,
+    pit_cycles: list[PitCycle] | None = None,
 ) -> list[RaceDecision]:
     decisions: list[RaceDecision] = []
 
-    pit_dec = _pit_decisions(pit_impact, rank_start=1)
+    pit_dec = _pit_decisions(pit_impact, pit_cycles or [], rank_start=1)
     decisions.extend(pit_dec)
 
     tyre_dec = _tyre_decisions(degradation, rank=len(decisions) + 1)

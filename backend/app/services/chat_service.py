@@ -150,6 +150,19 @@ def build_chat_context(
             for r in sorted(analysis.pit_impact, key=lambda r: (r.net_position_change or 0, r.lap_number))
             if (r.net_position_change or 0) < 0 and r.lane_duration and r.stop_type != "red_flag"
         ][:5],
+        # Pit cycles: the unit position deltas are read on (see pit_cycle_service)
+        "pit_cycles": [
+            {
+                "laps": f"L{c.lap_start}–{c.lap_end}",
+                "read_at": c.close_lap,
+                "stops": c.stops,
+                "neutralised": c.neutralised,
+                "gained": [f"{p.driver_code} {p.delta:+d}" for p in sorted(c.participants, key=lambda p: -p.delta)[:3] if p.delta > 0],
+                "lost": [f"{p.driver_code} {p.delta:+d}" for p in sorted(c.participants, key=lambda p: p.delta)[:3] if p.delta < 0],
+                "undercuts": [f"{u.attacker}>{u.target}" for u in c.undercuts][:4],
+            }
+            for c in analysis.pit_cycles if c.stops >= 2
+        ][:4],
         "key_decisions": [
             {
                 "rank": d.rank,
