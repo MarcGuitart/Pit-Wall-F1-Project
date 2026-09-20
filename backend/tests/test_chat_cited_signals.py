@@ -86,12 +86,16 @@ def test_question_lap_pulls_in_that_window(analysis_9636):
 
 def test_question_driver_pulls_in_that_drivers_notes(analysis_9636):
     catalog = signal_catalog(analysis_9636)
-    rus = {sid for sid, n in catalog.items() if "RUS" in f"{n.title} {n.message}"}
-    assert rus, "9636 has RUS notes"
-    sent = select_signals(analysis_9636, "did the pit stop help RUS?")
-    assert rus & set(sent)
-    sent_focus = select_signals(analysis_9636, "was the stop good?", focused_driver="RUS")
-    assert rus & set(sent_focus)
+    # pick a driver who has a Medium/Low note (so relevance, not severity, must pull it in)
+    code, sids = next(
+        (c, {sid for sid, n in catalog.items() if c in f"{n.title} {n.message}"})
+        for c in ("SAI", "LAW", "HUL", "ALO")
+        if any(c in f"{n.title} {n.message}" and n.severity != "High" for n in catalog.values())
+    )
+    sent = select_signals(analysis_9636, f"what happened to {code}?")
+    assert sids & set(sent)
+    sent_focus = select_signals(analysis_9636, "was the stop good?", focused_driver=code)
+    assert sids & set(sent_focus)
 
 
 def test_citation_of_an_unsent_catalogue_id_is_dropped(client, monkeypatch, analysis_9636):

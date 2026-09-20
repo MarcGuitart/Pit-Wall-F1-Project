@@ -450,9 +450,9 @@ async def chat(req: ChatRequest) -> ChatResponse:
     analysis = await load_cached_analysis(req.session_key)
     # 2. Build compact context
     context = build_chat_context(analysis, req.focused_driver)
-    # 3. Call Ollama
-    answer = await call_ollama(context, req.question)
-    return ChatResponse(answer=answer, ...)
+    # 3. Call the AI chain (Ollama → Groq → offline) — app/clients/ollama_client.py
+    reply = await answer_engineer_question(context, req.question, session_name, req.focused_driver)
+    return ChatResponse(answer=reply.answer, ...)
 ```
 
 ### build_chat_context — CRITICAL
@@ -531,7 +531,8 @@ import httpx
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "llama3.1:8b"  # configurable via .env
 
-async def call_ollama(context: str, question: str, session_name: str) -> str:
+async def answer_engineer_question(context: str, question: str, session_name: str, focused_driver: str | None = None) -> EngineerReply:
+    # (historical sketch — the real function also tries Groq and parses the structured reply)
     system = ENGINEER_SYSTEM_PROMPT.format(
         session_name=session_name,
         context=context
@@ -677,7 +678,7 @@ Placeholder: show sector column headers with "awaiting qualifying data"
 ### Sprint 3 — Chat refactor (day 2)
 15. Add /chat endpoint to FastAPI
 16. Implement build_chat_context()
-17. Implement call_ollama()
+17. Implement answer_engineer_question() (Ollama → Groq → offline)
 18. Remove /api/engineer-chat Next.js route
 19. Update RadioOverlay to call backend /chat
 20. Wire focused_driver state to chat context
