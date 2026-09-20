@@ -5,25 +5,95 @@ The model never receives raw OpenF1 arrays.
 from __future__ import annotations
 
 import json
+import re
 
 from app.domain.models import EngineerNote, FullRaceAnalysis
+
+MAX_SIGNALS = 8             # engineer notes sent per message (of up to 20 in the analysis)
+LAP_WINDOW = 3              # ± laps around a lap mentioned in the question
+MAX_PER_GROUP = 2           # notes of the same type on the same lap sent before the rest get a turn
+_SEVERITY = {"High": 3, "Medium": 2, "Low": 1}
+_LAP_RE = re.compile(r"\b(?:lap|laps|l)\s*(\d{1,3})\b", re.IGNORECASE)
+_CODE_RE = re.compile(r"\b([A-Z]{3})\b")
 
 
 def signal_catalog(analysis: FullRaceAnalysis) -> dict[str, EngineerNote]:
     """
     Stable ids for the engineer notes of a cached analysis: S1..Sn in the
-    order they are stored. The model cites these ids; /chat validates them.
+    order they are stored. Ids never depend on the question.
     """
     return {f"S{i}": n for i, n in enumerate(analysis.engineer_notes, start=1)}
+
+
+def _question_focus(analysis: FullRaceAnalysis, question: str | None, focused_driver: str | None) -> tuple[set[int], set[str]]:
+    laps: set[int] = set()
+    codes: set[str] = set()
+    known = {r.driver_code for r in analysis.true_pace} | {r.driver_code for r in analysis.race_classification}
+    if question:
+        for m in _LAP_RE.finditer(question):
+            laps.add(int(m.group(1)))
+        for m in _CODE_RE.finditer(question):
+            if m.group(1) in known:
+                codes.add(m.group(1))
+    if focused_driver:
+        codes.add(focused_driver)
+    return laps, codes
+
+
+def select_signals(
+    analysis: FullRaceAnalysis,
+    question: str | None = None,
+    focused_driver: str | None = None,
+    limit: int = MAX_SIGNALS,
+) -> dict[str, EngineerNote]:
+    """
+    The subset of the catalogue sent with a message: ranked by severity, with
+    a boost for notes inside ±LAP_WINDOW of a lap the question mentions and
+    for notes naming a driver the question (or the focus) mentions. Ids are
+    the catalogue ids, so they stay stable across questions. Deterministic:
+    /chat validates citations against exactly this subset.
+    """
+    catalog = signal_catalog(analysis)
+    laps, codes = _question_focus(analysis, question, focused_driver)
+
+    def score(item: tuple[str, EngineerNote]) -> tuple[int, int]:
+        sid, n = item
+        pts = _SEVERITY.get(n.severity, 0)
+        if n.lap_number is not None and any(abs(n.lap_number - lap) <= LAP_WINDOW for lap in laps):
+            pts += 4
+        text = f"{n.title} {n.message}"
+        if any(re.search(rf"\b{code}\b", text) for code in codes):
+            pts += 4
+        return (-pts, int(sid[1:]))          # highest score first, then catalogue order
+
+    ranked = sorted(catalog.items(), key=score)
+    # First pass: at most MAX_PER_GROUP notes per (type, lap) — five "HAM undercut
+    # on X" notes from one pit cycle must not crowd out the SC two laps later.
+    chosen: list[tuple[str, EngineerNote]] = []
+    per_group: dict[tuple[str, int | None], int] = {}
+    leftovers: list[tuple[str, EngineerNote]] = []
+    for sid, n in ranked:
+        key = (n.type, n.lap_number)
+        if per_group.get(key, 0) < MAX_PER_GROUP:
+            per_group[key] = per_group.get(key, 0) + 1
+            chosen.append((sid, n))
+        else:
+            leftovers.append((sid, n))
+        if len(chosen) == limit:
+            break
+    chosen.extend(leftovers[: limit - len(chosen)])
+    return dict(sorted(chosen, key=lambda kv: int(kv[0][1:])))
 
 
 def build_chat_context(
     analysis: FullRaceAnalysis,
     focused_driver: str | None = None,
+    question: str | None = None,
 ) -> str:
     """
     Return a compact JSON string summarising the race analysis.
-    When focused_driver is set, driver-specific data is appended.
+    When focused_driver is set, driver-specific data is appended; the
+    engineer notes sent are select_signals(analysis, question, focused_driver).
     """
     chaos = analysis.chaos
     pace_sorted = sorted(analysis.true_pace, key=lambda r: r.rank)
@@ -66,23 +136,17 @@ def build_chat_context(
             for r in analysis.tyre_degradation
             if r.cliff_risk == "High"
         ][:6],
+        # Largest pit-cycle gains/losses (racing and SC stops; red-flag holds excluded).
+        # lane = pit lane seconds, type = racing | safety_car.
         "pit_winners": [
-            {
-                "driver": r.driver_code,
-                "lap": r.lap_number,
-                "delta": r.net_position_change,
-                "verdict": r.verdict,
-            }
+            {"driver": r.driver_code, "lap": r.lap_number, "delta": r.net_position_change,
+             "lane": r.lane_duration, "type": r.stop_type}
             for r in sorted(analysis.pit_impact, key=lambda r: (-(r.net_position_change or 0), r.lap_number))
             if (r.net_position_change or 0) > 0 and r.lane_duration and r.stop_type != "red_flag"
         ][:5],
         "pit_losers": [
-            {
-                "driver": r.driver_code,
-                "lap": r.lap_number,
-                "delta": r.net_position_change,
-                "verdict": r.verdict,
-            }
+            {"driver": r.driver_code, "lap": r.lap_number, "delta": r.net_position_change,
+             "lane": r.lane_duration, "type": r.stop_type}
             for r in sorted(analysis.pit_impact, key=lambda r: (r.net_position_change or 0, r.lap_number))
             if (r.net_position_change or 0) < 0 and r.lane_duration and r.stop_type != "red_flag"
         ][:5],
@@ -96,7 +160,8 @@ def build_chat_context(
             }
             for d in analysis.decisions
         ],
-        # Every engineer note with its id — cite ids from here, nothing else.
+        # Engineer notes relevant to this question, with their catalogue ids —
+        # cite ids from here, nothing else.
         "signals": [
             {
                 "id": sid,
@@ -106,7 +171,7 @@ def build_chat_context(
                 "title": n.title,
                 "message": n.message,
             }
-            for sid, n in signal_catalog(analysis).items()
+            for sid, n in select_signals(analysis, question, focused_driver).items()
         ],
     }
 

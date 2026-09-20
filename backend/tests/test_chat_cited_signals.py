@@ -15,7 +15,7 @@ from app.clients.ollama_client import EngineerReply, parse_reply
 from app.core import cache
 from app.domain.models import FullRaceAnalysis
 from app.main import app
-from app.services.chat_service import build_chat_context, signal_catalog
+from app.services.chat_service import MAX_SIGNALS, build_chat_context, select_signals, signal_catalog
 
 
 @pytest.fixture
@@ -49,8 +49,59 @@ def test_catalogue_ids_are_stable_and_in_context(analysis_9539):
     catalog = signal_catalog(analysis_9539)
     assert list(catalog) == [f"S{i}" for i in range(1, len(analysis_9539.engineer_notes) + 1)]
     ctx = json.loads(build_chat_context(analysis_9539))
-    assert [s["id"] for s in ctx["signals"]] == list(catalog)
+    sent = [s["id"] for s in ctx["signals"]]
+    assert sent == list(select_signals(analysis_9539))
+    assert set(sent) <= set(catalog) and len(sent) <= MAX_SIGNALS
     assert "top_signals" not in ctx
+
+
+@pytest.fixture
+def analysis_9636():
+    raw = cache.get_full_analysis(9636)
+    if raw is None:
+        pytest.skip("cache/9636/_analysis.json not present")
+    return FullRaceAnalysis.model_validate(raw)
+
+
+def test_selection_is_capped_and_ids_do_not_shift(analysis_9636):
+    catalog = signal_catalog(analysis_9636)
+    assert len(catalog) > MAX_SIGNALS
+    sent = select_signals(analysis_9636, "what happened?")
+    assert len(sent) == MAX_SIGNALS
+    for sid, note in sent.items():
+        assert catalog[sid] is note          # same object, same id as in the full catalogue
+
+
+def test_question_lap_pulls_in_that_window(analysis_9636):
+    catalog = signal_catalog(analysis_9636)
+    near_28 = {sid for sid, n in catalog.items() if n.lap_number is not None and abs(n.lap_number - 28) <= 3}
+    sent = select_signals(analysis_9636, "what happened around lap 28?")
+    assert near_28 & set(sent), "notes around lap 28 must be sent"
+    titles = {n.title for n in sent.values()}
+    # the VSC on 28 and the SC on 30 must both be there, not crowded out by the
+    # five "HAM undercut on X" notes from the lap-27 pit cycle
+    assert "VSC deployed — Lap 28" in titles and "SC deployed — Lap 30" in titles
+    assert sum(1 for t in titles if t.startswith("HAM undercut")) <= 3
+
+
+def test_question_driver_pulls_in_that_drivers_notes(analysis_9636):
+    catalog = signal_catalog(analysis_9636)
+    rus = {sid for sid, n in catalog.items() if "RUS" in f"{n.title} {n.message}"}
+    assert rus, "9636 has RUS notes"
+    sent = select_signals(analysis_9636, "did the pit stop help RUS?")
+    assert rus & set(sent)
+    sent_focus = select_signals(analysis_9636, "was the stop good?", focused_driver="RUS")
+    assert rus & set(sent_focus)
+
+
+def test_citation_of_an_unsent_catalogue_id_is_dropped(client, monkeypatch, analysis_9636):
+    """The model can only cite what it was shown, even if the id exists in the full catalogue."""
+    sent = select_signals(analysis_9636, "what happened?")
+    unsent = next(sid for sid in signal_catalog(analysis_9636) if sid not in sent)
+    shown = next(iter(sent))
+    _stub(monkeypatch, EngineerReply("A.", "groq", "m", [unsent, shown], "High"))
+    r = client.post("/chat", json={"session_key": 9636, "question": "what happened?"})
+    assert [c["id"] for c in r.json()["cited_signals"]] == [shown]
 
 
 # ── parse_reply ──────────────────────────────────────────────────────────────

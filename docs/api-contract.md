@@ -34,10 +34,12 @@ Headers: `X-Client-Id` — stable id per browser session; the rate limit is keye
 Response: `{ "answer": str, "cited_signals": [{ "id", "lap_number", "title" }], "confidence": "Low"|"Medium"|"High"|null, "declared_confidence": same|null, "provider": "ollama"|"groq"|"offline", "model": str|null }`
 `confidence` is structural: the model's declaration capped by the validated citations
 (0 → Low, 1 → Medium, 2+ → as declared); `declared_confidence` is the raw declaration.
-The model receives every engineer note with a stable id (`S1..Sn`) and replies
+The model receives the engineer notes relevant to the question (up to 8 of the
+analysis' notes, ranked by severity with a boost for laps/drivers the question
+mentions; ids `S1..Sn` are catalogue positions, stable across questions) and replies
 in a JSON schema `{answer, cited_signal_ids, confidence}`; `cited_signals` are
-the ids it declared that exist in that catalogue (unknown ids dropped, empty if
-none) and `confidence` is its own declaration (null when no structured block came back).
+the ids it declared that were in the subset it was sent (unknown or unsent ids
+dropped, empty if none) and `confidence` is its own declaration (null when no structured block came back).
 Rate limit: 10 messages / hour per `X-Client-Id`, 100 / hour per IP
 (sliding window, in memory) → `429 RATE_LIMITED`.
 

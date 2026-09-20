@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
-from app.services.chat_service import build_chat_context, signal_catalog
+from app.services.chat_service import build_chat_context, select_signals
 from app.clients.ollama_client import LLMRateLimited, active_model, answer_engineer_question
 
 router = APIRouter(tags=["chat"])
@@ -183,7 +183,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         ) from exc
 
     # 2. Build compact context string
-    context = build_chat_context(analysis, req.focused_driver)
+    context = build_chat_context(analysis, req.focused_driver, question=req.question)
 
     # 3. Call AI (Ollama → Groq fallback)
     session_name = f"{analysis.race.meeting_name} {analysis.race.year}"
@@ -200,8 +200,8 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             details={"provider": exc.provider, "model": exc.model, "retry_after_seconds": exc.retry_after_s},
         ) from exc
 
-    # 4. Cited signals: only ids the model declared AND that exist in the catalogue
-    catalog = signal_catalog(analysis)
+    # 4. Cited signals: only ids the model declared AND that were in the subset it was sent
+    catalog = select_signals(analysis, req.question, req.focused_driver)
     seen: set[str] = set()
     cited: list[CitedSignal] = []
     for sid in reply.cited_signal_ids:
