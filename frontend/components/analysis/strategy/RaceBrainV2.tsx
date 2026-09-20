@@ -1,16 +1,20 @@
 import type { RaceBrain } from '@/types'
+import { chaosLevel, CHAOS_LEVEL_COLOR, type ChaosLevel } from '@/lib/chaos'
 
 type Props = {
   brain: RaceBrain
   sessionType: string
 }
 
+const PHASE_BADGE: Record<ChaosLevel, string> = {
+  Extreme: 'Extreme chaos race',
+  High: 'Interrupted race',
+  Medium: 'Strategic pace race',
+  Low: 'Clean strategic race',
+}
+
 function phaseBadge(chaos: number): string {
-  if (chaos >= 80) return 'Extreme chaos race'
-  if (chaos >= 60) return 'Weather-affected race'
-  if (chaos >= 50) return 'Interrupted race'
-  if (chaos >= 25) return 'Strategic pace race'
-  return 'Clean strategic race'
+  return PHASE_BADGE[chaosLevel(chaos)]
 }
 
 function tensionBadgeText(brain: RaceBrain): string {
@@ -74,7 +78,7 @@ export function RaceBrainV2({ brain, sessionType }: Props) {
             <div
               className="font-display font-black text-[18px] leading-none tabular-nums"
               style={{
-                color: brain.chaos_index >= 80 ? '#E8001D' : brain.chaos_index >= 50 ? '#FFB020' : '#23D18B',
+                color: CHAOS_LEVEL_COLOR[chaosLevel(brain.chaos_index)],
               }}
             >
               {brain.chaos_index}

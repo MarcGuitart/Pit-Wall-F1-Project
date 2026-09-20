@@ -72,19 +72,32 @@ export type PitImpactRow = {
   confidence: 'Low' | 'Medium' | 'High'
 }
 
+export type ChaosComponent = {
+  raw: number
+  raw_unit: string
+  normalized: number     // min(1, raw / full_scale)
+  full_scale: number
+  weight: number         // max points
+  points: number
+  note: string | null
+}
+
 export type ChaosIndex = {
   score: number
   level: 'Low' | 'Medium' | 'High' | 'Extreme'
   peak_chaos_lap: number | null
+  /** Rounded points per component (v2: stewarding replaces investigations + penalties). */
   components: {
     safety_car: number
     yellow_flags: number
-    investigations: number
-    penalties: number
+    stewarding: number
     weather: number
     position_volatility: number
   }
+  /** Full audit per component; empty on caches computed before method 2.0. */
+  breakdown: Record<string, ChaosComponent>
   summary: string
+  method_version: string
 }
 
 export type EngineerNote = {

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
+import { chaosLevel, CHAOS_LEVEL_TEXT_CLASS } from '@/lib/chaos'
 import { DEMO_RACES } from '@/lib/constants'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import type { RaceListItem, SessionInfo } from '@/types'
@@ -12,16 +13,14 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const TELEMETRY_PREFETCH_SESSIONS = new Set([9197, 9539, 9566, 9636, 9662])
 
 const CHAOS_LEVEL = (score: number) => {
-  if (score >= 80) return { label: 'Extreme Chaos', color: 'text-signal-red' }
-  if (score >= 50) return { label: 'High Chaos', color: 'text-signal-amber' }
-  if (score >= 25) return { label: 'Medium Chaos', color: 'text-signal-blue' }
-  return { label: 'Low Chaos', color: 'text-signal-green' }
+  const level = chaosLevel(score)
+  return { label: `${level} Chaos`, color: CHAOS_LEVEL_TEXT_CLASS[level] }
 }
 
 const TELEMETRY_SESSIONS = new Set([9197, 9539, 9566, 9636, 9662])
 
 const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: string }> = {
-  9636: { tag: 'CHAOS 94', tagColor: 'text-signal-red border-signal-red/40 bg-signal-red/10', reason: '3 safety cars · rain · VSC championship moment' },
+  9636: { tag: 'CHAOS 73', tagColor: 'text-signal-red border-signal-red/40 bg-signal-red/10', reason: '3 safety cars · rain · VSC championship moment' },
   9539: { tag: 'UNDERCUT', tagColor: 'text-signal-purple border-signal-purple/40 bg-signal-purple/10', reason: 'Clean strategic race · pit window showcase' },
   9566: { tag: 'DEGRADATION', tagColor: 'text-signal-amber border-signal-amber/40 bg-signal-amber/10', reason: 'High tyre cliff · degradation-driven outcome' },
 }

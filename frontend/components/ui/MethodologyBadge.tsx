@@ -12,7 +12,7 @@ const COPY: Record<Module, string> = {
   pit:
     'Position delta = position at pit_lap−1 vs position at pit_lap+3, reconstructed from timestamp-based OpenF1 position data.',
   chaos:
-    'Weighted sum: SC events (×15, max 30), yellows (×3, max 20), investigations (×5, max 20), penalties (×4, max 15), rain periods (×10, max 15), position volatility (÷5, max 20). Cap 100.',
+    'Method 2.0: each component is the fraction of the race in an altered state, scaled 0–1 and weighted — laps under SC/VSC (30), laps with local yellows (10), incidents noted + penalties per lap (20), wet laps (20), competitive place changes per driver-lap excluding pit cycles and SC laps (20). Levels: Low <15, Medium 15–31, High 32–54, Extreme ≥55.',
   notes:
     'Deterministic signals generated from computed metrics. No AI generation — thresholds trigger note templates. All data sourced from the same OpenF1 session.',
   traffic:

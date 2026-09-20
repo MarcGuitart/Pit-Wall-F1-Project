@@ -1,27 +1,12 @@
 import type { ChaosIndex } from '@/types'
+import { CHAOS_COMPONENTS, CHAOS_LEVEL_COLOR } from '@/lib/chaos'
 
 type Props = {
   chaos: ChaosIndex
 }
 
-const LEVEL_COLOR = {
-  Low:     '#23D18B',
-  Medium:  '#FFB020',
-  High:    '#E8001D',
-  Extreme: '#E8001D',
-}
-
-const COMPONENTS: { key: keyof ChaosIndex['components']; label: string; max: number }[] = [
-  { key: 'safety_car',         label: 'Safety Car',         max: 30 },
-  { key: 'yellow_flags',       label: 'Yellow Flags',       max: 20 },
-  { key: 'investigations',     label: 'Investigations',     max: 20 },
-  { key: 'penalties',          label: 'Penalties',          max: 15 },
-  { key: 'weather',            label: 'Weather Events',     max: 15 },
-  { key: 'position_volatility','label': 'Position Volatility', max: 20 },
-]
-
 export function ChaosIndexCard({ chaos }: Props) {
-  const color = LEVEL_COLOR[chaos.level]
+  const color = CHAOS_LEVEL_COLOR[chaos.level]
 
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
@@ -60,11 +45,12 @@ export function ChaosIndexCard({ chaos }: Props) {
 
         {/* Component bars */}
         <div className="space-y-2 mb-4">
-          {COMPONENTS.map(({ key, label, max }) => {
+          {CHAOS_COMPONENTS.map(({ key, label, weight }) => {
             const value = chaos.components[key]
+            const max = chaos.breakdown?.[key]?.weight ?? weight
             const pct = Math.round((value / max) * 100)
             return (
-              <div key={key}>
+              <div key={key} title={chaos.breakdown?.[key]?.note ?? undefined}>
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-text-muted">
                     {label}

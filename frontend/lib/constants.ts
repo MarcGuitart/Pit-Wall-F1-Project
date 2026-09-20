@@ -80,7 +80,7 @@ export const DEMO_RACES = [
     circuit_short_name: 'Interlagos',
     date_start: '2024-11-03',
     year: 2024,
-    chaos_score: 94,
+    chaos_score: 73,   // Chaos Index method 2.0
     tags: ['Extreme Chaos', 'Rain', 'Safety Car', 'VSC'],
   },
   {
@@ -91,7 +91,7 @@ export const DEMO_RACES = [
     circuit_short_name: 'Catalunya',
     date_start: '2024-06-23',
     year: 2024,
-    chaos_score: 28,
+    chaos_score: 24,
     tags: ['Clean Race', 'Undercut Showcase', 'Strategic'],
   },
   {
@@ -102,7 +102,7 @@ export const DEMO_RACES = [
     circuit_short_name: 'Hungaroring',
     date_start: '2024-07-21',
     year: 2024,
-    chaos_score: 41,
+    chaos_score: 13,
     tags: ['High Degradation', 'Tyre Strategy', 'Overcut'],
   },
 ] as const

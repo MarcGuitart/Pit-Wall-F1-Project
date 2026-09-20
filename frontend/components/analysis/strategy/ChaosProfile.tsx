@@ -1,24 +1,15 @@
 import type { ChaosIndex } from '@/types'
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
+import { CHAOS_COMPONENTS, CHAOS_LEVEL_COLOR } from '@/lib/chaos'
 
 type Props = { chaos: ChaosIndex }
 
-const LEVEL_COLOR: Record<string, string> = {
-  Low: '#23D18B', Medium: '#FFB020', High: '#E8001D', Extreme: '#E8001D',
-}
-
-const COMPONENTS: { key: keyof ChaosIndex['components']; label: string; max: number }[] = [
-  { key: 'safety_car',          label: 'SC/VSC',     max: 30 },
-  { key: 'yellow_flags',        label: 'Yellows',    max: 20 },
-  { key: 'investigations',      label: 'Invest.',    max: 20 },
-  { key: 'weather',             label: 'Weather',    max: 15 },
-  { key: 'position_volatility', label: 'Volatility', max: 20 },
-]
+const COMPONENTS = CHAOS_COMPONENTS.map(({ key, short, weight }) => ({ key, label: short, max: weight }))
 
 export function ChaosProfile({ chaos }: Props) {
-  const color = LEVEL_COLOR[chaos.level] ?? '#8A94A6'
-  const isLow = chaos.score < 20
+  const color = CHAOS_LEVEL_COLOR[chaos.level] ?? '#8A94A6'
+  const isLow = chaos.level === 'Low'
 
   // Check if there are any meaningful events to display
   const hasEvents = Object.values(chaos.components).some((v) => v > 0)

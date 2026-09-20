@@ -1,4 +1,5 @@
 import type { RaceBrain as RaceBrainType } from '@/types'
+import { chaosLevel, CHAOS_LEVEL_COLOR } from '@/lib/chaos'
 
 type Props = {
   data: RaceBrainType
@@ -49,14 +50,7 @@ export function RaceBrain({ data, chaosScore }: Props) {
             <div className="flex flex-col items-center px-4 py-3 bg-bg-elevated border border-border-default rounded-[3px] min-w-[72px]">
               <span
                 className="font-mono font-bold text-[28px] leading-none"
-                style={{
-                  color:
-                    chaosScore >= 80
-                      ? '#E8001D'
-                      : chaosScore >= 50
-                      ? '#FFB020'
-                      : '#23D18B',
-                }}
+                style={{ color: CHAOS_LEVEL_COLOR[chaosLevel(chaosScore)] }}
               >
                 {chaosScore}
               </span>
