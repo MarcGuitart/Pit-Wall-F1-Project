@@ -36,8 +36,15 @@ Rate limit: 10 messages / hour per `X-Client-Id`, 100 / hour per IP
 (sliding window, in memory) → `429 RATE_LIMITED`.
 
 ### GET /chat/health
-`{ ollama_reachable, base_url, model, model_available?, available_models?, groq_available, ai_ready, error? }`
-Always 200.
+`{ ollama_reachable, base_url, model, model_available?, available_models?, groq_available, ai_ready, error?,
+   active_provider, active_model, groq_model, groq_reasoning_effort }`
+Always 200. `active_provider` / `active_model` are what the next /chat call would use, in
+the same order as the fallback chain: Ollama (local, any pulled model) → Groq → offline.
+
+**Production model:** Groq `openai/gpt-oss-120b`, `reasoning_effort=medium`
+(`GROQ_MODEL`, `GROQ_REASONING_EFFORT` on Render; defaults in `config.py` and
+`.env.example` are the same values). Local development uses Ollama
+`llama3.1:8b` when it is pulled.
 
 ### GET /telemetry/{session_key}?drivers=NOR,VER,HAM&lap_mode=fastest_clean
 Circuit telemetry replay (FastF1, precomputed on GitHub Actions; OpenF1 car_data

@@ -9,6 +9,7 @@ Priority:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 import httpx
 
@@ -120,13 +121,24 @@ async def call_ollama(
         return "Engineer radio unavailable. Try again."
 
 
+@dataclass
+class EngineerReply:
+    answer: str
+    provider: str        # "ollama" | "groq" | "offline"
+    model: str | None    # model that actually answered
+
+
+def _groq_supports_reasoning_effort(model: str) -> bool:
+    return model.startswith("openai/gpt-oss")
+
+
 async def _call_groq(system: str, question: str) -> str:
-    """Call Groq cloud API (free tier). Requires GROQ_API_KEY in env."""
+    """Call Groq cloud API. Requires GROQ_API_KEY in env."""
     headers = {
         "Authorization": f"Bearer {settings.groq_api_key}",
         "Content-Type": "application/json",
     }
-    payload = {
+    payload: dict = {
         "model": settings.groq_model,
         "messages": [
             {"role": "system", "content": system},
@@ -135,6 +147,8 @@ async def _call_groq(system: str, question: str) -> str:
         "temperature": 0.3,
         "max_tokens": 400,
     }
+    if _groq_supports_reasoning_effort(settings.groq_model):
+        payload["reasoning_effort"] = settings.groq_reasoning_effort
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -152,10 +166,11 @@ async def answer_engineer_question(
     question: str,
     session_name: str,
     focused_driver: str | None = None,
-) -> str:
+) -> EngineerReply:
     """
     Entry point for race engineer answers.
     Tries Ollama first; if no local model is available, falls back to Groq.
+    The reply says which provider/model actually answered.
     """
     focused_driver_note = (
         f"The user is specifically asking about driver {focused_driver}. "
@@ -186,22 +201,34 @@ async def answer_engineer_question(
                 r = await client.post(f"{settings.ollama_base_url}/api/chat", json=payload)
                 r.raise_for_status()
                 logger.info("[AI] Answered via Ollama model=%s", model)
-                return r.json()["message"]["content"].strip()
+                return EngineerReply(r.json()["message"]["content"].strip(), "ollama", model)
         except Exception as exc:
             logger.warning("[AI] Ollama failed, will try Groq: %s", exc)
 
-    # 2. Fall back to Groq (free cloud)
+    # 2. Fall back to Groq (cloud)
     if settings.groq_api_key:
         try:
             answer = await _call_groq(system, question)
             logger.info("[AI] Answered via Groq model=%s", settings.groq_model)
-            return answer
+            return EngineerReply(answer, "groq", settings.groq_model)
         except Exception as exc:
             logger.error("[AI] Groq also failed: %s", exc)
 
     # 3. Nothing available
-    return (
+    return EngineerReply(
         "Engineer radio offline. "
-        "For local use: ollama pull llama3.1:8b · "
-        "For deployment: set GROQ_API_KEY at console.groq.com (free)"
+        f"For local use: ollama pull {settings.ollama_model} · "
+        "For deployment: set GROQ_API_KEY at console.groq.com",
+        "offline",
+        None,
     )
+
+
+async def active_model() -> tuple[str, str | None]:
+    """(provider, model) that /chat would use right now — same order as answer_engineer_question."""
+    model = await _resolve_model()
+    if model is not None:
+        return "ollama", model
+    if settings.groq_api_key:
+        return "groq", settings.groq_model
+    return "offline", None

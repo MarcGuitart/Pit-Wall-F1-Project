@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import chat as chat_module
+from app.clients.ollama_client import EngineerReply
 from app.core.ratelimit import SlidingWindow
 from app.main import app
 
@@ -33,7 +34,7 @@ def client(monkeypatch, clock):
     monkeypatch.setattr(chat_module, "_ip_limiter", SlidingWindow(5, 60, clock))
 
     async def canned(*args, **kwargs):
-        return "Copy that."
+        return EngineerReply("Copy that.", "groq", "stub-model")
     monkeypatch.setattr(chat_module, "answer_engineer_question", canned)
     return TestClient(app, raise_server_exceptions=False)
 

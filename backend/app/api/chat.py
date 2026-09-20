@@ -19,7 +19,7 @@ from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
-from app.clients.ollama_client import answer_engineer_question
+from app.clients.ollama_client import active_model, answer_engineer_question
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -89,6 +89,13 @@ class ChatResponse(BaseModel):
 async def chat_health() -> dict:
     """Check Ollama and Groq availability."""
     groq_available = bool(settings.groq_api_key)
+    provider, model = await active_model()
+    active = {
+        "active_provider": provider,
+        "active_model": model,
+        "groq_model": settings.groq_model,
+        "groq_reasoning_effort": settings.groq_reasoning_effort,
+    }
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -106,6 +113,7 @@ async def chat_health() -> dict:
                 "available_models": models,
                 "groq_available": groq_available,
                 "ai_ready": ai_ready,
+                **active,
             }
     except Exception as exc:
         return {
@@ -115,6 +123,7 @@ async def chat_health() -> dict:
             "error": str(exc),
             "groq_available": groq_available,
             "ai_ready": groq_available,
+            **active,
         }
 
 
@@ -149,9 +158,10 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     # 3. Call AI (Ollama → Groq fallback)
     session_name = f"{analysis.race.meeting_name} {analysis.race.year}"
-    answer = await answer_engineer_question(
+    reply = await answer_engineer_question(
         context, req.question.strip(), session_name, req.focused_driver
     )
+    answer = reply.answer
 
     # 4. Simple cited-signals: list note titles from context
     cited = [n.title for n in analysis.engineer_notes[:3]]

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # Groq cloud AI — free tier, no local model required (console.groq.com for API key)
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
+    # Only sent for models that accept it (openai/gpt-oss-*): low | medium | high
+    groq_reasoning_effort: str = "medium"
 
     # /chat rate limit (in-memory sliding window). Per browser session first,
     # per IP as a much higher secondary cap so a classroom behind one NAT
