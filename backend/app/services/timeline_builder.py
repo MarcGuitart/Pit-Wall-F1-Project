@@ -4,6 +4,7 @@ Replaces ad-hoc timestamp resolution that was duplicated across weather/drs serv
 """
 from __future__ import annotations
 
+import re
 import statistics
 from collections import defaultdict
 from datetime import datetime
@@ -54,7 +55,13 @@ def _lap_for_time(
 def _build_sc_vsc_maps(
     race_control: list[dict],
 ) -> tuple[set[int], set[int]]:
-    """Return (sc_active_laps, vsc_active_laps) — SEPARATE sets."""
+    """
+    Return (sc_active_laps, vsc_active_laps) — SEPARATE sets.
+
+    A red flag ends any running SC/VSC (race control never sends "SAFETY CAR
+    IN THIS LAP" in that case) and counts as SC for the red-flag lap and the
+    restart lap: the field is neutralised either way.
+    """
     sc_laps: set[int] = set()
     vsc_laps: set[int] = set()
     sc_deploy_lap: int | None = None
@@ -68,8 +75,18 @@ def _build_sc_vsc_maps(
         is_vsc_deploy = "VIRTUAL SAFETY CAR DEPLOYED" in txt
         is_sc_end = "SAFETY CAR IN THIS LAP" in txt
         is_vsc_end = "VIRTUAL SAFETY CAR ENDING" in txt
+        # word-boundary: "CHEQUERED FLAG" also contains "RED FLAG"
+        is_red = (msg.get("flag") or "").upper() == "RED" or bool(re.search(r"(^|\s)RED FLAG", txt))
 
-        if is_sc_deploy and lap:
+        if is_red and lap:
+            if sc_deploy_lap is not None:
+                sc_laps.update(range(sc_deploy_lap, lap + 1))
+                sc_deploy_lap = None
+            if vsc_deploy_lap is not None:
+                vsc_laps.update(range(vsc_deploy_lap, lap + 1))
+                vsc_deploy_lap = None
+            sc_laps.update((lap, lap + 1))
+        elif is_sc_deploy and lap:
             # If SC already active, flush laps up to this re-deployment first
             if sc_deploy_lap is not None:
                 for l in range(sc_deploy_lap, lap + 1):
