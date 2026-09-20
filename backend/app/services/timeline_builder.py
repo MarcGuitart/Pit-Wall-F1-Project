@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 import statistics
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 
 from app.domain.race_timeline import LapSignals, RaceTimeline
@@ -66,6 +67,77 @@ def red_flag_laps(race_control: list[dict]) -> set[int]:
         msg["lap_number"] for msg in race_control
         if msg.get("lap_number") and _is_red_flag(msg)
     }
+
+
+@dataclass(frozen=True)
+class NeutralisationPeriod:
+    kind: str                  # "SC" | "VSC" | "RED"
+    start: datetime            # race-control message that started it
+    end: datetime | None       # None = never ended within the data (or ended by the flag)
+    start_lap: int
+    end_lap: int | None
+
+    def contains(self, t: datetime) -> bool:
+        return self.start <= t and (self.end is None or t < self.end)
+
+
+def neutralisation_periods(
+    race_control: list[dict], lap_index: list[tuple[int, datetime]] | None = None
+) -> list[NeutralisationPeriod]:
+    """
+    SC / VSC / red-flag periods with timestamps, so an event can be placed
+    *inside* or *outside* a neutralisation on the same lap (a stop made after
+    'VIRTUAL SAFETY CAR ENDING' is a racing stop even though the lap is a VSC lap).
+
+    Ends: VSC at the ENDING message; SC at the end of the lap after 'SAFETY CAR
+    IN THIS LAP' (the field pits/crosses the line behind it that lap); a red
+    flag closes whatever is running and starts a RED period that ends at the
+    next green flag / SC deployment message, or never.
+    """
+    lap_start = dict(lap_index or [])
+
+    def end_of_lap(lap: int) -> datetime | None:
+        return lap_start.get(lap + 1)
+
+    periods: list[NeutralisationPeriod] = []
+    open_sc: dict | None = None
+    open_vsc: dict | None = None
+    open_red: dict | None = None
+
+    def close(open_: dict, end: datetime | None, end_lap: int | None) -> None:
+        periods.append(NeutralisationPeriod(open_["kind"], open_["start"], end, open_["lap"], end_lap))
+
+    for msg in sorted(race_control, key=lambda m: m.get("date") or ""):
+        t = _parse_ts(msg.get("date"))
+        lap = msg.get("lap_number")
+        if t is None or not lap:
+            continue
+        txt = (msg.get("message") or "").upper()
+        if _is_red_flag(msg):
+            if open_sc:
+                close(open_sc, t, lap); open_sc = None
+            if open_vsc:
+                close(open_vsc, t, lap); open_vsc = None
+            open_red = {"kind": "RED", "start": t, "lap": lap}
+        elif "VIRTUAL SAFETY CAR DEPLOYED" in txt:
+            if open_red:
+                close(open_red, t, lap); open_red = None
+            open_vsc = open_vsc or {"kind": "VSC", "start": t, "lap": lap}
+        elif "VIRTUAL SAFETY CAR ENDING" in txt and open_vsc:
+            close(open_vsc, t, lap); open_vsc = None
+        elif "SAFETY CAR DEPLOYED" in txt:
+            if open_red:
+                close(open_red, t, lap); open_red = None
+            open_sc = open_sc or {"kind": "SC", "start": t, "lap": lap}
+        elif "SAFETY CAR IN THIS LAP" in txt and open_sc:
+            close(open_sc, end_of_lap(lap + 1) or t, lap + 1); open_sc = None
+        elif open_red and (msg.get("flag") or "").upper() == "GREEN":
+            close(open_red, t, lap); open_red = None
+
+    for open_ in (open_sc, open_vsc, open_red):
+        if open_:
+            close(open_, None, None)
+    return sorted(periods, key=lambda p: p.start)
 
 
 def _build_sc_vsc_maps(
