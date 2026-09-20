@@ -39,10 +39,20 @@ _BACKOFF = [2, 5, 10, 20]
 class OpenF1Error(RuntimeError):
     """An endpoint could not be fetched after all retries."""
 
-    def __init__(self, endpoint: str, attempts: int, message: str | None = None) -> None:
+    def __init__(
+        self, endpoint: str, attempts: int, message: str | None = None,
+        upstream_status: int | None = None,
+    ) -> None:
         super().__init__(message or f"OpenF1 unreachable after {attempts} attempts: {endpoint}")
         self.endpoint = endpoint
         self.attempts = attempts
+        self.upstream_status = upstream_status
+
+    def details(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"endpoint": self.endpoint, "attempts": self.attempts}
+        if self.upstream_status is not None:
+            d["upstream_status"] = self.upstream_status
+        return d
 
 
 class OpenF1RateLimitError(OpenF1Error):
@@ -59,11 +69,16 @@ class OpenF1AuthError(OpenF1Error):
         super().__init__(endpoint, 1, f"OpenF1 requires a valid API token for {endpoint}")
 
 
-async def _fetch_endpoint(
+async def _get(
     client: httpx.AsyncClient,
     endpoint: str,
-    session_key: int,
+    params: dict[str, Any],
 ) -> list[dict]:
+    """
+    One OpenF1 GET with everything every call must go through: semaphore,
+    jitter, the 25/10 s limiter, token header, retries with backoff, and
+    typed errors (never a silent [] for an error response).
+    """
     last_exc: Exception | None = None
 
     # Add token header if configured — OpenF1 now requires auth for live data
@@ -79,7 +94,7 @@ async def _fetch_endpoint(
                 await _limiter.acquire()
                 resp = await client.get(
                     f"{settings.openf1_base_url}/{endpoint}",
-                    params={"session_key": session_key},
+                    params=params,
                     headers=headers,
                 )
 
@@ -87,8 +102,8 @@ async def _fetch_endpoint(
                 # Fast-fail: retrying won't help without a valid token. Never
                 # return [] here — the caller would cache it as a real answer.
                 logger.error(
-                    "[401 UNAUTHORIZED] %s for %s — set OPENF1_API_TOKEN to fetch new sessions",
-                    endpoint, session_key,
+                    "[401 UNAUTHORIZED] %s %s — set OPENF1_API_TOKEN to fetch new sessions",
+                    endpoint, params,
                 )
                 raise OpenF1AuthError(endpoint)
 
@@ -97,8 +112,8 @@ async def _fetch_endpoint(
                     resp.headers.get("Retry-After", _BACKOFF[min(attempt, 3)])
                 )
                 logger.warning(
-                    "[429 RETRY] %s for %s — attempt %d, waiting %ds",
-                    endpoint, session_key, attempt + 1, retry_after,
+                    "[429 RETRY] %s %s — attempt %d, waiting %ds",
+                    endpoint, params, attempt + 1, retry_after,
                 )
                 if attempt >= _MAX_ATTEMPTS - 1:
                     raise OpenF1RateLimitError(endpoint, _MAX_ATTEMPTS)
@@ -119,13 +134,33 @@ async def _fetch_endpoint(
             last_exc = exc
             wait = _BACKOFF[min(attempt, 3)]
             logger.warning(
-                "OpenF1 attempt %d/%d failed for %s/%s: %s — retrying in %ds",
-                attempt + 1, _MAX_ATTEMPTS, session_key, endpoint, exc, wait,
+                "OpenF1 attempt %d/%d failed for %s %s: %s — retrying in %ds",
+                attempt + 1, _MAX_ATTEMPTS, endpoint, params, exc, wait,
             )
             if attempt < _MAX_ATTEMPTS - 1:
                 await asyncio.sleep(wait)
 
-    raise OpenF1Error(endpoint, _MAX_ATTEMPTS) from last_exc
+    upstream = (
+        last_exc.response.status_code if isinstance(last_exc, httpx.HTTPStatusError) else None
+    )
+    raise OpenF1Error(endpoint, _MAX_ATTEMPTS, upstream_status=upstream) from last_exc
+
+
+async def _fetch_endpoint(
+    client: httpx.AsyncClient,
+    endpoint: str,
+    session_key: int,
+) -> list[dict]:
+    return await _get(client, endpoint, {"session_key": session_key})
+
+
+async def fetch_json(endpoint: str, **params: Any) -> list[dict]:
+    """
+    Public one-shot GET for non-race endpoints (sessions, meetings). Same
+    limiter, backoff and typed errors as the race endpoints. Not cached here.
+    """
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        return await _get(client, endpoint, params)
 
 
 async def fetch_all(session_key: int) -> dict[str, list[dict]]:

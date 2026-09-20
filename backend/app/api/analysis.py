@@ -3,13 +3,12 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
-import httpx
 
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as analysis_cache
 from app.domain.models import FullRaceAnalysis, ModuleStatus, RaceMeta, RaceBrain
-from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLimitError
+from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLimitError, fetch_json
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
@@ -51,38 +50,22 @@ async def _fetch_session_meta(session_key: int) -> dict:
     if cached_meta:
         return cached_meta
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        s_resp = await client.get(
-            f"{settings.openf1_base_url}/sessions",
-            params={"session_key": session_key},
-        )
-        s_resp.raise_for_status()
-        sessions = s_resp.json()
-
+    sessions = await fetch_json("sessions", session_key=session_key)
     if not sessions:
         return {}
 
     session = sessions[0]
 
-    # meetings endpoint has the human-readable Grand Prix name
-    for wait in (0, 2, 5):
-        try:
-            if wait:
-                await asyncio.sleep(wait)
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                m_resp = await client.get(
-                    f"{settings.openf1_base_url}/meetings",
-                    params={"meeting_key": session["meeting_key"]},
-                )
-                m_resp.raise_for_status()
-                meetings = m_resp.json()
-            if meetings:
-                session["meeting_name"] = meetings[0].get(
-                    "meeting_name", session.get("meeting_name", "")
-                )
-            break
-        except Exception:
-            continue
+    # meetings endpoint has the human-readable Grand Prix name — best effort
+    try:
+        meetings = await fetch_json("meetings", meeting_key=session["meeting_key"])
+    except OpenF1Error as exc:
+        logger.warning("Could not fetch meeting name for %s: %s", session_key, exc)
+        meetings = []
+    if meetings:
+        session["meeting_name"] = meetings[0].get(
+            "meeting_name", session.get("meeting_name", "")
+        )
 
     analysis_cache.set_session_meta(session_key, session)
     return session
@@ -240,7 +223,7 @@ async def get_analysis(
                 f"OpenF1 is rate-limiting requests (while fetching {exc.endpoint}). "
                 "Endpoints already fetched are cached; retry in a minute to resume.",
                 status=429,
-                details={"endpoint": exc.endpoint, "attempts": exc.attempts},
+                details=exc.details(),
             ) from exc
         except OpenF1Error as exc:
             raise AppError(
@@ -248,7 +231,7 @@ async def get_analysis(
                 f"OpenF1 did not return {exc.endpoint} for session {session_key} "
                 f"after {exc.attempts} attempts.",
                 status=503,
-                details={"endpoint": exc.endpoint, "attempts": exc.attempts},
+                details=exc.details(),
             ) from exc
 
         laps = data.get("laps", [])

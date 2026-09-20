@@ -179,7 +179,7 @@ def test_openf1_error_503_after_retries(client, monkeypatch, fake_openf1, tmp_pa
     fake_openf1(handler)
 
     err = envelope(client.get("/analysis/424245"), 503, "OPENF1_ERROR")
-    assert err["details"] == {"endpoint": "laps", "attempts": 4}
+    assert err["details"] == {"endpoint": "laps", "attempts": 4, "upstream_status": 500}
     assert "laps" in err["message"]
 
 
@@ -217,7 +217,7 @@ def test_races_openf1_error_503(client, monkeypatch, fake_openf1):
     monkeypatch.setattr(cache, "get_meetings", lambda year: None)
     fake_openf1(lambda req: httpx.Response(502, text="bad gateway"))
     err = envelope(client.get("/races?year=1999"), 503, "OPENF1_ERROR")
-    assert err["details"] == {"endpoint": "meetings", "upstream_status": 502}
+    assert err["details"] == {"endpoint": "meetings", "attempts": 4, "upstream_status": 502, "year": 1999}
 
 
 def test_races_openf1_rate_limit_429(client, monkeypatch, fake_openf1):

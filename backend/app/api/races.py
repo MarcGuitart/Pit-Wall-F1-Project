@@ -2,9 +2,9 @@ import json
 import logging
 from pathlib import Path
 
-import httpx
 from fastapi import APIRouter, Query
 
+from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLimitError, fetch_json
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as race_cache
@@ -15,18 +15,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["races"])
 
 
-def _openf1_status_error(exc: httpx.HTTPStatusError, endpoint: str) -> AppError:
-    """Map an upstream OpenF1 HTTP error to our envelope; 429 keeps its own code."""
-    upstream = exc.response.status_code
-    if upstream == 429:
+def _openf1_error(exc: OpenF1Error, what: str, **extra) -> AppError:
+    """Map a client error to our envelope; 429 keeps its own code."""
+    details = {**exc.details(), **extra}
+    if isinstance(exc, OpenF1RateLimitError):
         return AppError(
             "OPENF1_RATE_LIMIT", "OpenF1 is rate-limiting requests. Retry in a minute.",
-            status=429, details={"endpoint": endpoint},
+            status=429, details=details,
         )
-    return AppError(
-        "OPENF1_ERROR", f"OpenF1 returned HTTP {upstream} for {endpoint}.",
-        status=503, details={"endpoint": endpoint, "upstream_status": upstream},
-    )
+    if isinstance(exc, OpenF1AuthError):
+        return AppError(
+            "OPENF1_UNAUTHORIZED", f"OpenF1 requires a valid API token to {what}.",
+            status=503, details=details,
+        )
+    return AppError("OPENF1_ERROR", f"OpenF1 unreachable while {what}.", status=503, details=details)
 
 
 @router.get("/races", response_model=list[RaceListItem])
@@ -38,27 +40,10 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
     if cached:
         return cached  # already sorted list[RaceListItem] dicts
 
-    url = f"{settings.openf1_base_url}/meetings"
-    token = settings.openf1_api_token
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"year": year}, headers=headers)
-            resp.raise_for_status()
-            meetings = resp.json()
-    except httpx.RequestError as exc:
-        cached = race_cache.get_meetings(year)
-        if cached:
-            return cached
-        raise AppError(
-            "OPENF1_ERROR", f"OpenF1 unreachable while listing {year} races.",
-            status=503, details={"endpoint": "meetings"},
-        ) from exc
-    except httpx.HTTPStatusError as exc:
-        cached = race_cache.get_meetings(year)
-        if cached:
-            return cached
-        raise _openf1_status_error(exc, "meetings") from exc
+        meetings = await fetch_json("meetings", year=year)
+    except OpenF1Error as exc:
+        raise _openf1_error(exc, f"listing {year} races", year=year) from exc
 
     items: list[RaceListItem] = []
     for m in meetings:
@@ -132,37 +117,26 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     if cached:
         return cached
 
-    url = f"{settings.openf1_base_url}/sessions"
-    token = settings.openf1_api_token
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"meeting_key": meeting_key}, headers=headers)
-            if resp.status_code == 401:
-                fallback = _sessions_from_analysis_cache(meeting_key)
-                if fallback:
-                    logger.info(f"[SESSIONS FALLBACK] serving from analysis cache for meeting {meeting_key}")
-                    logger.info("[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s", len(fallback), meeting_key)
-                    race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
-                    return fallback
-                raise AppError(
-                    "SESSION_NOT_CACHED",
-                    "No sessions for this meeting are in the demo cache, and listing "
-                    "them from OpenF1 requires an API token.",
-                    status=404,
-                    details={"meeting_key": meeting_key},
-                )
-            resp.raise_for_status()
-            sessions = resp.json()
-    except AppError:
-        raise
-    except httpx.HTTPStatusError as exc:
-        raise _openf1_status_error(exc, "sessions") from exc
-    except httpx.RequestError as exc:
+        sessions = await fetch_json("sessions", meeting_key=meeting_key)
+    except OpenF1AuthError as exc:
+        fallback = _sessions_from_analysis_cache(meeting_key)
+        if fallback:
+            logger.info(
+                "[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s",
+                len(fallback), meeting_key,
+            )
+            race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
+            return fallback
         raise AppError(
-            "OPENF1_ERROR", "OpenF1 unreachable while listing sessions.",
-            status=503, details={"endpoint": "sessions", "meeting_key": meeting_key},
+            "SESSION_NOT_CACHED",
+            "No sessions for this meeting are in the demo cache, and listing "
+            "them from OpenF1 requires an API token.",
+            status=404,
+            details={"meeting_key": meeting_key},
         ) from exc
+    except OpenF1Error as exc:
+        raise _openf1_error(exc, "listing sessions", meeting_key=meeting_key) from exc
 
     result = [
         SessionInfo(
