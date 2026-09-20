@@ -244,7 +244,8 @@ def _position_volatility(stats: VolatilityStats) -> ChaosComponent:
 
 # Per-lap weights of the same altered-state signals the components measure.
 PEAK_LAP_WEIGHTS: dict[str, float] = {
-    "sc": 3.0,             # lap under SC (or red flag)
+    "red_flag": 6.0,       # the race was stopped: the maximum interruption
+    "sc": 3.0,             # lap under SC
     "vsc": 1.5,            # lap under VSC (= VSC_WEIGHT · sc)
     "yellow": 1.0,         # local yellow outside SC/VSC
     "noted": 1.0,          # incident noted on that lap
@@ -259,8 +260,9 @@ def peak_chaos_lap(
 ) -> int | None:
     """
     Lap with the highest weighted concentration of altered-state signals
-    (PEAK_LAP_WEIGHTS). Same inputs as the components: SC/VSC/yellow/wet from
-    the timeline, incidents and penalties as counted by count_stewarding.
+    (PEAK_LAP_WEIGHTS). Same inputs as the components: red flag/SC/VSC/yellow/
+    wet from the timeline, incidents and penalties as counted by
+    count_stewarding. A red flag outranks everything else on its own.
     Place changes during lap 1 (the start) are ignored. Earliest lap wins a
     tie; None if nothing happened at all.
     """
@@ -272,7 +274,9 @@ def peak_chaos_lap(
         noted, penalties = stewarding.get(ln, (0, 0))
         score = 0.0
         if sig is not None:
-            if sig.sc_active:
+            if sig.red_flag:
+                score += PEAK_LAP_WEIGHTS["red_flag"]
+            elif sig.sc_active:
                 score += PEAK_LAP_WEIGHTS["sc"]
             elif sig.vsc_active:
                 score += PEAK_LAP_WEIGHTS["vsc"]

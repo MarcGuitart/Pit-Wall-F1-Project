@@ -115,8 +115,11 @@ def test_peak_chaos_lap_follows_the_altered_state_signals(scores):
     assert scores[9662].peak_chaos_lap == 1
     # Hungary 2024: the VER/HAM collision + yellow on lap 63
     assert scores[9566].peak_chaos_lap == 63
-    # São Paulo 2024: inside the SC/red-flag/wet stretch, not the lap-28 VSC
-    assert 30 <= scores[9636].peak_chaos_lap <= 43
+    # São Paulo 2024: the red flag on lap 32 — the maximum interruption wins
+    assert scores[9636].peak_chaos_lap == 32
+    # the other four are unaffected by the red-flag term
+    assert scores[9197].peak_chaos_lap == 48
+    assert scores[9539].peak_chaos_lap == 46
     for c in scores.values():
         assert c.peak_chaos_lap is not None and c.peak_chaos_lap >= 1
 

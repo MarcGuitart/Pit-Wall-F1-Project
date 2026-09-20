@@ -61,13 +61,11 @@ def _is_red_flag(msg: dict) -> bool:
 
 
 def red_flag_laps(race_control: list[dict]) -> set[int]:
-    """Red-flag lap and the restart lap after it — the one place this is decided."""
-    laps: set[int] = set()
-    for msg in race_control:
-        lap = msg.get("lap_number")
-        if lap and _is_red_flag(msg):
-            laps.update((lap, lap + 1))
-    return laps
+    """Laps on which a red flag was shown. (The restart lap after it is SC in _build_sc_vsc_maps.)"""
+    return {
+        msg["lap_number"] for msg in race_control
+        if msg.get("lap_number") and _is_red_flag(msg)
+    }
 
 
 def _build_sc_vsc_maps(

@@ -21,7 +21,7 @@ class LapSignals:
     # ── Race control ───────────────────────────────────────────────────────────
     sc_active: bool = False         # also True on red-flag laps (the field is neutralised)
     vsc_active: bool = False
-    red_flag: bool = False          # red-flag lap or the restart lap after it
+    red_flag: bool = False          # a red flag was shown on this lap (the restart lap is sc_active)
     yellow_active: bool = False
     race_control_messages: list[str] = field(default_factory=list)
     # ── Pace ───────────────────────────────────────────────────────────────────
