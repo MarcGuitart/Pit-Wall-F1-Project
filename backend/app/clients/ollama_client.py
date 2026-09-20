@@ -171,6 +171,16 @@ def parse_reply(text: str) -> tuple[str, list[str], str | None]:
     return data["answer"].strip(), ids, conf
 
 
+class LLMRateLimited(Exception):
+    """The cloud provider throttled us; not an outage, so no 'offline' fallback."""
+
+    def __init__(self, provider: str, model: str, retry_after_s: int, message: str) -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.model = model
+        self.retry_after_s = retry_after_s
+
+
 def _groq_supports_reasoning_effort(model: str) -> bool:
     return model.startswith("openai/gpt-oss")
 
@@ -209,6 +219,14 @@ async def _call_groq(system: str, question: str) -> str:
             r = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload,
             )
+        if r.status_code == 429:
+            retry = r.headers.get("retry-after")
+            try:
+                retry_s = int(float(retry)) + 1 if retry else 15
+            except ValueError:
+                retry_s = 15
+            logger.warning("[AI] Groq rate limit (%s): %s", settings.groq_model, r.text[:300])
+            raise LLMRateLimited("groq", settings.groq_model, retry_s, r.text[:300])
         if not r.is_success:
             logger.error("[AI] Groq HTTP %s — body: %s", r.status_code, r.text)
         r.raise_for_status()
@@ -268,6 +286,8 @@ async def answer_engineer_question(
             logger.info("[AI] Answered via Groq model=%s", settings.groq_model)
             answer, ids, conf = parse_reply(text)
             return EngineerReply(answer, "groq", settings.groq_model, ids, conf)
+        except LLMRateLimited:
+            raise                       # the caller tells the user to wait, not that we are offline
         except Exception as exc:
             logger.error("[AI] Groq also failed: %s", exc)
 

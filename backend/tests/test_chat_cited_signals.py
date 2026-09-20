@@ -100,3 +100,18 @@ def test_missing_block_gives_empty_citations_and_no_confidence(client, monkeypat
     assert body["answer"] == "Plain prose answer."
     assert body["cited_signals"] == []
     assert body["confidence"] is None
+
+
+def test_provider_rate_limit_is_not_reported_as_offline(client, monkeypatch):
+    from app.clients.ollama_client import LLMRateLimited
+
+    async def throttled(*args, **kwargs):
+        raise LLMRateLimited("groq", "openai/gpt-oss-120b", 12, "TPM limit")
+    monkeypatch.setattr(chat_module, "answer_engineer_question", throttled)
+
+    r = ask(client)
+    assert r.status_code == 503
+    err = r.json()["error"]
+    assert err["code"] == "LLM_RATE_LIMITED"
+    assert err["details"] == {"provider": "groq", "model": "openai/gpt-oss-120b", "retry_after_seconds": 12}
+    assert "12 s" in err["message"]

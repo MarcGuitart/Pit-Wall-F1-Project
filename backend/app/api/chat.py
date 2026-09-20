@@ -19,7 +19,7 @@ from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context, signal_catalog
-from app.clients.ollama_client import active_model, answer_engineer_question
+from app.clients.ollama_client import LLMRateLimited, active_model, answer_engineer_question
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -169,9 +169,18 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     # 3. Call AI (Ollama → Groq fallback)
     session_name = f"{analysis.race.meeting_name} {analysis.race.year}"
-    reply = await answer_engineer_question(
-        context, req.question.strip(), session_name, req.focused_driver
-    )
+    try:
+        reply = await answer_engineer_question(
+            context, req.question.strip(), session_name, req.focused_driver
+        )
+    except LLMRateLimited as exc:
+        raise AppError(
+            "LLM_RATE_LIMITED",
+            f"The engineer's model ({exc.model}) is at its provider rate limit. "
+            f"Try again in {exc.retry_after_s} s.",
+            status=503,
+            details={"provider": exc.provider, "model": exc.model, "retry_after_seconds": exc.retry_after_s},
+        ) from exc
 
     # 4. Cited signals: only ids the model declared AND that exist in the catalogue
     catalog = signal_catalog(analysis)

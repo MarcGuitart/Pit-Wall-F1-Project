@@ -116,6 +116,7 @@ Every non-2xx response, whatever raised it, has the same body:
 | OPENF1_RATE_LIMIT | 429 | /analysis, /races — details: `endpoint`, `attempts` |
 | OPENF1_ERROR | 503 | /analysis, /races — details: `endpoint`, `attempts`, `upstream_status` when OpenF1 answered |
 | OPENF1_UNAUTHORIZED | 503 | /analysis, /races — token configured but rejected by OpenF1 (without a token the same 401 is SESSION_NOT_CACHED) |
+| LLM_RATE_LIMITED | 503 | /chat — the LLM provider (Groq) throttled the request; details: `provider`, `model`, `retry_after_seconds` |
 | RATE_LIMITED | 429 | /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
 | ANALYSIS_NOT_FOUND | 404 | /chat, /telemetry — run /analysis/{session_key} first |
 | ANALYSIS_FAILED | 500 | /analysis — cached file unreadable (discarded; retry recomputes) or the computation itself crashed; /chat — cached analysis no longer matches the schema |
