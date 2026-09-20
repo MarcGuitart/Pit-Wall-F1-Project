@@ -1,7 +1,9 @@
 """Engineer Notes — deterministic template-based generation. No LLM."""
 from __future__ import annotations
 
-from app.domain.models import EngineerNote, TyreDegradationRow, PitImpactRow, ChaosIndex
+from app.domain.models import (
+    ChaosIndex, EngineerNote, PitCycle, PitImpactRow, TyreDegradationRow, Undercut,
+)
 from app.services.weather_conditions import (
     detect_rain_periods, lap_for_period_start, lap_time_index,
 )
@@ -183,55 +185,41 @@ def _weather_notes(weather: list[dict], laps_data: list[dict]) -> list[EngineerN
 
 # ─── Undercut detection ───────────────────────────────────────────────────────
 
-def _undercut_notes(pit_impact: list[PitImpactRow]) -> list[EngineerNote]:
+def _undercut_notes(pit_cycles: list[PitCycle]) -> list[EngineerNote]:
     """
-    Detect the most significant undercut attempts: one driver pits 1-2 laps
-    before a rival and gains position through the pit cycle.
-    Only emit notes for cases where the attacker gained ≥1 net position.
-    Cap at 5 most significant undercuts.
+    One note per attacker per pit cycle, listing every rival the undercut
+    beat (pit_cycle_service decides what an undercut is). Five 'X undercut on
+    Y' notes for one stop are one event, not five.
+    Cap at 5 notes, most rivals beaten first.
     """
-    notes: list[EngineerNote] = []
-    by_lap: dict[int, list[PitImpactRow]] = {}
-    for row in pit_impact:
-        by_lap.setdefault(row.lap_number, []).append(row)
-
-    laps_sorted = sorted(by_lap.keys())
-    candidates: list[tuple[int, EngineerNote]] = []  # (gain, note)
-
-    for i, lap in enumerate(laps_sorted):
-        for j in range(i + 1, len(laps_sorted)):
-            next_lap = laps_sorted[j]
-            if next_lap - lap > 2:
-                break
-            for attacker in by_lap[lap]:
-                for target in by_lap[next_lap]:
-                    if attacker.driver_number == target.driver_number:
-                        continue
-                    # Only note if attacker gained at least 1 position
-                    gain = attacker.net_position_change or 0
-                    if gain < 1:
-                        continue
-                    gap_laps = next_lap - lap
-                    msg = (
-                        f"Lap {lap} — {attacker.driver_code} pits "
-                        f"{gap_laps} lap(s) before {target.driver_code} (L{next_lap}). "
-                        f"{attacker.driver_code} gained +{gain} position(s) through pit cycle."
-                    )
-                    candidates.append(
-                        (
-                            gain,
-                            EngineerNote(
-                                lap_number=lap,
-                                type="UNDERCUT",
-                                severity="High" if gain >= 2 else "Medium",
-                                title=f"{attacker.driver_code} undercut on {target.driver_code}",
-                                message=msg,
-                            ),
-                        )
-                    )
-
-    # Return the 5 most impactful undercuts
-    candidates.sort(key=lambda x: -x[0])
+    candidates: list[tuple[tuple[int, int], EngineerNote]] = []
+    for cycle in pit_cycles:
+        by_attacker: dict[str, list[Undercut]] = {}
+        for u in cycle.undercuts:
+            by_attacker.setdefault(u.attacker, []).append(u)
+        deltas = {p.driver_code: p.delta for p in cycle.participants}
+        for attacker, hits in by_attacker.items():
+            targets = sorted({u.target for u in hits})
+            a_lap = min(u.attacker_lap for u in hits)
+            t_laps = sorted({u.target_lap for u in hits})
+            gain = deltas.get(attacker, 0)
+            caveat = " SC/VSC inside the cycle — timing attribution unreliable." if cycle.neutralised else ""
+            candidates.append((
+                (len(targets), gain),
+                EngineerNote(
+                    lap_number=a_lap,
+                    type="UNDERCUT",
+                    severity="High" if len(targets) >= 2 or gain >= 2 else "Medium",
+                    title=f"{attacker} undercut {', '.join(targets)}",
+                    message=(
+                        f"Lap {a_lap} — {attacker} pitted before {', '.join(targets)} "
+                        f"(L{'/'.join(str(l) for l in t_laps)}) and came out ahead. "
+                        f"Net {gain:+d} through the pit cycle (L{cycle.lap_start}–{cycle.close_lap})."
+                        f"{caveat}"
+                    ),
+                ),
+            ))
+    candidates.sort(key=lambda x: (-x[0][0], -x[0][1]))
     return [n for _, n in candidates[:5]]
 
 
@@ -244,13 +232,14 @@ def generate_engineer_notes(
     race_control: list[dict],
     weather: list[dict],
     laps: list[dict],
+    pit_cycles: list[PitCycle] | None = None,
 ) -> list[EngineerNote]:
     notes: list[EngineerNote] = []
     notes.extend(_chaos_notes(race_control))
     notes.extend(_weather_notes(weather, laps))
     notes.extend(_pit_notes(pit_impact))
     notes.extend(_tyre_notes(degradation))
-    notes.extend(_undercut_notes(pit_impact))
+    notes.extend(_undercut_notes(pit_cycles or []))
 
     # De-duplicate by (type, lap_number, title)
     seen: set[tuple] = set()
