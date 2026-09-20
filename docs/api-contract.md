@@ -46,6 +46,43 @@ fallback in development). `drivers`: up to 5 codes. `lap_mode`:
 ### POST /admin/clear-cache/{session_key}
 Clears filesystem cache for a session. Dev only.
 
+## Chaos Index — method 2.0
+
+`chaos.method_version` says which formula produced `chaos.score`. **2.0 replaces
+1.0** (event counts with per-component caps: SC×15, yellows×3, investigations×5,
+penalties×4, rain periods×10, position changes÷5). Scores are not comparable
+across versions: São Paulo 2024 (9636) was published as 100/100 under 1.0 and is
+73/100 under 2.0.
+
+Every component measures the **fraction of the race spent in an altered state**,
+so race length does not change the score and a 1-lap safety car no longer equals
+an 8-lap one:
+
+```
+score = Σ  weight_c · min(1, raw_c / full_scale_c)        (0–100)
+```
+
+| component | raw measurement | full scale (→ 1.0) | weight |
+|---|---|---|---|
+| `safety_car` | (SC laps + 0.5 · VSC laps) / total laps — a red flag counts as SC for its lap and the restart lap | 0.25 | 30 |
+| `yellow_flags` | laps with a local (sector) yellow outside SC/VSC / total laps | 0.12 | 10 |
+| `stewarding` | (incidents *noted* + 2 · penalties) / total laps — an incident is counted once when noted; "under investigation" / "no further investigation" are stages of it, not new incidents | 0.40 | 20 |
+| `weather` | wet laps / total laps (rain periods per `weather_conditions`) | 0.75 | 20 |
+| `position_volatility` | competitive place changes per driver-lap: ranks recomputed each lap among drivers who did not pit in the last 3 laps, on laps not under SC/VSC — pit-cycle and neutralisation shuffles are excluded | 0.12 | 20 |
+
+`chaos.breakdown[<component>]` exposes `raw`, `raw_unit`, `normalized`,
+`full_scale`, `weight`, `points` and a `note`; `chaos.components` keeps the
+rounded points for the quick view.
+
+Levels (`chaos.level`), on the 0–100 score: **Low < 15 · Medium 15–31 · High 32–54
+· Extreme ≥ 55**. Full scales and levels were calibrated on the five cached
+races (9566 Low 13 · 9539 Medium 24 · 9197 Medium 30 · 9662 High 35 · 9636
+Extreme 73) so that no component saturates in more than one of them; they live
+in `backend/app/services/chaos_service.py` and are mirrored in
+`frontend/lib/chaos.ts`. Sprint sessions use the same formula: every term is
+already per lap or per driver-lap, so a 24-lap sprint needs no separate
+thresholds (not yet validated on a cached sprint — none is cached).
+
 ## Errors
 
 Every non-2xx response, whatever raised it, has the same body:
