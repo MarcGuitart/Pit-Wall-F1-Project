@@ -66,8 +66,11 @@ Clears filesystem cache for a session. Dev only.
 ## Pit cycles
 
 `pit_cycles[]` is the unit pit-stop position changes are read on. A cycle is a
-maximal run of racing/SC stops no more than 2 laps apart (`CYCLE_GAP_LAPS`);
-it opens on its first stop lap and is read at `close_lap` = last stop lap + 2.
+run of racing/SC stops no more than 2 laps apart (`CYCLE_GAP_LAPS`) in which each
+later-lap stop comes from a driver within 6 places (`CYCLE_ADJACENCY`, positions at
+the cycle open) of someone already in the cycle — a stop from another part of the
+field opens a new cycle. It opens on its first stop lap and is read at
+`close_lap` = last stop lap + 2.
 Every driver classified at the lap before the open and at the close is a
 participant, stopped or not — `delta` is the places gained through the whole
 cycle. `undercuts[]` are attacker/target pairs where the attacker stopped
@@ -76,6 +79,10 @@ attacker is ahead at the close. `neutralised` marks SC/VSC inside the window.
 `pit_impact[].position_after` / `net_position_change` are read at the stop's
 cycle close (red-flag holds: lap + 3), and `stop_type` is decided by the pit
 timestamp against the SC/VSC message timestamps, not by the lap number alone.
+Lane time is judged for every stop at racing speed (SC/VSC included); only the
+position delta is relativised under SC/VSC. A stop inside an SC/VSC that gained
+≥ 1.5 places relative to the average green-flag stopper of the same cycle gets a
+`PIT_IMPACT` note "X pitted under SC/VSC".
 
 ## Chaos Index — method 2.0
 

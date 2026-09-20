@@ -60,7 +60,7 @@ def test_ham_stopped_inside_the_vsc(rows):
     """HAM pitted at 16:29:21, inside the VSC window — that is the 'undercut' on RUS."""
     ham = next(r for r in rows if r.driver_code == "HAM" and r.lap_number == 27)
     assert ham.stop_type == "safety_car"
-    assert "under SC/VSC" in ham.verdict
+    assert "Under SC/VSC" in ham.verdict
 
 
 def test_lap_28_stops_after_the_vsc_ending_message_are_racing(rows):
@@ -133,22 +133,76 @@ def test_red_flag_stops_are_their_own_category(rows):
 
 def test_slow_stops_exclude_red_flag_and_sc(rows):
     slow = [r for r in rows if is_slow_stop(r)]
-    assert all(r.stop_type == "racing" and r.lane_duration > SLOW_LANE_S for r in slow)
-    # was 33 when the 1 400 s holds counted; HUL 59.0 s, LAW 28.2 s, ZHO 27.1 s remain
-    # (BEA/PER/PIA pitted inside the VSC and are not judged on lane time)
-    assert {(r.driver_code, r.lap_number) for r in slow} == {("HUL", 27), ("LAW", 28), ("ZHO", 28)}
+    assert all(r.stop_type != "red_flag" and r.lane_duration > SLOW_LANE_S for r in slow)
+    # was 33 when the 1 400 s holds counted. Lane time is judged whatever the
+    # flag (BEA 35.7 s under the VSC is slow), only red-flag holds are excluded.
+    assert {(r.driver_code, r.lap_number) for r in slow} == {
+        ("HUL", 27), ("LAW", 28), ("ZHO", 28), ("BEA", 27), ("PER", 27), ("PIA", 27), ("HUL", 29),
+    }
 
 
-def test_race_brain_reports_three_slow_stops():
+def test_race_brain_reports_seven_slow_stops():
     from app.core import cache
     analysis = cache.get_full_analysis(9636)
-    assert "3 slow pit stops" in analysis["race_brain"]["summary"]
+    assert "7 slow pit stops" in analysis["race_brain"]["summary"]
     assert "33 slow" not in analysis["race_brain"]["summary"]
 
 
-def test_pit_notes_only_judge_racing_stops(rows):
+def test_pit_notes_never_judge_red_flag_holds(rows):
     notes = _pit_notes(rows)
     assert notes, "expected at least one outlier pit note"
     laps = {(n.title.split()[0], n.lap_number) for n in notes}
     typed = {(r.driver_code, r.lap_number): r.stop_type for r in rows}
-    assert all(typed[key] == "racing" for key in laps)
+    assert all(typed[key] != "red_flag" for key in laps)
+
+
+# ── cycle cut: adjacent-position group exhausted ─────────────────────────────
+
+def _synthetic(stops: dict[int, list[int]], total_laps: int = 30, drivers: int = 20):
+    """stops = {driver_number: [laps]}; every driver holds its grid position all race."""
+    from datetime import datetime, timedelta, timezone
+    t0 = datetime(2024, 6, 1, 13, 0, tzinfo=timezone.utc)
+    laps = [
+        {"driver_number": dn, "lap_number": ln, "date_start": (t0 + timedelta(seconds=(ln - 1) * 90 + dn)).isoformat(), "lap_duration": 90.0}
+        for dn in range(1, drivers + 1) for ln in range(1, total_laps + 1)
+    ]
+    position = [{"driver_number": dn, "position": dn, "date": (t0 - timedelta(minutes=1)).isoformat()} for dn in range(1, drivers + 1)]
+    pit = [
+        {"driver_number": dn, "lap_number": ln, "lane_duration": 24.0, "date": (t0 + timedelta(seconds=(ln - 1) * 90 + dn + 40)).isoformat()}
+        for dn, lns in stops.items() for ln in lns
+    ]
+    drv = [{"driver_number": dn, "name_acronym": f"D{dn:02d}"} for dn in range(1, drivers + 1)]
+    return laps, position, pit, drv
+
+
+def test_two_clusters_two_laps_apart_are_separate_cycles():
+    """P1-P4 stop on laps 10-11, P15-P18 on laps 12-13: only a lap apart, but
+    P15 is eleven places from any stopper of the first group — two cycles."""
+    laps, position, pit, drv = _synthetic({1: [10], 2: [10], 3: [11], 4: [11], 15: [12], 16: [13], 17: [13], 18: [13]})
+    tl = build_race_timeline(laps, [], [], pit, [], position, 0)
+    rows, cycles = compute_pit_impact_with_cycles(pit, position, laps, drv, [], tl)
+    assert [(c.lap_start, c.lap_end, c.stops) for c in cycles] == [(10, 11, 4), (12, 13, 4)]
+
+
+def test_a_rolling_wave_through_adjacent_positions_stays_one_cycle():
+    """P1..P8 stopping one per lap: each stop leaves a neighbour still due, one cycle."""
+    laps, position, pit, drv = _synthetic({dn: [9 + dn] for dn in range(1, 9)})
+    tl = build_race_timeline(laps, [], [], pit, [], position, 0)
+    _, cycles = compute_pit_impact_with_cycles(pit, position, laps, drv, [], tl)
+    assert [(c.lap_start, c.lap_end, c.stops) for c in cycles] == [(10, 17, 8)]
+
+
+def test_lane_time_is_judged_under_vsc_and_delta_relativised(rows):
+    bea = next(r for r in rows if r.driver_code == "BEA" and r.lap_number == 27)
+    assert bea.stop_type == "safety_car"
+    assert bea.verdict.startswith("Slow stop (35.7s lane")
+    assert "neutralisation" in bea.verdict and "cheap" not in bea.verdict
+    assert is_slow_stop(bea)
+
+
+def test_neutralised_stop_note_for_ham(rows, cycles):
+    from app.services.notes_service import _neutralised_stop_notes
+    notes = _neutralised_stop_notes(rows, cycles)
+    ham = next(n for n in notes if n.title.startswith("HAM pitted under SC/VSC"))
+    assert ham.lap_number == 27 and ham.type == "PIT_IMPACT"
+    assert "relative gain" in ham.message and "stopped at green" in ham.message

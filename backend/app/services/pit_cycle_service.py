@@ -8,7 +8,12 @@ every position delta is read when the cycle closes, not at a fixed +3 laps.
 Cycle definition (documented here, constants below):
 - eligible stops: racing and safety_car (red-flag holds are not stops)
 - sorted by lap; a stop joins the open cycle if its lap is within
-  CYCLE_GAP_LAPS of the cycle's last stop lap, otherwise a new cycle opens
+  CYCLE_GAP_LAPS of the cycle's last stop lap AND, when it comes on a later
+  lap, its driver was within CYCLE_ADJACENCY places (positions at the cycle
+  open) of someone who already stopped in the cycle. A stop by a driver from
+  another part of the field opens a new cycle even a lap later: a 16-lap
+  chain across the whole grid is two pit windows (back of the field, then
+  the front), not one. Stops on the same lap as the last one always join.
 - open_lap  = first stop lap of the cycle
 - close_lap = min(last stop lap + SETTLE_LAPS, total laps): the last stopper's
   out-lap has settled
@@ -34,16 +39,41 @@ from app.utils.time import position_at_lap
 CYCLE_GAP_LAPS = 2      # max laps between consecutive stops of one cycle
 SETTLE_LAPS = 2         # laps after the last stop before the cycle is read
 RIVAL_BAND = 4          # max places between attacker and target for an undercut
+CYCLE_ADJACENCY = 6     # a later-lap stop continues the cycle only if its driver was this close to a stopper
 
 
-def _group_stops(rows: list[PitImpactRow]) -> list[list[PitImpactRow]]:
+def _group_stops(
+    rows: list[PitImpactRow],
+    position_data: list[dict],
+    laps: list[dict],
+    all_drivers: list[int],
+) -> list[list[PitImpactRow]]:
     eligible = sorted((r for r in rows if r.stop_type != "red_flag"), key=lambda r: r.lap_number)
     cycles: list[list[PitImpactRow]] = []
+    open_pos: dict[int, int] = {}          # positions at the open of the current cycle
+    stopped: set[int] = set()
+
+    def adjacent_to_a_stopper(r: PitImpactRow) -> bool:
+        pos = open_pos.get(r.driver_number, r.position_before)
+        if pos is None:
+            return True
+        return any(abs(pos - open_pos.get(sd, 999)) <= CYCLE_ADJACENCY for sd in stopped)
+
     for r in eligible:
-        if cycles and r.lap_number - cycles[-1][-1].lap_number <= CYCLE_GAP_LAPS:
+        joins = bool(cycles) and r.lap_number - cycles[-1][-1].lap_number <= CYCLE_GAP_LAPS
+        if joins and r.lap_number > cycles[-1][-1].lap_number and not adjacent_to_a_stopper(r):
+            joins = False
+        if joins:
             cycles[-1].append(r)
         else:
             cycles.append([r])
+            before_lap = max(1, r.lap_number - 1)
+            open_pos = {
+                dn: p for dn in all_drivers
+                if (p := position_at_lap(dn, before_lap, position_data, laps)) is not None
+            }
+            stopped = set()
+        stopped.add(r.driver_number)
     return cycles
 
 
@@ -59,7 +89,7 @@ def detect_pit_cycles(
     all_drivers = sorted({l["driver_number"] for l in laps if l.get("driver_number")})
 
     cycles: list[PitCycle] = []
-    for idx, group in enumerate(_group_stops(rows), start=1):
+    for idx, group in enumerate(_group_stops(rows, position_data, laps, all_drivers), start=1):
         open_lap = group[0].lap_number
         close_lap = min(group[-1].lap_number + SETTLE_LAPS, total_laps)
         before_lap = max(1, open_lap - 1)
