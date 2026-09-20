@@ -119,6 +119,23 @@ in `backend/app/services/chaos_service.py` and are mirrored in
 already per lap or per driver-lap, so a 24-lap sprint needs no separate
 thresholds (not yet validated on a cached sprint — none is cached).
 
+## OpenF1 access
+
+The backend talks to OpenF1 through one client (`app/clients/openf1_client.py`).
+With `OPENF1_USERNAME` / `OPENF1_PASSWORD` set it exchanges them for a 1-hour
+bearer token at `OPENF1_TOKEN_URL` (`https://api.openf1.org/token`) and renews it
+itself 5 minutes before expiry; concurrent requests share one token request.
+A 401 from the API renews the token and retries once; a second 401 is
+`OPENF1_UNAUTHORIZED`. Without credentials the client is anonymous (all
+historical endpoints are public as of Sept 2026). The token lives in memory
+only. `OPENF1_API_TOKEN` (static token, no renewal) is still honoured when no
+account is set.
+
+Outgoing rate limit: `OPENF1_RATE_LIMIT_REQUESTS` / `OPENF1_RATE_LIMIT_WINDOW_S`
+(default 25 / 10 s). Measured with `scripts/openf1_rate_probe.py` on 2026-09-20:
+OpenF1 enforces **30 requests/minute anonymous** and **60 requests/minute with the
+account** (`Retry-After: 60`). Diagnostics: `scripts/openf1_auth_check.py`.
+
 ## Errors
 
 Every non-2xx response, whatever raised it, has the same body:
