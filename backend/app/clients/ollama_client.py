@@ -44,7 +44,11 @@ Computed analysis:
 
 
 async def _resolve_model() -> str | None:
-    """Return the preferred model if available, else the first available model, else None."""
+    """
+    The configured Ollama model (OLLAMA_MODEL) if Ollama is reachable and has
+    it pulled, else None. Never another installed model: whatever else is on
+    the machine (phi3:mini, ...) must not answer as the engineer.
+    """
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(f"{settings.ollama_base_url}/api/tags")
@@ -53,77 +57,15 @@ async def _resolve_model() -> str | None:
     except Exception:
         return None
 
-    if not models:
-        return None
-    # Prefer configured model; fall back to first available
     preferred = settings.ollama_model
-    if any(m == preferred or m.startswith(preferred.split(":")[0] + ":") for m in models):
+    if preferred in models:
         return preferred
-    return models[0]
-
-
-async def call_ollama(
-    context: str,
-    question: str,
-    session_name: str,
-    focused_driver: str | None = None,
-) -> str:
-    """
-    Send a question to Ollama with the compact race context injected into
-    the system prompt.  Returns the model's answer as plain text.
-    """
-    model = await _resolve_model()
-    if model is None:
-        return (
-            "Engineer radio offline — no Ollama model is ready yet. "
-            f"Run: ollama pull {settings.ollama_model}"
+    if models:
+        logger.warning(
+            "[AI] Ollama is up but %s is not pulled (has: %s) — skipping local, run: ollama pull %s",
+            preferred, ", ".join(models), preferred,
         )
-
-    if focused_driver:
-        focused_driver_note = (
-            f"The user is specifically asking about driver {focused_driver}. "
-            f"Prioritise data for that driver."
-        )
-    else:
-        focused_driver_note = ""
-
-    system = ENGINEER_SYSTEM_PROMPT.format(
-        session_name=session_name,
-        context=context,
-        focused_driver_note=focused_driver_note,
-    )
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": question},
-        ],
-        "stream": False,
-        "options": {
-            "temperature": 0.3,
-            "num_predict": 400,
-        },
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(
-                f"{settings.ollama_base_url}/api/chat", json=payload
-            )
-            r.raise_for_status()
-            data = r.json()
-            logger.info("[OLLAMA] answered with model=%s", model)
-            return data["message"]["content"].strip()
-    except httpx.ConnectError:
-        logger.warning("Ollama not reachable at %s", settings.ollama_base_url)
-        return "Engineer radio unavailable. Check that Ollama is running: brew services start ollama"
-    except httpx.HTTPStatusError as exc:
-        logger.error("Ollama returned %s: %s", exc.response.status_code, exc.response.text)
-        return f"Engineer radio error ({exc.response.status_code}). Try again."
-    except Exception as exc:
-        logger.exception("Unexpected Ollama error: %s", exc)
-        return "Engineer radio unavailable. Try again."
+    return None
 
 
 REPLY_SCHEMA: dict = {

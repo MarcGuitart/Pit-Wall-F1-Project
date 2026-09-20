@@ -204,3 +204,34 @@ def test_provider_rate_limit_is_not_reported_as_offline(client, monkeypatch):
     assert err["code"] == "LLM_RATE_LIMITED"
     assert err["details"] == {"provider": "groq", "model": "openai/gpt-oss-120b", "retry_after_seconds": 12}
     assert "12 s" in err["message"]
+
+
+# ── Ollama model resolution ──────────────────────────────────────────────────
+
+@pytest.mark.parametrize(
+    "installed, expected",
+    [
+        (["phi3:mini"], None),                       # something else installed: never impersonate
+        (["phi3:mini", "llama3.1:8b"], "llama3.1:8b"),
+        ([], None),
+        (["llama3.1:latest"], None),                 # tag must match exactly
+    ],
+)
+def test_resolve_model_only_accepts_the_configured_model(monkeypatch, installed, expected):
+    import httpx
+    from app.clients import ollama_client
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ollama_model", "llama3.1:8b")
+    real = httpx.AsyncClient
+
+    class Patched(real):
+        def __init__(self, *a, **kw):
+            kw["transport"] = httpx.MockTransport(
+                lambda req: httpx.Response(200, json={"models": [{"name": m} for m in installed]})
+            )
+            super().__init__(*a, **kw)
+    monkeypatch.setattr(httpx, "AsyncClient", Patched)
+
+    import asyncio
+    assert asyncio.run(ollama_client._resolve_model()) == expected
