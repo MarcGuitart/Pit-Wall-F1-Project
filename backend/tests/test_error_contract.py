@@ -189,13 +189,14 @@ def test_openf1_error_503_when_no_laps(client, monkeypatch, fake_openf1, tmp_pat
     monkeypatch.setattr(settings, "openf1_api_token", "token")
     monkeypatch.setattr(
         cache, "get_session_meta",
-        lambda key: {"session_key": key, "date_start": "2024-01-01T00:00:00+00:00", "session_type": "Race"},
+        lambda key: {"session_key": key, "date_start": "2024-01-01T00:00:00+00:00",
+                     "date_end": "2024-01-01T02:00:00+00:00", "session_type": "Race"},
     )
     fake_openf1(lambda req: httpx.Response(200, json=[]))
 
     err = envelope(client.get("/analysis/424246"), 503, "OPENF1_ERROR")
     assert err["details"] == {"endpoint": "laps"}
-    # A genuine 200 [] is a real answer and IS cached (unlike a 401).
+    # A genuine 200 [] from a finished session is a real answer and IS cached (unlike a 401).
     assert (tmp_path / "424246" / "laps.json").read_text().strip() == "[]"
 
 

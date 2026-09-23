@@ -13,13 +13,14 @@ from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLi
 from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
-from app.services.pit_service import compute_pit_impact_with_cycles, is_slow_stop
+from app.services.pit_service import compute_pit_impact_with_cycles, is_slow_stop, slow_lane_threshold
 from app.services.chaos_service import METHOD_VERSION as CHAOS_METHOD_VERSION, compute_chaos_index
 from app.services.notes_service import generate_engineer_notes
 from app.services.decisions_service import compute_decisions
 from app.services.weather_service import compute_weather_analysis
 from app.services.drs_service import compute_drs_trains, aggregate_drs_trains, compute_raw_snapshots
 from app.services.timeline_builder import build_race_timeline
+from app.services.team_radio_service import compute_team_radio
 from app.services.race_dna_service import compute_race_dna
 from app.services.race_phase_service import classify_race_phases
 from app.services.crossover_service import detect_crossover_windows, compute_weather_winners_losers
@@ -150,7 +151,8 @@ def _build_race_brain(
         f"Tyre cliff risk: {', '.join(set(cliff_drivers[:3]))}. " if cliff_drivers else ""
     )
 
-    slow_stops = [p for p in pit_rows if is_slow_stop(p)]
+    slow_threshold = slow_lane_threshold(pit_rows)
+    slow_stops = [p for p in pit_rows if is_slow_stop(p, slow_threshold)]
     stop_str = (
         f"{len(slow_stops)} slow pit stop{'s' if len(slow_stops) != 1 else ''}. "
         if slow_stops
@@ -234,7 +236,7 @@ async def get_analysis(
 
         # 5. Fetch all data (respects per-endpoint cache + semaphore + jitter)
         try:
-            data = await load_session(session_key)
+            data = await load_session(session_key, session_meta.get("date_end") if session_meta else None)
         except OpenF1AuthError as exc:
             if not settings.openf1_credentials_configured:
                 # Demo mode: nothing cached for this session and no account to fetch it.
@@ -427,6 +429,13 @@ async def get_analysis(
                 "Not enough signals to characterise this race.",
             )
 
+            team_radio = _module(
+                "team_radio",
+                lambda: compute_team_radio(data.get("team_radio", []), laps, drivers),
+                lambda v: v is None or not v.clips,
+                "No team radio published for this session (F1 releases a limited selection, and few since 2026).",
+            )
+
             clean_air_value = _module(
                 "clean_air_value",
                 lambda: estimate_clean_air_value(
@@ -454,6 +463,7 @@ async def get_analysis(
                 drs_trains=drs_trains,
                 clean_air_value=clean_air_value,
                 race_classification=race_classification,
+                team_radio=team_radio,
                 modules=modules,
             )
 

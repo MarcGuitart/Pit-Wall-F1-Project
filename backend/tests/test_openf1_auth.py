@@ -222,7 +222,7 @@ def test_404_no_results_is_an_empty_list_without_retries(monkeypatch):
 def test_404_no_results_is_cached_as_a_legitimate_answer(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
     _install_404(monkeypatch, {"detail": "No results found."})
-    data = asyncio.run(openf1_client.fetch_all(424242))
+    data = asyncio.run(openf1_client.fetch_all(424242, "2024-01-01T15:00:00+00:00"))   # finished session
     assert data == {ep: [] for ep in openf1_client.RACE_ENDPOINTS}
     for ep in openf1_client.RACE_ENDPOINTS:
         assert (tmp_path / "424242" / f"{ep}.json").read_text().strip() == "[]"

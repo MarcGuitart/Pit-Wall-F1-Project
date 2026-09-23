@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -9,6 +10,7 @@ from app.core.config import settings
 from app.core import cache
 from app.core.ratelimit import BlockingLimiter
 from app.clients.openf1_auth import OpenF1CredentialsError, token_manager
+from app.services.weather_conditions import parse_ts
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ RACE_ENDPOINTS = [
     "race_control",
     "weather",
     "drivers",
+    "team_radio",   # date, driver_number, recording_url — no lap_number (mapped in team_radio_service)
 ]
 
 _MAX_ATTEMPTS = 4
@@ -208,15 +211,28 @@ async def fetch_json(endpoint: str, **params: Any) -> list[dict]:
         return await _get(client, endpoint, params)
 
 
-async def fetch_all(session_key: int) -> dict[str, list[dict]]:
+def session_finished(session_end: str | datetime | None, now: datetime | None = None) -> bool:
+    """True when the session's date_end is known and in the past."""
+    end = parse_ts(session_end) if isinstance(session_end, str) else session_end
+    if end is None:
+        return False
+    return (now or datetime.now(timezone.utc)) > end
+
+
+async def fetch_all(session_key: int, session_end: str | datetime | None = None) -> dict[str, list[dict]]:
     """
     Fetch all race endpoints for a session, checking file cache first.
     Sequential per-endpoint loop with jitter prevents 429 bursts.
 
     Raises OpenF1RateLimitError / OpenF1Error on the first endpoint that fails;
     endpoints fetched before it are already cached, so a retry resumes there.
+
+    An empty answer is cached only when the session has finished
+    (`session_end` in the past): the cache has no TTL, and a session still
+    running answers "No results found" for data that will exist an hour later.
     """
     results: dict[str, list[dict]] = {}
+    finished = session_finished(session_end)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         for endpoint in RACE_ENDPOINTS:
@@ -230,7 +246,10 @@ async def fetch_all(session_key: int) -> dict[str, list[dict]]:
             except OpenF1Error as exc:
                 logger.error("[FETCH FAILED] %s for %s: %s", endpoint, session_key, exc)
                 raise
-            cache.set(session_key, endpoint, data)
+            if data or finished:
+                cache.set(session_key, endpoint, data)
+            else:
+                logger.info("[NOT CACHED] %s for %s is empty and the session has not finished", endpoint, session_key)
             results[endpoint] = data
 
     return results
