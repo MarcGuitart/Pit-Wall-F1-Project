@@ -152,13 +152,16 @@ def build_chat_context(
             for r in sorted(analysis.pit_impact, key=lambda r: (r.net_position_change or 0, r.lap_number))
             if (r.net_position_change or 0) < 0 and r.lane_duration and r.stop_type != "red_flag"
         ][:5],
-        # Pit cycles: the unit position deltas are read on (see pit_cycle_service)
+        # Pit cycles: the unit position deltas are read on (see pit_cycle_service).
+        # `timing` states the order of events against any SC/VSC — read it before
+        # relating stops to a neutralisation.
         "pit_cycles": [
             {
                 "laps": f"L{c.lap_start}–{c.lap_end}",
                 "read_at": c.close_lap,
                 "stops": c.stops,
                 "neutralised": c.neutralised,
+                "timing": c.timing,
                 "gained": [f"{p.driver_code} {p.delta:+d}" for p in sorted(c.participants, key=lambda p: -p.delta)[:3] if p.delta > 0],
                 "lost": [f"{p.driver_code} {p.delta:+d}" for p in sorted(c.participants, key=lambda p: p.delta)[:3] if p.delta < 0],
                 "undercuts": [f"{u.attacker}>{u.target}" for u in c.undercuts][:4],
@@ -189,6 +192,21 @@ def build_chat_context(
             for sid, n in select_signals(analysis, question, focused_driver).items()
         ],
     }
+
+    # When the question names a lap, say which laps count as "around" it —
+    # explicitly, instead of asking the model to consider ±N.
+    laps_asked, _ = _question_focus(analysis, question, focused_driver)
+    if laps_asked:
+        lo = max(1, min(laps_asked) - LAP_WINDOW)
+        hi = max(laps_asked) + LAP_WINDOW
+        ctx["question_focus"] = {
+            "asked_laps": sorted(laps_asked),
+            "lap_window": f"L{lo}–L{hi}",
+            "note": (
+                f"Events from L{lo} to L{hi} are relevant to this question, including "
+                f"pit cycles that opened before the asked lap and were still running."
+            ),
+        }
 
     # Grid-to-finish movement — the only place the starting grid appears, so
     # questions about where drivers started are answerable from data, not guessed.

@@ -77,6 +77,42 @@ def _group_stops(
     return cycles
 
 
+def _neutralisation_runs(timeline: RaceTimeline) -> list[tuple[str, int, int]]:
+    """Contiguous (kind, first_lap, last_lap) runs of SC / VSC laps in the timeline."""
+    runs: list[tuple[str, int, int]] = []
+    current: tuple[str, int, int] | None = None
+    for n in range(1, timeline.total_laps + 1):
+        sig = timeline.laps.get(n)
+        kind = "SC" if sig and sig.sc_active else "VSC" if sig and sig.vsc_active else None
+        if kind and current and current[0] == kind and current[2] == n - 1:
+            current = (kind, current[1], n)
+        else:
+            if current:
+                runs.append(current)
+            current = (kind, n, n) if kind else None
+    if current:
+        runs.append(current)
+    return runs
+
+
+def _timing_statement(open_lap: int, close_lap: int, runs: list[tuple[str, int, int]]) -> str:
+    """The order of events between the cycle and any SC/VSC that overlaps it."""
+    parts: list[str] = []
+    for kind, first, last in runs:
+        if last < open_lap or first > close_lap:
+            continue
+        span = f"L{first}" if first == last else f"L{first}–{last}"
+        if open_lap < first:
+            parts.append(f"before the {kind} on {span} ({first - open_lap} lap(s) later)")
+        elif open_lap > last:
+            parts.append(f"after the {kind} on {span}")
+        else:
+            parts.append(f"during the {kind} on {span}")
+    if not parts:
+        return f"Cycle opened on L{open_lap} and closed on L{close_lap} under green flag throughout."
+    return f"Cycle opened on L{open_lap}, " + " and ".join(parts) + f"; read at L{close_lap}."
+
+
 def detect_pit_cycles(
     rows: list[PitImpactRow],
     position_data: list[dict],
@@ -137,6 +173,7 @@ def detect_pit_cycles(
             (s.sc_active or s.vsc_active)
             for n, s in timeline.laps.items() if open_lap <= n <= close_lap
         )
+        timing = _timing_statement(open_lap, close_lap, _neutralisation_runs(timeline))
         stoppers = [p for p in participants if p.stopped]
         gainers = sorted((p for p in participants if p.delta > 0), key=lambda p: -p.delta)[:3]
         losers = sorted((p for p in participants if p.delta < 0), key=lambda p: p.delta)[:3]
@@ -156,6 +193,7 @@ def detect_pit_cycles(
             close_lap=close_lap,
             stops=len(group),
             neutralised=neutralised,
+            timing=timing,
             participants=participants,
             undercuts=undercuts,
             summary=summary,
