@@ -108,6 +108,10 @@ class PitCycle(BaseModel):
     close_lap: int
     stops: int
     neutralised: bool                           # SC/VSC inside the window: timing attribution unreliable
+    # Plain statement of the order of events, e.g. "opened on L24, before the
+    # VSC on L28 (4 laps later) and the SC on L30" — so a reader (or the chat
+    # model) cannot claim the neutralisation triggered the stops.
+    timing: str = ""
     participants: list[PitCycleDriver]
     undercuts: list[Undercut] = []
     summary: str
@@ -315,6 +319,28 @@ class CleanAirValue(BaseModel):
     strategic_implication: str
 
 
+# ── Team radio (archive clips, F1 CDN links) ────────────────────────────────
+
+class TeamRadioClip(BaseModel):
+    driver_number: int
+    driver_code: str
+    team_name: Optional[str] = None
+    date: str                                   # ISO 8601 UTC
+    lap_number: Optional[int] = None            # None for pre/post-session clips
+    phase: Literal["pre", "race", "post"]
+    recording_url: str                          # F1 CDN, path percent-encoded; not mirrored
+
+
+class TeamRadioAnalysis(BaseModel):
+    clips: list[TeamRadioClip]
+    total: int
+    in_race: int
+    pre_session: int
+    post_session: int
+    clips_per_driver: dict[str, int]
+    summary: str
+
+
 # ── Per-module status ──────────────────────────────────────────────────────
 
 class ModuleStatus(BaseModel):
@@ -354,6 +380,7 @@ class FullRaceAnalysis(BaseModel):
     clean_air_value: Optional[CleanAirValue] = None
     # Actual race result, independent of True Pace ranking
     race_classification: list[RaceClassificationRow] = []
+    team_radio: Optional[TeamRadioAnalysis] = None
     # V4 modules: why a field above is empty. Keyed by field name. Empty for old caches.
     modules: dict[str, ModuleStatus] = {}
 
