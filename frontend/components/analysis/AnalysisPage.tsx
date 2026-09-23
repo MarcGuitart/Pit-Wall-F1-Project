@@ -10,6 +10,7 @@ import { TabNav } from './TabNav'
 import { RacePhaseTimeline } from './RacePhaseTimeline'
 import { ModuleUnavailable } from './ModuleUnavailable'
 import { SessionTimelineBar } from './SessionTimelineBar'
+import { TeamRadioLane } from './teamradio/TeamRadioLane'
 import { DriverFocusStrip } from './DriverFocusStrip'
 import { DriverCard } from './DriverCard'
 import { RadioOverlay } from '@/components/radio/RadioOverlay'
@@ -124,6 +125,11 @@ export function AnalysisPage({ analysis }: Props) {
         )
       }
 
+      {/* Team radio lane — only when the session has clips; no lane, no gap otherwise */}
+      {sessionType === 'Race' && analysis.team_radio && analysis.team_radio.clips.length > 0 && (
+        <TeamRadioLane radio={analysis.team_radio} totalLaps={totalLaps} />
+      )}
+
       {/* Tab navigation */}
       <TabNav
         activeTab={activeTab}
@@ -199,6 +205,7 @@ export function AnalysisPage({ analysis }: Props) {
           driver={focusedDriverRow}
           stints={analysis.tyre_degradation.filter((s) => s.driver_number === focusedDriverRow.driver_number)}
           pits={analysis.pit_impact.filter((p) => p.driver_number === focusedDriverRow.driver_number)}
+          radios={(analysis.team_radio?.clips ?? []).filter((c) => c.driver_number === focusedDriverRow.driver_number)}
           raceName={analysis.race.meeting_name}
           onClose={handleCloseDriverCard}
           onAskEngineer={handleAskEngineerAboutDriver}

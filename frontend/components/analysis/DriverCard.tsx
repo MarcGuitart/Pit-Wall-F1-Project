@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { TruePaceRow, TyreDegradationRow, PitImpactRow } from '@/types'
+import type { TruePaceRow, TyreDegradationRow, PitImpactRow, TeamRadioClip } from '@/types'
+import { RadioClipPlayer } from './teamradio/RadioClipPlayer'
 import { formatLapTime, formatDelta, formatSlope, formatLaneDuration } from '@/lib/format'
 import { COMPOUND_COLORS } from '@/lib/constants'
 
@@ -9,12 +10,13 @@ type Props = {
   driver: TruePaceRow
   stints: TyreDegradationRow[]
   pits: PitImpactRow[]
+  radios?: TeamRadioClip[]
   raceName: string
   onClose: () => void
   onAskEngineer?: () => void
 }
 
-export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngineer }: Props) {
+export function DriverCard({ driver, stints, pits, radios = [], raceName, onClose, onAskEngineer }: Props) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -244,6 +246,23 @@ export function DriverCard({ driver, stints, pits, raceName, onClose, onAskEngin
                         </span>
                       )}
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Team radio — archive clips linked from F1's CDN; one plays at a time */}
+            {radios.length > 0 && (
+              <div data-testid="driver-radios">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+                    Team Radio · {radios.length}
+                  </span>
+                  <span className="font-mono text-[8px] text-text-muted">F1&apos;s selection, not the full record</span>
+                </div>
+                <div className="divide-y divide-border-subtle max-h-56 overflow-y-auto pr-1">
+                  {radios.map((clip) => (
+                    <RadioClipPlayer key={clip.recording_url} clip={clip} compact />
                   ))}
                 </div>
               </div>

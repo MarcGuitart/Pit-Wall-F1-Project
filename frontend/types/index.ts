@@ -99,6 +99,27 @@ export type PitCycle = {
   summary: string
 }
 
+/** Archive team-radio clip from OpenF1 (F1 CDN link, not mirrored). */
+export type TeamRadioClip = {
+  driver_number: number
+  driver_code: string
+  team_name: string | null
+  date: string
+  lap_number: number | null       // null for pre/post-session clips
+  phase: 'pre' | 'race' | 'post'
+  recording_url: string
+}
+
+export type TeamRadioAnalysis = {
+  clips: TeamRadioClip[]
+  total: number
+  in_race: number
+  pre_session: number
+  post_session: number
+  clips_per_driver: Record<string, number>
+  summary: string
+}
+
 export type ChaosComponent = {
   raw: number
   raw_unit: string
@@ -329,6 +350,7 @@ export type FullRaceAnalysis = {
   drs_trains: DRSAnalysisAggregated | null
   clean_air_value: CleanAirValue | null
   race_classification: RaceClassificationRow[]
+  team_radio: TeamRadioAnalysis | null
   /** Why a V4 field is empty, keyed by field name. Absent on caches older than the field. */
   modules?: Record<string, ModuleStatus>
 }
