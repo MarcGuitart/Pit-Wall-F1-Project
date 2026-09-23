@@ -75,14 +75,30 @@ Every driver classified at the lap before the open and at the close is a
 participant, stopped or not — `delta` is the places gained through the whole
 cycle. `undercuts[]` are attacker/target pairs where the attacker stopped
 earlier, the target was ahead by at most 4 places at the open, and the
-attacker is ahead at the close. `neutralised` marks SC/VSC inside the window.
+attacker is ahead at the close. `neutralised` marks SC/VSC inside the window, and `timing` states the order of
+events in words ("opened on L24, before the VSC on L28–29 …").
 `pit_impact[].position_after` / `net_position_change` are read at the stop's
 cycle close (red-flag holds: lap + 3), and `stop_type` is decided by the pit
 timestamp against the SC/VSC message timestamps, not by the lap number alone.
-Lane time is judged for every stop at racing speed (SC/VSC included); only the
-position delta is relativised under SC/VSC. A stop inside an SC/VSC that gained
+Lane time is judged for every stop at racing speed (SC/VSC included) against the
+race's own baseline — the median lane time of those stops — so pit-lane length
+does not decide what counts as slow (fast: baseline − 2.5 s, slow: baseline + 4 s);
+only the position delta is relativised under SC/VSC. A stop inside an SC/VSC that gained
 ≥ 1.5 places relative to the average green-flag stopper of the same cycle gets a
 `PIT_IMPACT` note "X pitted under SC/VSC".
+
+## Team radio
+
+`team_radio` (V4 module) carries the archive clips OpenF1 publishes for a
+session: `clips[]` with `driver_code`, `date`, `lap_number`, `phase`
+(`pre` | `race` | `post`) and `recording_url`, plus per-driver counts. The
+endpoint has no `lap_number`, so each clip is placed on the lap its own driver
+was running at that timestamp; clips before the driver's first lap or after
+their last lap keep `lap_number: null`. `recording_url` points at Formula 1's
+CDN with the path percent-encoded (names like `São_Paulo` break `<audio>`
+otherwise) — nothing is mirrored or proxied, and the CDN sends no CORS headers,
+so only a media element can read it. F1 publishes a limited selection and very
+little since 2026: a session without radio is `not_applicable`, not `failed`.
 
 ## Chaos Index — method 2.0
 
