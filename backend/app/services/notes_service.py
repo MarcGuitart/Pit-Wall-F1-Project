@@ -4,6 +4,7 @@ from __future__ import annotations
 from app.domain.models import (
     ChaosIndex, EngineerNote, PitCycle, PitImpactRow, TyreDegradationRow, Undercut,
 )
+from app.services.pit_service import FAST_MARGIN_S, SLOW_MARGIN_S, lane_baseline
 from app.services.weather_conditions import (
     detect_rain_periods, lap_for_period_start, lap_time_index,
 )
@@ -77,15 +78,11 @@ def _pit_notes(pit_impact: list[PitImpactRow]) -> list[EngineerNote]:
     SC/VSC alike). Red-flag holds are not stops and are not judged.
     """
     valid = [p for p in pit_impact if p.lane_duration and p.stop_type != "red_flag"]
-    if not valid:
+    baseline = lane_baseline(pit_impact)
+    if not valid or baseline is None:
         return []
-
-    lanes = sorted(p.lane_duration for p in valid)  # type: ignore[arg-type]
-    # Baseline = median of valid stops
-    n = len(lanes)
-    baseline = lanes[n // 2]
-    slow_threshold = baseline + 4.0
-    fast_threshold = baseline - 2.5
+    slow_threshold = baseline + SLOW_MARGIN_S       # same rule as pit_service / race_brain
+    fast_threshold = baseline - FAST_MARGIN_S
 
     notes: list[EngineerNote] = []
     slow_count = 0

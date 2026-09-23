@@ -31,8 +31,11 @@ from app.utils.time import position_at_lap
 
 RED_FLAG_READ_LAPS = 3    # red-flag holds: position read lap + 3 (no cycle)
 
-SLOW_LANE_S = 26.0        # racing stop slower than this is reported as slow
-TARGET_LANE_S = 22.5
+# Lane time is judged against the race's own baseline (median lane time of the
+# stops at racing speed), never against a fixed number: pit-lane length is a
+# circuit property, Monaco and Spa are not comparable.
+SLOW_MARGIN_S = 4.0       # slow  = baseline + 4 s
+FAST_MARGIN_S = 2.5       # fast  = baseline - 2.5 s
 RED_FLAG_LANE_S = 600.0   # no pit lane takes 10 min: a 'lane time' this long is a suspension hold
 
 
@@ -48,20 +51,34 @@ def _net_text(net_change: int | None) -> str:
     return f" Net: {net_change} position{'s' if abs(net_change) > 1 else ''} lost."
 
 
-def _lane_quality(lane_dur: float | None) -> str | None:
-    """Lane time is judged for every stop that happened at racing speed (racing or SC/VSC)."""
+def lane_baseline(rows: list[PitImpactRow]) -> float | None:
+    """Median lane time of the stops at racing speed (red-flag holds excluded)."""
+    lanes = sorted(r.lane_duration for r in rows if r.lane_duration and r.stop_type != "red_flag")
+    return lanes[len(lanes) // 2] if lanes else None
+
+
+def slow_lane_threshold(rows: list[PitImpactRow]) -> float | None:
+    base = lane_baseline(rows)
+    return None if base is None else base + SLOW_MARGIN_S
+
+
+def _lane_quality(lane_dur: float | None, baseline: float | None) -> str | None:
+    """Lane time judged against the race baseline, for every stop at racing speed (SC/VSC included)."""
     if lane_dur is None:
         return None
-    if lane_dur < 21.5:
-        return f"Excellent stop ({lane_dur:.1f}s lane, benchmark class)."
-    if lane_dur < 23.5:
-        return f"Good stop ({lane_dur:.1f}s lane)."
-    if lane_dur < SLOW_LANE_S:
-        return f"Standard stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target)."
-    return f"Slow stop ({lane_dur:.1f}s lane, +{lane_dur - TARGET_LANE_S:.1f}s vs target — costly)."
+    if baseline is None:
+        return f"Stop ({lane_dur:.1f}s lane; no race baseline available)."
+    delta = lane_dur - baseline
+    if delta <= -FAST_MARGIN_S:
+        return f"Fast stop ({lane_dur:.1f}s lane, {-delta:.1f}s under race baseline {baseline:.1f}s)."
+    if delta < SLOW_MARGIN_S:
+        return f"Standard stop ({lane_dur:.1f}s lane, {delta:+.1f}s vs race baseline {baseline:.1f}s)."
+    return f"Slow stop ({lane_dur:.1f}s lane, +{delta:.1f}s vs race baseline {baseline:.1f}s — costly)."
 
 
-def _verdict(stop_type: StopType, lane_dur: float | None, net_change: int | None) -> tuple[str, str]:
+def _verdict(
+    stop_type: StopType, lane_dur: float | None, net_change: int | None, baseline: float | None
+) -> tuple[str, str]:
     """
     (verdict_text, confidence). The lane time is judged the same way whatever
     the flag — 35 s is slow under a VSC too. Only the *position delta* is
@@ -75,7 +92,7 @@ def _verdict(stop_type: StopType, lane_dur: float | None, net_change: int | None
             "Low",
         )
 
-    quality = _lane_quality(lane_dur)
+    quality = _lane_quality(lane_dur, baseline)
     if quality is None:
         return "No lane timing data available.", "Low"
 
@@ -114,9 +131,14 @@ def stop_type_for(
     return "racing"
 
 
-def is_slow_stop(row: PitImpactRow) -> bool:
-    """Any stop at racing speed over SLOW_LANE_S — under SC/VSC too. Red-flag holds are not stops."""
-    return row.stop_type != "red_flag" and row.lane_duration is not None and row.lane_duration > SLOW_LANE_S
+def is_slow_stop(row: PitImpactRow, threshold: float | None) -> bool:
+    """Any stop at racing speed over the race's slow threshold — under SC/VSC too. Red-flag holds are not stops."""
+    return (
+        threshold is not None
+        and row.stop_type != "red_flag"
+        and row.lane_duration is not None
+        and row.lane_duration > threshold
+    )
 
 
 def compute_pit_impact_with_cycles(
@@ -157,6 +179,7 @@ def compute_pit_impact_with_cycles(
     # Cycles set cycle_id on the rows; position_after is read at each cycle's close
     cycles = detect_pit_cycles(rows, position_data, laps, drivers, timeline) if timeline else []
     close_by_cycle = {c.cycle_id: c.close_lap for c in cycles}
+    baseline = lane_baseline(rows)
     for r in rows:
         read_lap = close_by_cycle.get(r.cycle_id) if r.cycle_id else r.lap_number + RED_FLAG_READ_LAPS
         if read_lap is None:
@@ -164,7 +187,7 @@ def compute_pit_impact_with_cycles(
         r.position_after = position_at_lap(r.driver_number, read_lap, position_data, laps)
         if r.position_before is not None and r.position_after is not None:
             r.net_position_change = r.position_before - r.position_after   # positive = gained
-        r.verdict, r.confidence = _verdict(r.stop_type, r.lane_duration, r.net_position_change)  # type: ignore[assignment]
+        r.verdict, r.confidence = _verdict(r.stop_type, r.lane_duration, r.net_position_change, baseline)  # type: ignore[assignment]
 
     return rows, cycles
 

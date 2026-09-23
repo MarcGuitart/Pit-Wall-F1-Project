@@ -11,7 +11,7 @@ import pytest
 
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context
-from app.services.pit_service import SLOW_LANE_S, compute_pit_impact_with_cycles, is_slow_stop
+from app.services.pit_service import SLOW_MARGIN_S, compute_pit_impact_with_cycles, is_slow_stop, lane_baseline, slow_lane_threshold
 from app.services.notes_service import _undercut_notes
 from app.services.timeline_builder import build_race_timeline
 from app.services.notes_service import _pit_notes
@@ -51,7 +51,7 @@ def test_rus_stopped_after_the_vsc_ended_so_it_is_a_racing_stop(rows):
     """VSC 16:28:21–16:29:50 on lap 28; RUS pitted at 16:30:26 — same lap, after the VSC."""
     rus = next(r for r in rows if r.driver_code == "RUS" and r.lap_number == 28)
     assert rus.stop_type == "racing"
-    assert rus.verdict.startswith("Standard stop (25.6s lane")
+    assert rus.verdict.startswith("Standard stop (25.6s lane") and "race baseline" in rus.verdict
     assert "Net: -4 positions lost" in rus.verdict
     assert rus.confidence == "High"
 
@@ -131,20 +131,22 @@ def test_red_flag_stops_are_their_own_category(rows):
             assert r.confidence == "Low"
 
 
-def test_slow_stops_exclude_red_flag_and_sc(rows):
-    slow = [r for r in rows if is_slow_stop(r)]
-    assert all(r.stop_type != "red_flag" and r.lane_duration > SLOW_LANE_S for r in slow)
-    # was 33 when the 1 400 s holds counted. Lane time is judged whatever the
-    # flag (BEA 35.7 s under the VSC is slow), only red-flag holds are excluded.
-    assert {(r.driver_code, r.lap_number) for r in slow} == {
-        ("HUL", 27), ("LAW", 28), ("ZHO", 28), ("BEA", 27), ("PER", 27), ("PIA", 27), ("HUL", 29),
-    }
+def test_slow_stops_are_judged_against_the_race_baseline(rows):
+    thr = slow_lane_threshold(rows)
+    base = lane_baseline(rows)
+    assert base is not None and thr == base + SLOW_MARGIN_S
+    assert 24.5 <= base <= 26.5                       # São Paulo's own pit lane, not a fixed number
+    slow = [r for r in rows if is_slow_stop(r, thr)]
+    assert all(r.stop_type != "red_flag" and r.lane_duration > thr for r in slow)
+    # 1 400 s red-flag holds never count; PIA 26.05 s / PER 26.6 s are within the
+    # baseline margin here, HUL 59.0 s and BEA 35.7 s (under VSC) are not
+    assert {(r.driver_code, r.lap_number) for r in slow} == {("HUL", 27), ("BEA", 27)}
 
 
-def test_race_brain_reports_seven_slow_stops():
+def test_race_brain_reports_two_slow_stops():
     from app.core import cache
     analysis = cache.get_full_analysis(9636)
-    assert "7 slow pit stops" in analysis["race_brain"]["summary"]
+    assert "2 slow pit stops" in analysis["race_brain"]["summary"]
     assert "33 slow" not in analysis["race_brain"]["summary"]
 
 
@@ -196,8 +198,8 @@ def test_lane_time_is_judged_under_vsc_and_delta_relativised(rows):
     bea = next(r for r in rows if r.driver_code == "BEA" and r.lap_number == 27)
     assert bea.stop_type == "safety_car"
     assert bea.verdict.startswith("Slow stop (35.7s lane")
-    assert "neutralisation" in bea.verdict and "cheap" not in bea.verdict
-    assert is_slow_stop(bea)
+    assert "race baseline" in bea.verdict and "neutralisation" in bea.verdict and "cheap" not in bea.verdict
+    assert is_slow_stop(bea, slow_lane_threshold(rows))
 
 
 def test_neutralised_stop_note_for_ham(rows, cycles):
