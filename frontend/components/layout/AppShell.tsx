@@ -1,6 +1,7 @@
 'use client'
 
 import { TopBar } from './TopBar'
+import { SiteFooter } from './SiteFooter'
 
 type BreadcrumbItem = {
   label: string
@@ -19,6 +20,7 @@ export function AppShell({ children, breadcrumb }: AppShellProps) {
       <main className="flex-1 overflow-x-hidden">
         {children}
       </main>
+      <SiteFooter />
     </div>
   )
 }

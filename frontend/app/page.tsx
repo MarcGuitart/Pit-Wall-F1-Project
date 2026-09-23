@@ -108,9 +108,11 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="border-t border-border-subtle px-6 py-5">
           <div className="max-w-5xl mx-auto flex items-center justify-between flex-wrap gap-4">
-            <p className="font-mono text-[10px] text-text-muted">
-              Unofficial project · Data via{' '}
-              <span className="text-text-secondary">OpenF1</span> &amp; FastF1 · Not affiliated with Formula 1 or FIA
+            <p className="font-mono text-[10px] text-text-muted leading-relaxed max-w-xl">
+              Unofficial project, not associated in any way with the Formula 1 companies. F1, FORMULA 1
+              and related marks are trademarks of Formula One Licensing B.V. Data via{' '}
+              <span className="text-text-secondary">OpenF1</span> &amp; FastF1; team radio clips are
+              linked from Formula 1&apos;s archive and are not stored here.
             </p>
 
             {/* Author block */}
