@@ -1,5 +1,8 @@
 # ── Internal dev documentation (not for public repo) ───────────────────────
-# Root-level only: docs/ is versioned (see docs/api-contract.md).
+# docs/ is versioned (see docs/api-contract.md), except the talk material:
+# the repo is public and the masterclass deck/script are not for publication.
+/docs/masterclass/
+# Root-level only:
 /CLAUDE.md
 /CLAUDE_V2.md
 /CLAUDE_V3.md
