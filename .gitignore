@@ -73,6 +73,11 @@ desktop.ini
 *.swo
 *~
 
+# Kept on disk for reference, not versioned: the 557-line narrative README
+# from 50035cf (June 2026), which lives on the remote branch "Main" (capital
+# M), not "main". The repo README is the 204-line one.
+/README_june_narrative.md
+
 # ── Misc ──────────────────────────────────────────────────────────────────────
 *.orig
 *.bak
