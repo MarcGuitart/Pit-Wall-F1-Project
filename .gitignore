@@ -1,7 +1,11 @@
 # ── Internal dev documentation (not for public repo) ───────────────────────
-# docs/ is versioned (see docs/api-contract.md), except the talk material:
-# the repo is public and the masterclass deck/script are not for publication.
+# docs/ is versioned (see docs/api-contract.md), except:
+# - the masterclass deck/script: the repo is public, they are not for publication
+# - the CLAUDE briefs: internal, and they describe a system that no longer exists
+#   (Semaphore(3), /api/engineer-chat, chaos method 1.0, call_ollama...)
 /docs/masterclass/
+/docs/CLAUDE.md
+/docs/CLAUDE_v2.md
 # Root-level only:
 /CLAUDE.md
 /CLAUDE_V2.md
