@@ -1,0 +1,166 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>live snapshot — raw</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background:#05060a; color:#f0f2f5; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;
+         margin:0; padding:12px 14px; }
+  h1 { font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:#8a94a6; margin:0 0 8px; font-weight:700; }
+  .bar { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:10px;
+         border-bottom:1px solid #1e2430; padding-bottom:8px; }
+  .kv b { color:#8a94a6; font-weight:400; }
+  .flag { padding:2px 8px; border-radius:3px; font-weight:700; letter-spacing:1px; }
+  .GREEN{background:#23d18b22;color:#23d18b;border:1px solid #23d18b55}
+  .YELLOW{background:#ffb02022;color:#ffb020;border:1px solid #ffb02055}
+  .SC{background:#ffb02033;color:#ffb020;border:1px solid #ffb020}
+  .VSC{background:#4da3ff22;color:#4da3ff;border:1px solid #4da3ff55}
+  .RED{background:#e8001d33;color:#e8001d;border:1px solid #e8001d}
+  .cols { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  table { border-collapse:collapse; }
+  th { text-align:left; color:#4a5568; font-weight:400; padding:2px 8px 4px 0; border-bottom:1px solid #1e2430; }
+  td { padding:2px 8px 2px 0; white-space:nowrap; }
+  .pos { color:#8a94a6; text-align:right; }
+  .code { font-weight:700; }
+  .dim { color:#4a5568; }
+  .sect { margin-top:14px; }
+  .sect h2 { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#8a94a6; margin:0 0 5px; }
+  .warn { color:#ffb020; }
+  .bad { color:#e8001d; }
+  .ok { color:#23d18b; }
+  pre { background:#0b0d12; border:1px solid #1e2430; padding:8px; margin:0; max-height:260px;
+        overflow:auto; font-size:11px; color:#8a94a6; }
+  .chip { border:1px solid #252d3a; padding:1px 6px; border-radius:2px; color:#8a94a6; }
+  .caveat { color:#ffb020; max-width:760px; font-size:11px; }
+</style>
+
+<h1>live snapshot · raw observation</h1>
+
+<div class="bar">
+  <span id="flag" class="flag GREEN">—</span>
+  <span class="kv"><b>lap</b> <span id="lap">—</span></span>
+  <span class="kv"><b>session</b> <span id="session">—</span></span>
+  <span class="kv"><b>feed</b> <span id="feed">—</span></span>
+  <span class="kv"><b>token</b> <span id="token">—</span></span>
+  <span class="kv"><b>msgs</b> <span id="msgs">0</span></span>
+  <span class="kv"><b>stream</b> <span id="conn" class="bad">connecting…</span></span>
+  <span class="kv dim" id="gen">—</span>
+</div>
+
+<div class="cols">
+  <div>
+    <h2 style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#8a94a6;margin:0 0 5px">order</h2>
+    <table>
+      <thead><tr><th>P</th><th>drv</th><th>lap</th><th>last</th><th>tyre</th><th>st</th><th>team</th></tr></thead>
+      <tbody id="grid"><tr><td colspan="7" class="dim">waiting for position data…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div>
+    <div class="sect" style="margin-top:0">
+      <h2>chaos (partial)</h2>
+      <div id="chaos" class="dim">—</div>
+      <div id="chaosCaveat" class="caveat"></div>
+    </div>
+    <div class="sect">
+      <h2>weather_conditions</h2>
+      <div id="weather" class="dim">—</div>
+    </div>
+    <div class="sect">
+      <h2>pit_cycles</h2>
+      <div id="pit" class="dim">—</div>
+      <div id="pitCaveat" class="caveat"></div>
+    </div>
+    <div class="sect">
+      <h2>messages per topic</h2>
+      <div id="topics" class="dim">—</div>
+    </div>
+    <div class="sect">
+      <h2>_key updates (same document seen again)</h2>
+      <div id="keys" class="dim">—</div>
+      <pre id="keylog">—</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = v => v === null || v === undefined ? '—' : v;
+const secs = v => v === null || v === undefined ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
+
+function render(s) {
+  $('flag').textContent = s.flag;
+  $('flag').className = 'flag ' + s.flag;
+  $('flag').title = s.flag_source || '';
+  $('lap').textContent = s.current_lap || 0;
+  $('session').textContent = fmt(s.session_key);
+  $('msgs').textContent = s.messages_total;
+  $('gen').textContent = s.generated_at;
+
+  const f = s.feed || {};
+  $('feed').textContent = f.mode + (f.mode === 'mqtt' ? (f.connected ? ' · connected' : ' · DOWN') : '');
+  $('feed').className = 'kv ' + (f.mode !== 'mqtt' || f.connected ? 'ok' : 'bad');
+  $('token').textContent = f.token_expires_in_s == null ? 'n/a'
+    : Math.round(f.token_expires_in_s / 60) + 'm left · ' + f.renewals + ' renewal(s)';
+
+  const rows = (s.grid || []).map(r => `<tr>
+      <td class="pos">${r.position}</td>
+      <td class="code" style="color:${r.colour ? '#' + r.colour : '#f0f2f5'}">${r.code}</td>
+      <td>${fmt(r.lap_number)}</td>
+      <td>${secs(r.last_lap_s)}</td>
+      <td>${fmt(r.compound)}</td>
+      <td class="dim">${fmt(r.stint)}</td>
+      <td class="dim">${fmt(r.team)}</td>
+    </tr>`).join('');
+  $('grid').innerHTML = rows || '<tr><td colspan="7" class="dim">waiting for position data…</td></tr>';
+
+  const a = s.analysis || {};
+  const c = a.chaos || {};
+  if (c.ok) {
+    const b = c.breakdown || {};
+    const parts = Object.keys(b).map(k =>
+      `<span class="chip">${k.replace('position_','').replace('_',' ')} ${b[k].points.toFixed(1)} <span class="dim">(${(b[k].normalized*100).toFixed(0)}%)</span></span>`).join(' ');
+    $('chaos').innerHTML = `<b style="font-size:20px">${c.score}</b> <span class="warn">${c.level}</span>
+      <span class="dim">method ${c.method_version} · peak L${fmt(c.peak_chaos_lap)} · timeline total_laps=${c.timeline_total_laps}</span><br>${parts}`;
+    $('chaosCaveat').textContent = c.caveat || '';
+  } else { $('chaos').innerHTML = `<span class="bad">FAILED</span> <span class="dim">${c.error || '—'}</span>`; }
+
+  const w = a.weather_conditions || {};
+  $('weather').innerHTML = w.ok
+    ? `rain periods <b>${w.rain_periods}</b> · wet laps <b>${w.wet_laps}</b> <span class="dim">of ${w.laps_indexed} indexed</span>`
+    : `<span class="bad">FAILED</span> <span class="dim">${w.error || '—'}</span>`;
+
+  const p = a.pit_cycles || {};
+  if (p.ok) {
+    $('pit').innerHTML = `cycles <b>${p.cycles}</b> · stops <b>${p.stops}</b> · `
+      + (p.cycles_not_yet_closed
+          ? `<span class="bad">${p.cycles_not_yet_closed} still open — provisional</span>`
+          : `<span class="ok">all closed</span>`);
+    $('pitCaveat').textContent = p.caveat || '';
+  } else { $('pit').innerHTML = `<span class="bad">FAILED</span> <span class="dim">${p.error || '—'}</span>`; }
+
+  $('topics').innerHTML = Object.entries(s.messages || {})
+    .sort((x, y) => y[1] - x[1])
+    .map(([t, n]) => `<span class="chip">${t.replace('v1/','')} ${n}</span>`).join(' ') || '—';
+
+  const ku = s.key_updates || {};
+  const total = Object.values(ku).reduce((a, b) => a + b, 0);
+  $('keys').innerHTML = total
+    ? Object.entries(ku).sort((x,y)=>y[1]-x[1]).map(([t,n]) => `<span class="chip">${t.replace('v1/','')} ${n}</span>`).join(' ')
+    : '<span class="dim">none yet — cached/REST records carry no _key, only MQTT messages do</span>';
+  $('keylog').textContent = (s.recent_key_updates || []).length
+    ? s.recent_key_updates.map(u => `${u.iso}  ${u.topic.replace('v1/','')}  ${u._key}  (seen ${u.times}x)`).join('\n')
+    : '—';
+}
+
+let es;
+function connect() {
+  es = new EventSource('/events');
+  es.onopen = () => { $('conn').textContent = 'live'; $('conn').className = 'ok'; };
+  es.onmessage = e => { try { render(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  es.onerror = () => {
+    $('conn').textContent = 'reconnecting…'; $('conn').className = 'bad';
+    es.close(); setTimeout(connect, 2000);
+  };
+}
+connect();
+</script>
