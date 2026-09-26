@@ -88,3 +88,6 @@ desktop.ini
 
 # Local Netlify folder
 .netlify
+/DIAGNOSTIC.md
+/DIAGNOSTIC_ADDENDUM.md
+/SPRINT_PLAN.md
