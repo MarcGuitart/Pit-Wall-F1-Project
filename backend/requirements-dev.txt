@@ -1,2 +1,5 @@
 -r requirements.txt
 pytest==8.3.3
+# MQTT live-session recorder (scripts/live_recorder.py) — dev/ops only,
+# deliberately kept out of requirements.txt so Render does not install it.
+paho-mqtt==2.1.0

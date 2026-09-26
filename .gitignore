@@ -36,6 +36,8 @@ backend/.env.production
 # Static fixture cache committed to repo (Spain 2024 / Brazil 2024 + meetings)
 !backend/cache/
 backend/fastf1_cache/
+# Live MQTT captures (scripts/live_recorder.py) — raw stream dumps, can be GB
+backend/live/
 backend/*.log
 backend/**/*.log
 
