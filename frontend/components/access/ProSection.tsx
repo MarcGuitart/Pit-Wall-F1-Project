@@ -20,7 +20,9 @@ import { ACCESS_CHANGED_EVENT, PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
 import { formatLocalDateTime, formatUtcTime } from '@/lib/format'
 import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
+import { fetchLiveServerStatus, fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
+import Link from 'next/link'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -81,6 +83,39 @@ export function ProSection() {
     })
     return () => { cancelled = true }
   }, [currentSeasonYear])
+
+  // Live status: only checked for a PRO visitor, since the live server itself
+  // is the only source of truth for "data is arriving" — never the clock alone
+  // (a session can start late). Polled, not fetched once: the point of this
+  // caption is to flip to a link the moment the session actually starts,
+  // while someone might be sitting on this page.
+  const [liveSessionKey, setLiveSessionKey] = useState<number | null>(null)
+  const [liveChecked, setLiveChecked] = useState(false)
+  const [nextLive, setNextLive] = useState<NextLiveSessionInfo | null>(null)
+
+  useEffect(() => {
+    if (!pro || currentSeasonYear === undefined) {
+      setLiveSessionKey(null)
+      setLiveChecked(false)
+      return
+    }
+    let cancelled = false
+
+    async function poll() {
+      const status = await fetchLiveServerStatus()
+      if (cancelled) return
+      setLiveSessionKey(status.sessionKey)
+      if (status.sessionKey === null) {
+        const next = await fetchNextLiveSession(currentSeasonYear as number)
+        if (!cancelled) setNextLive(next)
+      }
+      if (!cancelled) setLiveChecked(true)
+    }
+
+    poll()
+    const id = setInterval(poll, 60_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [pro, currentSeasonYear])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -147,7 +182,7 @@ export function ProSection() {
               nextRace={i === 0 ? nextRace : null}
             />
           ))}
-          <LiveBay unlocked={pro} />
+          <LiveBay unlocked={pro} live={pro && liveSessionKey !== null} checked={liveChecked} />
         </div>
 
         {/* The current season's real calendar, not a placeholder */}
@@ -183,6 +218,32 @@ export function ProSection() {
           </div>
         )}
         {!nextRace && <div className="mb-6" />}
+
+        {/* Live: a real link once data is arriving, never a guess from the clock */}
+        {pro && (
+          <p className="font-mono text-[10px] text-text-muted mb-6 leading-relaxed">
+            {liveSessionKey !== null ? (
+              <Link
+                href={`/live/${liveSessionKey}`}
+                className="text-signal-green hover:underline underline-offset-4"
+              >
+                ● Live now — open the pit wall →
+              </Link>
+            ) : liveChecked && nextLive ? (
+              <>
+                No live session right now — next:{' '}
+                <span className="text-text-secondary">
+                  {nextLive.meetingName} {nextLive.sessionName}
+                </span>
+                , {formatLocalDateTime(nextLive.dateStart)}
+              </>
+            ) : liveChecked ? (
+              <>No live session right now — no upcoming session is scheduled.</>
+            ) : (
+              <>Checking live status…</>
+            )}
+          </p>
+        )}
 
         {/* What it is */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border-subtle border border-border-subtle rounded-[4px] overflow-hidden mb-6">
@@ -385,6 +446,7 @@ function SeasonBay({ year, unlocked, current, nextRace }: {
   )
 }
 
-function LiveBay({ unlocked }: { unlocked: boolean }) {
-  return <Bay label="LIVE" sub="in build" unlocked={unlocked} />
+function LiveBay({ unlocked, live, checked }: { unlocked: boolean; live: boolean; checked: boolean }) {
+  const sub = live ? 'live now' : checked ? 'no live session' : 'in build'
+  return <Bay label="LIVE" sub={sub} unlocked={unlocked} accent={live} />
 }
