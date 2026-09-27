@@ -259,7 +259,7 @@ async def _call_groq(system: str, question: str) -> str:
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
-        "max_tokens": 600,
+        "max_tokens": 4000,
     }
     if _groq_supports_reasoning_effort(settings.groq_model):
         payload["reasoning_effort"] = settings.groq_reasoning_effort
