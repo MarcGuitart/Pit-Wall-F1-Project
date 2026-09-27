@@ -25,6 +25,18 @@ Design notes, in order of how much they matter:
 3. Nothing in memory. Each message is written and flushed immediately (high-rate
    topics are flushed on a 0.25 s gate so car_data cannot stall the loop). A
    network drop, a kill or a crash can only lose what the OS had buffered.
+
+4. Production concerns live in recorder_ops.py, not here: the health endpoint
+   Render acts on, the Telegram alert when the broker is lost, and the upload of
+   the finished capture. Attached with --ops; without it this file behaves
+   exactly as it always has, which is what makes it runnable from a laptop
+   without credentials for any of that.
+
+5. One directory per session. On a laptop the recorder is launched for a session
+   and --out names it. Deployed, it stays subscribed for weeks and has to decide
+   for itself, so --out-root writes to <root>/<session_key> and rolls when the
+   session_key in the messages changes. Rolling is what makes a session complete:
+   the previous directory is closed, and with --ops, archived.
 """
 from __future__ import annotations
 
@@ -44,6 +56,7 @@ from functools import wraps
 from pathlib import Path
 
 sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # recorder_ops.py sits next to this
 
 import paho.mqtt.client as mqtt  # noqa: E402
 from paho.mqtt.enums import CallbackAPIVersion  # noqa: E402
@@ -96,7 +109,10 @@ def rc_int(reason_code) -> int:
 
 class Recorder:
     def __init__(self, out_dir: Path, topics: list[str], username: str,
-                 renew_before_s: float = RENEW_BEFORE_S) -> None:
+                 renew_before_s: float = RENEW_BEFORE_S,
+                 out_root: Path | None = None) -> None:
+        self.out_root = out_root
+        self.session_key: int | None = None
         self.dir = out_dir
         self.topics = topics
         self.username = username or "recorder"
@@ -126,6 +142,7 @@ class Recorder:
         self._stop = threading.Event()
         self._renewing = threading.Event()
         self.client: mqtt.Client | None = None
+        self.ops = None          # set by main() when --ops is given
 
     # ── logging ──────────────────────────────────────────────────────────────
 
@@ -141,6 +158,47 @@ class Recorder:
                 self.events.flush()
             except Exception:
                 pass
+
+    # ── one directory per session ────────────────────────────────────────────
+
+    def roll_to(self, session_key: int) -> None:
+        """
+        Start writing into <out_root>/<session_key>.
+
+        Only ever called in --out-root mode. Closes and fsyncs the previous
+        session's handles before opening the new ones, so a session that has
+        ended is complete on disk before anything is appended to the next —
+        which is what makes the archive of it safe to take.
+        """
+        if self.out_root is None or session_key == self.session_key:
+            return
+        previous, previous_key = self.dir, self.session_key
+        if previous_key is not None:
+            self.event("ROLL", f"session {previous_key} ended — closing {previous}")
+            self.close_all()
+            if self.ops is not None:
+                try:
+                    self.ops.session_ended(previous, previous_key)
+                except Exception as exc:
+                    self.event("BUG!", f"ops.session_ended: {type(exc).__name__}: {exc}")
+
+        self.session_key = session_key
+        self.dir = self.out_root / str(session_key)
+        self.dir.mkdir(parents=True, exist_ok=True)
+        with self._io_lock:
+            self.events = open(self.dir / "_events.jsonl", "a", encoding="utf-8")
+        self.event("ROLL", f"recording session {session_key} into {self.dir}")
+        if self.ops is not None:
+            try:
+                self.ops.session_started(self.dir, session_key)
+            except Exception as exc:
+                self.event("BUG!", f"ops.session_started: {type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def session_key_of(payload) -> int | None:
+        item = payload[0] if isinstance(payload, list) and payload else payload
+        key = item.get("session_key") if isinstance(item, dict) else None
+        return key if isinstance(key, int) else None
 
     # ── writing ──────────────────────────────────────────────────────────────
 
@@ -262,10 +320,27 @@ class Recorder:
             payload = json.loads(msg.payload)
         except Exception:
             payload = {"_unparsed": msg.payload.decode("utf-8", "replace")}
+        # Before anything is written: a message from a new session opens a new
+        # directory, so no two sessions ever share a file.
+        if self.out_root is not None:
+            key = self.session_key_of(payload)
+            if key is not None and key != self.session_key:
+                self.roll_to(key)
+
         self.total += 1
         self.per_topic[msg.topic] += 1
         self.since_hb[msg.topic] += 1
         self.write(msg.topic, payload, recv)
+        # The chequered flag starts the archive timer. Guarded, because ops is
+        # a courtesy and a failure in it must not stop the recording — which is
+        # the whole reason it is a separate object rather than code in here.
+        if self.ops is not None and msg.topic.endswith("race_control"):
+            try:
+                for item in (payload if isinstance(payload, list) else [payload]):
+                    if isinstance(item, dict):
+                        self.ops.saw_race_control(item)
+            except Exception as exc:
+                self.event("BUG!", f"ops.saw_race_control: {type(exc).__name__}: {exc}")
 
     # ── connection ───────────────────────────────────────────────────────────
 
@@ -504,7 +579,11 @@ class Recorder:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Record the OpenF1 MQTT live stream to JSONL.")
-    ap.add_argument("--out", required=True, help="output directory (created; relaunch appends)")
+    out = ap.add_mutually_exclusive_group(required=True)
+    out.add_argument("--out", help="one output directory (created; relaunch appends)")
+    out.add_argument("--out-root", metavar="DIR",
+                     help="deployed mode: write to <DIR>/<session_key> and roll when the "
+                          "session changes, so one long-lived process records every session")
     ap.add_argument("--with-car-data", action="store_true", help="also record v1/car_data (~GB per race)")
     ap.add_argument("--with-location", action="store_true", help="also record v1/location (~GB per race)")
     ap.add_argument("--topic", action="append", default=[], help="extra topic (repeatable)")
@@ -513,6 +592,12 @@ def main() -> int:
                          f"(default {RENEW_BEFORE_S:.0f}; set near 3600 to exercise the renewal path)")
     ap.add_argument("--stop-after", type=float, default=0.0, metavar="SECONDS",
                     help="stop on its own after this long (0 = run until Ctrl+C)")
+    ap.add_argument("--ops", action="store_true",
+                    help="production extras: serve $PORT/health, alert on Telegram when the "
+                         "broker is lost, upload the capture after the chequered flag")
+    ap.add_argument("--session-key", type=int,
+                    help="the session being recorded — only used to label alerts")
+    ap.add_argument("--session-label", help="human name for alerts, e.g. 'Kuala Lumpur FP1'")
     args = ap.parse_args()
 
     if not token_manager.configured:
@@ -526,7 +611,22 @@ def main() -> int:
         topics.append(TOPIC_LOCATION)
     topics.extend(t for t in args.topic if t not in topics)
 
-    rec = Recorder(Path(args.out), topics, settings.openf1_username, args.renew_before)
+    if args.out_root:
+        root = Path(args.out_root)
+        root.mkdir(parents=True, exist_ok=True)
+        # A holding directory until the first message says which session this is.
+        rec = Recorder(root / "_waiting", topics, settings.openf1_username,
+                       args.renew_before, out_root=root)
+    else:
+        rec = Recorder(Path(args.out), topics, settings.openf1_username, args.renew_before)
+
+    ops = None
+    if args.ops:
+        from recorder_ops import RecorderOps
+        ops = RecorderOps(rec, session_key=args.session_key, session_label=args.session_label)
+        rec.ops = ops
+        ops.start()
+
     if args.stop_after:
         threading.Timer(args.stop_after, rec.stop).start()
 
@@ -537,7 +637,16 @@ def main() -> int:
 
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
-    return rec.run()
+    try:
+        return rec.run()
+    finally:
+        if ops is not None:
+            # A recording stopped before the flag is still worth keeping: Render
+            # replaces the container on deploy, and the disk survives, but the
+            # archive is what survives the service being deleted.
+            if ops.state.chequered_at is not None and ops.state.archived_at is None:
+                ops.archive_now()
+            ops.stop()
 
 
 if __name__ == "__main__":
