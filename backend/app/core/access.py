@@ -190,6 +190,33 @@ def has_pro_access(request: Request) -> bool:
     return decode_token(bearer_token(request)) is not None
 
 
+def has_internal_build_access(request: Request) -> bool:
+    """
+    A second, separate way through the gate: a shared secret for the
+    publication pipeline, which computes a PRO-season analysis before anyone
+    could hold a user token for it — the analysis has to exist before it can be
+    committed and served.
+
+    Not a weaker PRO token and not minted through /access/redeem: it is a
+    single static secret, compared with compare_digest, sent as its own header
+    so it is never confused with a user's Authorization: Bearer. It grants
+    nothing a normal request could not eventually reach anyway — the analysis
+    it triggers is about to be committed to the repo and served the same way
+    any published race is — only bypasses waiting on a user token that, for a
+    server-to-server build step, was never going to exist.
+
+    Configured only where the publication pipeline runs (a GitHub Actions
+    secret), never on Render: the live API never needs to accept this header
+    from anyone, since real readers go through /access/redeem like everyone
+    else.
+    """
+    secret = settings.internal_build_secret.get_secret_value()
+    if not secret:
+        return False
+    provided = request.headers.get("x-internal-build-secret", "")
+    return bool(provided) and hmac.compare_digest(provided, secret)
+
+
 def pro_required(year: int | None, session_key: int | None = None) -> AppError:
     """
     402 Payment Required. It is the one status that means exactly this, and the
@@ -210,10 +237,13 @@ def pro_required(year: int | None, session_key: int | None = None) -> AppError:
 
 
 def require_season_access(request: Request, year: int | None, session_key: int | None = None) -> None:
-    """Raise PRO_REQUIRED unless this season is free or the caller holds a token."""
+    """Raise PRO_REQUIRED unless this season is free, or the caller holds a
+    user token, or this is the publication pipeline building it."""
     if is_free_season(year):
         return
     if has_pro_access(request):
+        return
+    if has_internal_build_access(request):
         return
     logger.info("[PRO] refused session %s (year %s): no valid token", session_key, year)
     raise pro_required(year, session_key)

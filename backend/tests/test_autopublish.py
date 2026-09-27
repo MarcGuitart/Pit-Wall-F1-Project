@@ -469,3 +469,91 @@ def test_limit_zero_is_no_cap_not_publish_nothing():
 def test_a_negative_limit_is_treated_as_no_cap_rather_than_reversed_slicing():
     ready = [candidate(11234 + i) for i in range(3)]
     assert publishable(ready, -1) == (ready, [])
+
+
+# ── the internal build secret reaches the /analysis call (Block 18) ─────────
+#
+# scripts/autopublish.py is not a package; loaded by path, the same way the
+# workflow runs it and the way test_notify_telegram.py loads its sibling
+# script.
+
+import importlib.util as _importlib_util
+from pathlib import Path as _Path
+
+_SCRIPT = _Path(__file__).resolve().parent.parent / "scripts" / "autopublish.py"
+
+
+def _load_autopublish_script():
+    spec = _importlib_util.spec_from_file_location("autopublish_script", _SCRIPT)
+    module = _importlib_util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_compute_sends_the_internal_build_secret_header(monkeypatch):
+    """
+    The regression: compute() called /analysis with no way through the PRO
+    gate, so every PRO-season publication 402'd from inside the Action meant
+    to produce it. The header must be present, and must carry exactly the
+    configured secret — not the user Authorization header.
+    """
+    import asyncio
+
+    from pydantic import SecretStr
+
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "internal_build_secret", SecretStr("the-build-secret"))
+
+    seen_headers: dict = {}
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"race": {"year": 2026}}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, headers=None, **k):
+            seen_headers.update(headers or {})
+            return FakeResponse()
+
+    # compute() imports TestClient locally inside the function, so it must be
+    # patched at its source module rather than on the script.
+    import fastapi.testclient as _testclient_module
+    monkeypatch.setattr(_testclient_module, "TestClient", FakeClient)
+
+    asyncio.run(script.compute(11234))
+    assert seen_headers.get("X-Internal-Build-Secret") == "the-build-secret"
+
+
+def test_compute_sends_no_build_secret_header_when_unconfigured(monkeypatch):
+    import asyncio
+
+    from pydantic import SecretStr
+
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "internal_build_secret", SecretStr(""))
+
+    seen_headers: dict = {"sentinel": "unset"}
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"race": {"year": 2024}}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get(self, url, headers=None, **k):
+            seen_headers.clear()
+            seen_headers.update(headers or {})
+            return FakeResponse()
+
+    import fastapi.testclient as _testclient_module
+    monkeypatch.setattr(_testclient_module, "TestClient", FakeClient)
+
+    asyncio.run(script.compute(9539))
+    assert "X-Internal-Build-Secret" not in seen_headers

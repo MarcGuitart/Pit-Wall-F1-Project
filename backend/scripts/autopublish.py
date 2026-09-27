@@ -115,13 +115,28 @@ def write_state(path: Path, lap_counts: dict[str, int]) -> None:
 # ── one session ──────────────────────────────────────────────────────────────
 
 async def compute(session_key: int) -> dict:
-    """Run the real /analysis pipeline in-process and return the analysis."""
+    """
+    Run the real /analysis pipeline in-process and return the analysis.
+
+    This is a server-to-server build step, not a reader: it calls /analysis
+    before anyone could hold a user PRO token for a race that has not been
+    published yet, and a PRO season (2025 onwards) is exactly what this script
+    exists to publish. Block 14 gated /analysis without this call being given
+    any way through, so every PRO-season publication 402'd from inside the
+    Action that was supposed to be producing it — INTERNAL_BUILD_SECRET is
+    that way through, sent as its own header, never as Authorization.
+    """
     from fastapi.testclient import TestClient
     from app.main import app
 
+    headers = {}
+    secret = settings.internal_build_secret.get_secret_value()
+    if secret:
+        headers["X-Internal-Build-Secret"] = secret
+
     t0 = time.time()
     with TestClient(app, raise_server_exceptions=False) as client:
-        r = client.get(f"/analysis/{session_key}?force_refresh=true")
+        r = client.get(f"/analysis/{session_key}?force_refresh=true", headers=headers)
     took = time.time() - t0
     if r.status_code != 200:
         err = (r.json().get("error") or {})

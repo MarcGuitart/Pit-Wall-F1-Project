@@ -95,6 +95,13 @@ class Settings(BaseSettings):
     # same as no gate at all, and failing closed is the only safe direction.
     pro_token_secret: SecretStr = SecretStr("")
     pro_token_ttl_days: int = 30
+    # A second, separate way through the PRO gate: the publication pipeline
+    # (a GitHub Action) computes and commits a PRO-season analysis before
+    # anyone could hold a user token for it. Not a PRO token — a static shared
+    # secret, checked with a constant-time compare against its own header.
+    # Set only as a GitHub Actions secret, never on Render: the live API never
+    # needs to accept it from a real reader.
+    internal_build_secret: SecretStr = SecretStr("")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

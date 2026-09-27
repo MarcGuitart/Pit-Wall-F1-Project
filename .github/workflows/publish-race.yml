@@ -86,6 +86,10 @@ jobs:
         env:
           OPENF1_USERNAME: ${{ secrets.OPENF1_USERNAME }}
           OPENF1_PASSWORD: ${{ secrets.OPENF1_PASSWORD }}
+          # Lets this build step through the PRO gate on /analysis without a
+          # user token — it is computing a PRO-season race before anyone could
+          # hold one. Never set on Render; only this Action needs it.
+          INTERNAL_BUILD_SECRET: ${{ secrets.INTERNAL_BUILD_SECRET }}
           ENVIRONMENT: ci
           SESSION_KEYS: ${{ github.event.inputs.session_keys }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}

@@ -189,6 +189,69 @@ def test_a_valid_token_opens_chat_and_telemetry_too(client, configured):
     assert error_code(client.get("/telemetry/11377", headers=auth(t))) != "PRO_REQUIRED"
 
 
+# ── the internal build secret (Block 18) ─────────────────────────────────────
+#
+# Production incident: the publication Action computes a PRO-season analysis
+# in-process via TestClient, before anyone could hold a user token for a race
+# not yet published — 11234 and 11240 (both 2026) 402'd from inside the very
+# Action meant to publish them. This is a second, separate way through the
+# gate for exactly that caller: not a PRO token, a static shared secret in its
+# own header.
+
+BUILD_SECRET = "build-secret-not-a-user-token"
+
+
+@pytest.fixture
+def build_secret_configured(monkeypatch):
+    monkeypatch.setattr(settings, "internal_build_secret", SecretStr(BUILD_SECRET))
+
+
+def test_the_build_secret_opens_a_pro_season_with_no_user_token(client, configured, build_secret_configured):
+    r = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": BUILD_SECRET})
+    assert r.status_code != 402 and error_code(r) != "PRO_REQUIRED"
+
+
+def test_a_wrong_build_secret_is_refused(client, configured, build_secret_configured):
+    r = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": "not-the-secret"})
+    assert error_code(r) == "PRO_REQUIRED"
+
+
+def test_no_build_secret_configured_means_the_header_grants_nothing(client, configured):
+    """Fails closed: an unset secret must not make the header a universal key."""
+    r = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": ""})
+    assert error_code(r) == "PRO_REQUIRED"
+    r2 = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": "anything"})
+    assert error_code(r2) == "PRO_REQUIRED"
+
+
+def test_the_build_secret_is_not_accepted_as_a_bearer_token(client, configured, build_secret_configured):
+    """It is a distinct header on purpose — it must never be confused with, or
+    substitutable for, a user's Authorization: Bearer."""
+    r = client.get("/analysis/11377", headers=auth(BUILD_SECRET))
+    assert error_code(r) == "PRO_REQUIRED"
+
+
+def test_a_user_token_is_not_accepted_as_the_build_secret(client, configured, build_secret_configured):
+    """And the reverse: a real user token must not open the build path either."""
+    t = token(client)
+    r = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": t})
+    assert error_code(r) == "PRO_REQUIRED"
+
+
+def test_the_build_secret_works_on_chat_and_telemetry_too(client, configured, build_secret_configured):
+    headers = {"X-Internal-Build-Secret": BUILD_SECRET}
+    assert error_code(client.post("/chat", json={"session_key": 11377, "question": "x"},
+                                  headers=headers)) != "PRO_REQUIRED"
+    assert error_code(client.get("/telemetry/11377", headers=headers)) != "PRO_REQUIRED"
+
+
+def test_the_build_secret_grants_no_more_than_a_free_season_already_had(client, configured, build_secret_configured):
+    """It only ever has to overcome the PRO gate — nothing else changes."""
+    with_secret = client.get("/analysis/9539", headers={"X-Internal-Build-Secret": BUILD_SECRET})
+    without = client.get("/analysis/9539")
+    assert with_secret.status_code == without.status_code
+
+
 def test_the_header_is_bearer_and_no_cookie_is_ever_set(client, configured):
     """
     Frontend and API are on different domains, so a cookie between them is a
