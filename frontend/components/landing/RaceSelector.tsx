@@ -6,6 +6,7 @@ import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
 import { chaosLevel, CHAOS_LEVEL_TEXT_CLASS } from '@/lib/chaos'
 import { DEMO_RACES } from '@/lib/constants'
+import { seasonOptions } from '@/lib/seasons'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import type { RaceListItem, SessionInfo } from '@/types'
 
@@ -27,10 +28,9 @@ const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: str
 
 const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Practice 2', 'Practice 1']
 
-const YEAR_OPTIONS = [2025, 2024, 2023].map((y) => ({
-  value: String(y),
-  label: String(y),
-}))
+// Current year down to 2023, not a literal list: a hard-coded ceiling meant a
+// new season's races existed in the backend and were unreachable from the UI.
+const YEAR_OPTIONS = seasonOptions()
 
 export function RaceSelector() {
   const router = useRouter()

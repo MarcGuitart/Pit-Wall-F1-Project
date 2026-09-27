@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRaceStore } from '@/stores/raceStore'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
+import { seasonRangeLabel } from '@/lib/seasons'
 
 type BreadcrumbItem = {
   label: string
@@ -90,7 +91,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                     Live mode · Coming soon
                   </div>
                   <div className="font-mono text-[9px] text-text-muted leading-relaxed">
-                    Real-time is not available yet. The live mode will allow you to follow along with the race as it happens. At the moment, you can explore historical races from 2023 to 2025.
+                    Real-time is not available yet. The live mode will allow you to follow along with the race as it happens. At the moment, you can explore historical races from {seasonRangeLabel()}.
                   </div>
                 </div>
               </div>
