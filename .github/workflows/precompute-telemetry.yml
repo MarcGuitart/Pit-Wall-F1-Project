@@ -1,6 +1,20 @@
+# Telemetry is the slow, expensive half of a new race: FastF1, up to two hours,
+# and a separate set of cache files. It used to run on `push` to
+# backend/cache/*/laps.json, which was fine while laps.json arrived by hand and
+# became wrong the moment publishing was automated — the publication Action would
+# have started a two-hour telemetry job inside its own commit, on a trigger that
+# no longer even fires, since raw endpoints are no longer committed.
+#
+# So it has its own schedule. Once a day, after the publication runs have had all
+# night to land, and dispatchable for anything that needs it sooner.
+
 name: Precompute Telemetry Cache
 
 on:
+  schedule:
+    # 04:40 UTC daily: a Sunday race is published within a couple of hours of the
+    # flag, so by the small hours its laps are on disk and this has work to do.
+    - cron: '40 4 * * *'
   workflow_dispatch:
     inputs:
       sessions:
@@ -15,9 +29,6 @@ on:
         description: 'Recompute even if telemetry cache already exists'
         required: false
         default: 'false'
-  push:
-    paths:
-      - 'backend/cache/*/laps.json'
 
 permissions:
   contents: write

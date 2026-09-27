@@ -48,12 +48,19 @@ def _get_cache_dir() -> Path:
 def get_processable_sessions(cache_dir: Path) -> list[dict]:
     """
     Return one dict per cached session that has enough metadata to call FastF1.
-    Requires either _analysis.json or _session_meta.json plus a laps.json.
-    Sessions missing both metadata sources are silently skipped.
+    Needs _analysis.json or _session_meta.json; nothing else.
+
+    laps.json used to be required as well, purely as a marker that a session had
+    been fetched. That stopped being true when publication was automated: only
+    the computed output is committed now, so a freshly published race arrives in
+    a clean checkout with an analysis and no raw endpoints, and gating on
+    laps.json would have skipped every new race silently. Everything FastF1 is
+    asked for — year, meeting name, session name — comes from the metadata, which
+    is why laps.json was never actually read here.
     """
     sessions = []
     for path in sorted(cache_dir.iterdir()):
-        if not path.is_dir() or not (path / "laps.json").exists():
+        if not path.is_dir():
             continue
 
         meta: dict | None = None

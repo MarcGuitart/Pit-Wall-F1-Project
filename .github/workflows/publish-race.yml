@@ -1,0 +1,154 @@
+# Publish the analysis of a finished race, with nobody at a keyboard.
+#
+# Render declares no disk, so backend/cache/ is baked into the image: a commit
+# here is the only way a new race reaches the site. That is also why the commit
+# message carries [skip ci] and not [skip render]. [skip ci] stops GitHub Actions
+# re-triggering on our own commit; Render does not recognise it at all, since it
+# only honours [skip render] / [render skip] / [skip deploy] / [skip cd]. So the
+# deploy we need still happens and the loop we do not want does not.
+#
+# The decisions are in backend/app/services/autopublish.py and are unit-tested.
+# This file only schedules, commits and calls: every non-trivial step is a script
+# that can be run from a laptop.
+
+name: Publish finished race
+
+on:
+  schedule:
+    # Hourly. Races finish at almost any hour on a global calendar, and a session
+    # needs a second run to clear the lap-stability check, so hourly puts a fresh
+    # race on the site within roughly two hours of the flag.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      session_keys:
+        description: 'Session keys to consider (comma-separated). Empty = search the current season.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Decide and report, publish nothing'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write      # commit the analysis
+  issues: write        # report a session that will not settle
+
+concurrency:
+  # Two runs pushing to main at once is the one way this corrupts itself.
+  group: publish-race
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # The previous run's lap counts. Deliberately not in the repo: committing
+      # them would mean a production deploy on every run, for a file nothing
+      # serves. A cache miss reads as "no previous observation", which delays a
+      # publication by one run — the safe direction.
+      - name: Restore the previous run's lap counts
+        uses: actions/cache/restore@v4
+        with:
+          path: backend/.autopublish-state.json
+          key: autopublish-state-${{ github.run_id }}
+          restore-keys: autopublish-state-
+
+      - name: Decide and compute
+        id: run
+        env:
+          OPENF1_USERNAME: ${{ secrets.OPENF1_USERNAME }}
+          OPENF1_PASSWORD: ${{ secrets.OPENF1_PASSWORD }}
+          ENVIRONMENT: ci
+          SESSION_KEYS: ${{ github.event.inputs.session_keys }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          ARGS=""
+          [ -n "$SESSION_KEYS" ] && ARGS="$ARGS --session-keys $SESSION_KEYS"
+          [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+          set +e
+          python scripts/autopublish.py --state-file .autopublish-state.json $ARGS 2>&1 | tee run.log
+          set -e
+          # The script's last line is REPORT:{json}; everything above it is log.
+          grep '^REPORT:' run.log | tail -1 | cut -c8- > report.json
+          if [ ! -s report.json ]; then
+            echo "::error::the script produced no report"
+            echo '{"published":[],"stuck":[],"errors":[{"error":"no report produced"}],"deferred":[]}' > report.json
+          fi
+          {
+            echo "report<<REPORT_EOF"
+            cat report.json
+            echo ""
+            echo "REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Save this run's lap counts
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: backend/.autopublish-state.json
+          key: autopublish-state-${{ github.run_id }}
+
+      # Only the computed output. The pipeline writes the raw endpoints into the
+      # same directory, and .gitignore keeps them out: intervals.json alone is
+      # 3.7 MB per race against 72 KB for the whole analysis, and the analysis is
+      # all the site serves. Two independent guards, so neither alone has to hold
+      # — this step names the two files, and the ignore rules make the rest
+      # unstageable even by accident.
+      - name: Commit the analyses
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cache/*/_analysis.json cache/*/_session_meta.json
+          if git diff --staged --quiet; then
+            echo "nothing to commit"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --staged --stat
+          NAMES=$(python -c "import json;r=json.load(open('report.json'));print(', '.join(p.get('label','?') for p in r['published']) or 'a finished session')")
+          git commit -m "feat(cache): publish ${NAMES} [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin "${{ github.ref_name }}" \
+              && git push origin "HEAD:${{ github.ref_name }}" && break
+            echo "push attempt $i failed, retrying"
+            sleep 5
+          done
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue for a session that will not settle
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT: ${{ steps.run.outputs.report }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python scripts/autopublish_issue.py
+
+      - name: Notify Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPORT: ${{ steps.run.outputs.report }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUES_URL: ${{ github.server_url }}/${{ github.repository }}/issues
+        run: python scripts/notify_telegram.py
