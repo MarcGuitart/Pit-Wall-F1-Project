@@ -87,9 +87,26 @@ def _pit_decisions(
     return decisions
 
 
+# Only a stint whose slope was fitted on a High-confidence sample may become a
+# decision. confidence is derived from the number of clean laps that entered the
+# fit (High = 12 or more, see utils/statistics.confidence_from_sample), so this
+# is a sample-size rule, not a new threshold on the slope itself.
+#
+# Why: sorting High-cliff stints by slope alone promotes artefacts. Two captured
+# cases, both fixtures in tests/test_decision_promotion.py:
+#   - HAM, Madrid 2026: SOFT L1-6, +5.339 s/lap, Medium confidence. The car was
+#     breaking (L5 111.9 s, L6 134.9 s, then no L7 — retirement), not the tyre.
+#   - BOT, Baku 2026: SOFT L27-36, +20.271 s/lap, Low confidence. Only three laps
+#     survived the pit-out and safety-car filters, and all three were drivers
+#     slowing for the incident that brought the safety car out on L31.
+# Every legitimate tyre decision in the reference sessions is High confidence.
+DECISION_MIN_CONFIDENCE = "High"
+
+
 def _tyre_decisions(degradation: list[TyreDegradationRow], rank: int) -> list[RaceDecision]:
     cliffs = sorted(
-        [s for s in degradation if s.cliff_risk == "High"],
+        [s for s in degradation
+         if s.cliff_risk == "High" and s.confidence == DECISION_MIN_CONFIDENCE],
         key=lambda s: s.degradation_slope,
         reverse=True,
     )
