@@ -20,6 +20,24 @@ is served with CORS open to the configured frontend origins, because the
 frontend must never reach OpenF1 itself: the browser talks to this process,
 this process talks to the broker.
 
+Live is PRO. Both session-scoped routes require the same signed token the API
+requires, verified by the same app.core.access code — imported, never
+reimplemented, because two HMAC checks that can drift apart is a worse outcome
+than one extra dependency in this service. Without a valid token they answer
+PRO_REQUIRED, in the same envelope the API uses, so the frontend switches on one
+code rather than two.
+
+The token travels in the Authorization header, which means the browser cannot
+use EventSource: EventSource sends no custom headers, and the only way to get a
+token past it is the query string, where it lands in every access log and proxy
+log on the path. The frontend reads the stream with fetch instead.
+
+/events, /snapshot.json and the raw observation page carry no token and are
+registered only when the server is bound to a loopback address. They are how
+this is developed and they must not become a way around the gate the moment the
+same file is bound to 0.0.0.0 on Render — so the bind address decides, rather
+than a flag someone has to remember.
+
 MQTT allows many subscribers on the same topics, so this runs alongside
 live_recorder.py without interfering: separate connection, separate client_id,
 separate token. The recorder remains the system of record; if this process
@@ -72,6 +90,7 @@ from starlette.responses import FileResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Route  # noqa: E402
 
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
+from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
@@ -350,7 +369,41 @@ async def sse_response(request: Request, state: RaceState, hub: Hub, feed: "Live
     return StreamingResponse(frames(), headers=headers)
 
 
-def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None", push_interval: float = PUSH_INTERVAL_S) -> Starlette:
+PRO_REQUIRED_BODY = {
+    "error": {
+        "code": "PRO_REQUIRED",
+        "message": "Live mode is part of Pit Wall IQ PRO. It needs an access code.",
+        "details": {"live": True},
+    }
+}
+
+
+def bearer(request: Request) -> str:
+    scheme, _, value = (request.headers.get("authorization") or "").partition(" ")
+    return value.strip() if scheme.lower() == "bearer" else ""
+
+
+def has_pro_access(request: Request) -> bool:
+    """
+    The same check the API makes, via the same verifier.
+
+    decode_token() fails closed on everything: no secret configured, wrong
+    version, tampered payload, bad signature, expired, or a code since revoked.
+    A live server deployed without PRO_TOKEN_SECRET therefore serves nobody,
+    which is the correct direction for a gate to fail.
+    """
+    return decode_token(bearer(request)) is not None
+
+
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def is_loopback(host: str) -> bool:
+    return host in LOOPBACK_HOSTS
+
+
+def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
+              push_interval: float = PUSH_INTERVAL_S, dev_routes: bool = False) -> Starlette:
     page = HERE / "live_view.html"
 
     def session_mismatch(wanted: int) -> dict | None:
@@ -365,6 +418,8 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None", push_interval
         }
 
     async def snapshot_route(request: Request) -> Response:
+        if not has_pro_access(request):
+            return JSONResponse(PRO_REQUIRED_BODY, status_code=402)
         wanted = int(request.path_params["session_key"])
         mismatch = session_mismatch(wanted)
         if mismatch:
@@ -372,6 +427,10 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None", push_interval
         return JSONResponse(snapshot_payload(state, hub, feed))
 
     async def stream_route(request: Request) -> Response:
+        # Checked before the session, so an unauthenticated caller cannot learn
+        # which session this server is following by reading the 409.
+        if not has_pro_access(request):
+            return JSONResponse(PRO_REQUIRED_BODY, status_code=402)
         wanted = int(request.path_params["session_key"])
         mismatch = session_mismatch(wanted)
         if mismatch:
@@ -434,22 +493,29 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None", push_interval
             allow_origins=list(ALLOWED_ORIGINS),
             allow_origin_regex=LOCAL_ORIGIN_RE,
             allow_methods=["GET"],
-            allow_headers=["Content-Type"],
+            allow_headers=["Content-Type", "Authorization"],
         ),
         # The stream sets its own Content-Encoding, so this passes it through
         # untouched and compresses the ordinary responses.
         Middleware(GZipMiddleware, minimum_size=500),
     ]
 
-    return Starlette(
-        routes=[
-            Route("/live/{session_key:int}/snapshot", snapshot_route),
-            Route("/live/{session_key:int}/stream", stream_route),
+    routes = [
+        Route("/live/{session_key:int}/snapshot", snapshot_route),
+        Route("/live/{session_key:int}/stream", stream_route),
+        Route("/health", health),
+    ]
+    if dev_routes:
+        # Unauthenticated. Only ever reachable from this machine — see the
+        # module docstring.
+        routes += [
             Route("/events", events_route),
             Route("/snapshot.json", snapshot_json),
-            Route("/health", health),
             Route("/", index),
-        ],
+        ]
+
+    return Starlette(
+        routes=routes,
         middleware=middleware,
         lifespan=lifespan,
     )
@@ -510,8 +576,15 @@ def main() -> int:
         feed = LiveFeed(state)
         threading.Thread(target=feed.run, daemon=True).start()
 
-    app = build_app(state, hub, feed)
-    log("SERVE", f"http://127.0.0.1:{args.port}/  (Ctrl+C to stop)")
+    dev_routes = is_loopback(args.host)
+    app = build_app(state, hub, feed, dev_routes=dev_routes)
+    log("SERVE", f"http://{args.host}:{args.port}/  (Ctrl+C to stop)")
+    log("ACCESS", "live routes require a PRO token"
+                  + (" · unauthenticated dev routes on (loopback bind)" if dev_routes
+                     else " · dev routes off (not bound to loopback)"))
+    if not settings.pro_token_secret.get_secret_value():
+        log("ACCESS!", "PRO_TOKEN_SECRET is not set — no token can verify, so every "
+                       "live request will be refused")
     config = uvicorn.Config(
         app,
         host=args.host,

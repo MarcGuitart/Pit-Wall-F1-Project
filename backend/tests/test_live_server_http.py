@@ -44,6 +44,37 @@ sys.modules["live_server"] = live_server
 spec.loader.exec_module(live_server)
 
 from live_state import RaceState  # noqa: E402
+from app.core.access import code_id, encode_token, mint_token  # noqa: E402
+from app.core.config import settings  # noqa: E402
+
+TEST_CODE = "LETMEIN"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def pro_configured():
+    """
+    Live is PRO, so every test in this file needs a configured deployment.
+
+    Module-scoped and set directly rather than through monkeypatch, because the
+    uvicorn fixture below is module-scoped too and starts before any
+    function-scoped patch would apply.
+    """
+    from pydantic import SecretStr
+
+    before = (settings.pro_token_secret, settings.pro_access_codes)
+    settings.pro_token_secret = SecretStr("a-test-secret")
+    settings.pro_access_codes = [TEST_CODE]
+    yield
+    settings.pro_token_secret, settings.pro_access_codes = before
+
+
+@pytest.fixture(scope="module")
+def token(pro_configured) -> str:
+    return encode_token(mint_token(code_id(TEST_CODE)))
+
+
+def auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
 def a_state(session_key: int = 11377) -> RaceState:
@@ -99,7 +130,8 @@ def server():
 
 
 @contextlib.contextmanager
-def stream(port: int, path: str, accept_encoding: str = "identity", origin: str | None = None):
+def stream(port: int, path: str, accept_encoding: str = "identity", origin: str | None = None,
+           bearer: str | None = None):
     """An SSE connection, with the headers a browser actually sends."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=20)
     # http.client injects an Accept-Encoding of its own otherwise, and the
@@ -107,6 +139,8 @@ def stream(port: int, path: str, accept_encoding: str = "identity", origin: str 
     conn.putrequest("GET", path, skip_accept_encoding=True)
     conn.putheader("Accept-Encoding", accept_encoding)
     conn.putheader("Accept", "text/event-stream")
+    if bearer:
+        conn.putheader("Authorization", f"Bearer {bearer}")
     if origin:
         conn.putheader("Origin", origin)
     conn.endheaders()
@@ -137,31 +171,31 @@ def read_frames(resp, gzipped: bool, want: int, timeout: float = 20.0) -> tuple[
 
 # ── the session guard ────────────────────────────────────────────────────────
 
-def test_the_snapshot_is_served_for_the_session_being_followed(client):
-    r = client.get("/live/11377/snapshot")
+def test_the_snapshot_is_served_for_the_session_being_followed(client, token):
+    r = client.get("/live/11377/snapshot", headers=auth(token))
     assert r.status_code == 200
     assert r.json()["session_key"] == 11377
 
 
-def test_another_session_is_refused_rather_than_served_someone_elses_race(client):
-    r = client.get("/live/9999/snapshot")
+def test_another_session_is_refused_rather_than_served_someone_elses_race(client, token):
+    r = client.get("/live/9999/snapshot", headers=auth(token))
     assert r.status_code == 409
     assert r.json()["error"] == "SESSION_NOT_LIVE"
     assert "11377" in r.json()["message"]
 
 
-def test_the_stream_refuses_the_wrong_session_too(server):
-    with stream(server, "/live/9999/stream") as r:
+def test_the_stream_refuses_the_wrong_session_too(server, token):
+    with stream(server, "/live/9999/stream", bearer=token) as r:
         assert r.status == 409
 
 
 # ── compression ──────────────────────────────────────────────────────────────
 
-def test_an_ordinary_response_is_gzipped(client):
-    plain = client.get("/live/11377/snapshot", headers={"Accept-Encoding": "identity"})
+def test_an_ordinary_response_is_gzipped(client, token):
+    plain = client.get("/live/11377/snapshot", headers={"Accept-Encoding": "identity", **auth(token)})
     assert "content-encoding" not in plain.headers
 
-    r = client.get("/live/11377/snapshot", headers={"Accept-Encoding": "gzip"})
+    r = client.get("/live/11377/snapshot", headers={"Accept-Encoding": "gzip", **auth(token)})
     assert r.headers["content-encoding"] == "gzip"
     # Same document either way. Not the same bytes: generated_at and uptime_s
     # move between two requests a millisecond apart.
@@ -169,13 +203,13 @@ def test_an_ordinary_response_is_gzipped(client):
     assert len(r.content) > 500, "decoded by httpx, so this is the real payload"
 
 
-def test_the_stream_is_gzipped_and_every_frame_is_flushed(server):
+def test_the_stream_is_gzipped_and_every_frame_is_flushed(server, token):
     """
     The important one. Each frame must decode as it arrives — a compressor
     holding frames back to fill a block reads, on this page, as a dead feed.
     Three frames must come out of a stream that has sent nothing else.
     """
-    with stream(server, "/live/11377/stream", "gzip") as r:
+    with stream(server, "/live/11377/stream", "gzip", bearer=token) as r:
         assert r.status == 200
         assert r.getheader("Content-Encoding") == "gzip"
         assert r.getheader("Content-Type") == "text/event-stream"
@@ -185,45 +219,45 @@ def test_the_stream_is_gzipped_and_every_frame_is_flushed(server):
         assert decoded > wire, f"{decoded} B decoded from {wire} B on the wire"
 
 
-def test_gzip_actually_shrinks_the_stream(server):
+def test_gzip_actually_shrinks_the_stream(server, token):
     """The reason for doing it at all: 26 KB of snapshot became 4.5 KB."""
-    with stream(server, "/live/11377/stream", "gzip") as r:
+    with stream(server, "/live/11377/stream", "gzip", bearer=token) as r:
         _, decoded, wire = read_frames(r, gzipped=True, want=4)
     assert decoded / wire > 2.0, f"only {decoded / wire:.1f}x"
 
 
-def test_the_stream_is_plain_when_gzip_is_not_offered(server):
-    with stream(server, "/live/11377/stream", "identity") as r:
+def test_the_stream_is_plain_when_gzip_is_not_offered(server, token):
+    with stream(server, "/live/11377/stream", "identity", bearer=token) as r:
         assert r.getheader("Content-Encoding") is None
         frames, _, _ = read_frames(r, gzipped=False, want=1)
         assert frames[0].startswith("data: ")
 
 
-def test_the_stream_says_it_must_not_be_buffered(server):
-    with stream(server, "/live/11377/stream") as r:
+def test_the_stream_says_it_must_not_be_buffered(server, token):
+    with stream(server, "/live/11377/stream", bearer=token) as r:
         assert r.getheader("X-Accel-Buffering") == "no"
         assert r.getheader("Cache-Control") == "no-store"
 
 
-def test_the_first_frame_is_a_whole_snapshot(server):
-    with stream(server, "/live/11377/stream", "identity") as r:
+def test_the_first_frame_is_a_whole_snapshot(server, token):
+    with stream(server, "/live/11377/stream", "identity", bearer=token) as r:
         frames, _, _ = read_frames(r, gzipped=False, want=1)
     payload = json.loads(frames[0].split("data: ", 1)[1])
     assert payload["session_key"] == 11377
     assert payload["tower"][0]["code"] == "VER"
 
 
-def test_frames_keep_arriving_rather_than_only_the_first(server):
+def test_frames_keep_arriving_rather_than_only_the_first(server, token):
     """A stream that sends one snapshot and goes quiet looks identical to a
     working one for the first two seconds. Three frames, spaced, is the check."""
-    with stream(server, "/live/11377/stream", "identity") as r:
+    with stream(server, "/live/11377/stream", "identity", bearer=token) as r:
         t0 = time.time()
         frames, _, _ = read_frames(r, gzipped=False, want=3)
     assert len(frames) >= 3
     assert time.time() - t0 >= 0.2, "frames arrived over time, not in one burst"
 
 
-def test_many_viewers_are_all_fed(server):
+def test_many_viewers_are_all_fed(server, token):
     """
     The change this file exists for. Against the threaded server it replaces,
     300 simultaneous viewers were fed nothing in eight seconds; here every one
@@ -235,7 +269,7 @@ def test_many_viewers_are_all_fed(server):
 
     def one():
         try:
-            with stream(server, "/live/11377/stream", "identity") as r:
+            with stream(server, "/live/11377/stream", "identity", bearer=token) as r:
                 frames, _, _ = read_frames(r, gzipped=False, want=1, timeout=15)
             with lock:
                 results.append(len(frames))
@@ -319,11 +353,106 @@ def test_health_reports_the_session_and_the_viewers(client):
     "http://localhost:3100",        # whatever port `next dev` picked
     "http://127.0.0.1:3000",
 ])
-def test_a_local_dev_origin_is_allowed_on_any_port(client, origin):
-    r = client.get("/live/11377/snapshot", headers={"Origin": origin})
+def test_a_local_dev_origin_is_allowed_on_any_port(client, token, origin):
+    r = client.get("/live/11377/snapshot", headers={"Origin": origin, **auth(token)})
     assert r.headers["access-control-allow-origin"] == origin
 
 
-def test_an_unknown_origin_is_not_granted_access(client):
-    r = client.get("/live/11377/snapshot", headers={"Origin": "https://evil.example"})
+def test_an_unknown_origin_is_not_granted_access(client, token):
+    r = client.get("/live/11377/snapshot", headers={"Origin": "https://evil.example", **auth(token)})
     assert "access-control-allow-origin" not in r.headers
+
+
+# ── the PRO gate ─────────────────────────────────────────────────────────────
+#
+# Live is PRO. The gate uses app.core.access — the API's verifier, imported
+# rather than reimplemented, because two HMAC checks that can drift apart is a
+# worse outcome than one extra dependency in this service.
+
+@pytest.fixture()
+def gated_client(client, token):
+    return client, token
+
+
+def test_the_snapshot_needs_a_token(gated_client):
+    client, _ = gated_client
+    r = client.get("/live/11377/snapshot")
+    assert r.status_code == 402
+    assert r.json()["error"]["code"] == "PRO_REQUIRED"
+
+
+def test_the_snapshot_is_served_with_a_valid_token(gated_client):
+    client, token = gated_client
+    r = client.get("/live/11377/snapshot", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.json()["session_key"] == 11377
+
+
+def test_the_stream_needs_a_token(gated_client):
+    client, _ = gated_client
+    with client.stream("GET", "/live/11377/stream") as r:
+        assert r.status_code == 402
+
+
+def test_a_tampered_token_is_refused(gated_client):
+    client, token = gated_client
+    head, payload, signature = token.split(".")
+    forged = f"{head}.{payload}.{'A' * len(signature)}"
+    r = client.get("/live/11377/snapshot", headers={"Authorization": f"Bearer {forged}"})
+    assert r.status_code == 402
+
+
+def test_a_revoked_code_stops_working_without_waiting_for_expiry(gated_client, monkeypatch):
+    client, token = gated_client
+    assert client.get("/live/11377/snapshot",
+                      headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    monkeypatch.setattr(settings, "pro_access_codes", [], raising=False)
+    assert client.get("/live/11377/snapshot",
+                      headers={"Authorization": f"Bearer {token}"}).status_code == 402
+
+
+def test_the_gate_is_checked_before_the_session_so_a_refusal_leaks_nothing(gated_client):
+    """
+    An unauthenticated caller must not learn which session this server follows
+    by reading the difference between 402 and 409.
+    """
+    client, _ = gated_client
+    r = client.get("/live/9999/snapshot")
+    assert r.status_code == 402
+    assert "11377" not in r.text
+
+
+def test_without_a_secret_nothing_verifies(token, monkeypatch):
+    """A live server deployed without PRO_TOKEN_SECRET serves nobody."""
+    from pydantic import SecretStr
+    monkeypatch.setattr(settings, "pro_token_secret", SecretStr(""), raising=False)
+    app = live_server.build_app(a_state(), live_server.Hub(), None, push_interval=0.05)
+    with TestClient(app) as c:
+        assert c.get("/live/11377/snapshot",
+                     headers={"Authorization": f"Bearer {token}"}).status_code == 402
+
+
+# ── the development routes ───────────────────────────────────────────────────
+
+def test_unauthenticated_routes_exist_only_on_a_loopback_bind():
+    """
+    /events, /snapshot.json and the raw page carry no token. They must not
+    become a way around the gate the moment the same file is bound to 0.0.0.0.
+    """
+    assert live_server.is_loopback("127.0.0.1")
+    assert live_server.is_loopback("localhost")
+    assert not live_server.is_loopback("0.0.0.0")
+
+    public = live_server.build_app(a_state(), live_server.Hub(), None, dev_routes=False)
+    with TestClient(public) as c:
+        for path in ("/events", "/snapshot.json", "/"):
+            assert c.get(path).status_code == 404, path
+
+    local = live_server.build_app(a_state(), live_server.Hub(), None, dev_routes=True)
+    with TestClient(local) as c:
+        assert c.get("/snapshot.json").status_code == 200
+
+
+def test_health_needs_no_token_because_render_cannot_send_one(gated_client):
+    client, _ = gated_client
+    assert client.get("/health").status_code == 200

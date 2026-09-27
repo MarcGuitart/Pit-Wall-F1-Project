@@ -12,6 +12,7 @@ import { PitWindowWatch } from '@/components/live/PitWindowWatch'
 import { PitCyclesLive } from '@/components/live/PitCyclesLive'
 import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
 import { RadioFeed } from '@/components/live/RadioFeed'
+import { ProWall } from '@/components/access/ProWall'
 
 /**
  * The pit wall during the race.
@@ -20,6 +21,10 @@ import { RadioFeed } from '@/components/live/RadioFeed'
  * OpenF1 MQTT subscription — over a single SSE stream. The browser never
  * reaches OpenF1: the credentials are the project's and the broker's
  * subscriber budget is not per-viewer.
+ *
+ * Live is PRO. The stream carries the same signed token as every other PRO
+ * request, and a refusal shows the same wall a PRO race shows — nothing has
+ * gone wrong, the page is simply behind the code.
  *
  * Developed against the Baku recording, replayed at its real arrival times:
  *
@@ -32,7 +37,7 @@ export default function LiveSessionPage() {
   const router = useRouter()
   const sessionKey = Number(params.sessionKey)
 
-  const { snapshot, connection, frameAge, error, reconnect } = useLiveSession(
+  const { snapshot, connection, frameAge, error, proRequired, reconnect } = useLiveSession(
     Number.isNaN(sessionKey) ? null : sessionKey,
   )
   const [focusedDriver, setFocusedDriver] = useState<string | null>(null)
@@ -47,6 +52,19 @@ export default function LiveSessionPage() {
   if (Number.isNaN(sessionKey)) {
     router.push('/')
     return null
+  }
+
+  // Not an error screen: the session exists and is running, it is behind the
+  // wall. Same component and same exchange as a PRO race, so a shared live link
+  // unlocks where it was opened.
+  if (proRequired) {
+    return (
+      <AppShell breadcrumb={[{ label: 'Live', href: '/' }]}>
+        <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
+          <ProWall year={new Date().getFullYear()} onUnlocked={() => reconnect()} />
+        </div>
+      </AppShell>
+    )
   }
 
   const breadcrumb = [{ label: 'Live', href: '/' }, { label: `Session ${sessionKey}` }]
