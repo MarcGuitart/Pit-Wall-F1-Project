@@ -6,7 +6,8 @@ import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
 import { chaosLevel, CHAOS_LEVEL_TEXT_CLASS } from '@/lib/chaos'
 import { DEMO_RACES } from '@/lib/constants'
-import { seasonOptions } from '@/lib/seasons'
+import { seasonYears } from '@/lib/seasons'
+import { ACCESS_CHANGED_EVENT, hasToken, isProSeason } from '@/lib/access'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import type { RaceListItem, SessionInfo } from '@/types'
 
@@ -30,10 +31,32 @@ const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Pract
 
 // Current year down to 2023, not a literal list: a hard-coded ceiling meant a
 // new season's races existed in the backend and were unreachable from the UI.
-const YEAR_OPTIONS = seasonOptions()
+//
+// PRO seasons stay selectable rather than disabled. The backend is the gate, and
+// a reader who picks a locked year is shown what they would be unlocking — which
+// is more use than an option that will not respond to a click. The padlock is
+// the honest part: it says so before they get there.
+const SEASON_YEARS = seasonYears()
+
+function yearOptions(pro: boolean) {
+  return SEASON_YEARS.map((y) => ({
+    value: String(y),
+    label: !pro && isProSeason(y) ? `${y} 🔒` : String(y),
+  }))
+}
 
 export function RaceSelector() {
   const router = useRouter()
+  // Read after mount only: localStorage does not exist during the server render,
+  // and assuming "not PRO" there keeps the first paint identical on both sides.
+  const [pro, setPro] = useState(false)
+  useEffect(() => {
+    const sync = () => setPro(hasToken())
+    sync()
+    window.addEventListener(ACCESS_CHANGED_EVENT, sync)
+    return () => window.removeEventListener(ACCESS_CHANGED_EVENT, sync)
+  }, [])
+
   const [year, setYear] = useState<number>(2024)
   const [races, setRaces] = useState<RaceListItem[]>([])
   const [selectedMeetingKey, setSelectedMeetingKey] = useState<number | null>(null)
@@ -148,7 +171,7 @@ export function RaceSelector() {
           <PitWallSelect
             label="Season"
             value={String(year)}
-            options={YEAR_OPTIONS}
+            options={yearOptions(pro)}
             onChange={(v) => setYear(Number(v))}
             width="90px"
           />

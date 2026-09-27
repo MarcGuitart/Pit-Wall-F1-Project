@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell'
 import { RaceSelector } from '@/components/landing/RaceSelector'
 import { LandingVideoBackground } from '@/components/landing/LandingVideoBackground'
+import { ProSection } from '@/components/access/ProSection'
 
 const STEPS = [
   { num: '01', title: 'Select a session', sub: 'Season, race and session type' },
@@ -104,6 +105,9 @@ export default function HomePage() {
         <div className="px-6 py-8 max-w-5xl mx-auto w-full">
           <RaceSelector />
         </div>
+
+        {/* PRO */}
+        <ProSection />
 
         {/* Footer */}
         <footer className="border-t border-border-subtle px-6 py-5">

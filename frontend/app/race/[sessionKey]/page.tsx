@@ -8,6 +8,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
 import { AnalysisPage } from '@/components/analysis/AnalysisPage'
 import { SessionUnavailableState } from '@/components/analysis/SessionUnavailableState'
+import { ProWall } from '@/components/access/ProWall'
 
 export default function RacePage() {
   const params = useParams()
@@ -48,6 +49,18 @@ export default function RacePage() {
 
   // Error states — map to SessionUnavailableState for structured errors
   if (error) {
+    // Not a failure: the race exists and works, it is simply behind the wall.
+    // This is the path someone takes when a PRO link is shared with them.
+    if (error.code === 'PRO_REQUIRED') {
+      return (
+        <AppShell>
+          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
+            <ProWall year={error.year ?? null} onUnlocked={() => retry()} />
+          </div>
+        </AppShell>
+      )
+    }
+
     if (
       error.code === 'SESSION_NOT_HISTORICAL_YET' ||
       error.code === 'SESSION_NOT_CACHED' ||

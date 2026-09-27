@@ -6,6 +6,7 @@
  */
 
 export type ErrorCode =
+  | 'PRO_REQUIRED'
   | 'SESSION_NOT_HISTORICAL_YET'
   | 'SESSION_NOT_CACHED'
   | 'OPENF1_RATE_LIMIT'
@@ -18,6 +19,8 @@ export type AnalysisError = {
   message: string
   retryAfterMinutes?: number
   unlockAtUtc?: string
+  /** PRO_REQUIRED: the season that is gated, so the wall can name it. */
+  year?: number
 }
 
 export type ErrorDetails = Record<string, unknown>
@@ -38,6 +41,8 @@ export class ApiError extends Error {
 
 /** Backend codes → analysis-page UI state. The body is already unwrapped; only `code` matters here. */
 const CODE_TO_STATE: Record<string, ErrorCode> = {
+  // Not a failure: the race is fine, the reader is not signed in to PRO.
+  PRO_REQUIRED: 'PRO_REQUIRED',
   SESSION_NOT_HISTORICAL_YET: 'SESSION_NOT_HISTORICAL_YET',
   SESSION_NOT_CACHED: 'SESSION_NOT_CACHED',
   OPENF1_RATE_LIMIT: 'OPENF1_RATE_LIMIT',
@@ -52,11 +57,13 @@ export function parseAnalysisError(err: unknown): AnalysisError {
     const code = CODE_TO_STATE[err.code] ?? 'UNKNOWN'
     const retry = err.details?.retry_after_minutes
     const unlock = err.details?.unlock_at_utc
+    const year = err.details?.year
     return {
       code,
       message: err.message,
       retryAfterMinutes: typeof retry === 'number' ? retry : undefined,
       unlockAtUtc: typeof unlock === 'string' ? unlock : undefined,
+      year: typeof year === 'number' ? year : undefined,
     }
   }
 

@@ -1,12 +1,21 @@
 import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
 import type { TelemetryData } from '@/types/telemetry'
 import { ApiError, type ErrorDetails } from '@/lib/errors'
+import {
+  FREE_SEASONS,
+  announceAccessChange,
+  authHeaders,
+  clearToken,
+  getToken,
+  storeToken,
+} from '@/lib/access'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 export type UnwrappedError = { code: string; message: string; details: ErrorDetails | null }
 
 const STATUS_FALLBACK_CODE: Record<number, string> = {
+  402: 'PRO_REQUIRED',
   404: 'NOT_FOUND',
   422: 'VALIDATION_ERROR',
   425: 'SESSION_NOT_HISTORICAL_YET',
@@ -114,15 +123,80 @@ export function getClientId(): string {
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', 'X-Client-Id': getClientId() },
     next: { revalidate: 0 },
     ...options,
+    // After the spread, so a caller's headers add to these rather than dropping
+    // the client id or the access token.
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Id': getClientId(),
+      ...authHeaders(),
+      ...(options?.headers as Record<string, string> | undefined),
+    },
   })
   if (!res.ok) {
     const { code, message, details } = unwrapError(res.status, await readBody(res))
+    // A token the backend refuses is worth nothing: drop it, so the UI stops
+    // claiming PRO and offers the code field again instead of failing silently.
+    if (code === 'PRO_REQUIRED' && getToken() !== null) {
+      clearToken()
+      announceAccessChange()
+    }
     throw new ApiError(res.status, code, message, details)
   }
   return res.json() as Promise<T>
+}
+
+export type AccessStatus = {
+  pro: boolean
+  expires_at: number | null
+  expires_in: number | null
+  free_seasons: number[]
+  redemption_available: boolean
+}
+
+/** What the stored token is worth, according to the backend. Never throws. */
+export async function fetchAccessStatus(): Promise<AccessStatus> {
+  try {
+    return await apiFetch<AccessStatus>('/access/status')
+  } catch {
+    return {
+      pro: false,
+      expires_at: null,
+      expires_in: null,
+      free_seasons: FREE_SEASONS,
+      redemption_available: false,
+    }
+  }
+}
+
+/**
+ * Exchange a code for a token and store it. Throws ApiError on a wrong code
+ * (INVALID_ACCESS_CODE), on too many attempts (RATE_LIMITED), or when the
+ * deployment has no codes configured (PRO_ACCESS_UNAVAILABLE).
+ */
+export async function redeemAccessCode(code: string): Promise<AccessStatus> {
+  const body = await apiFetch<{
+    token: string
+    expires_at: number
+    expires_in: number
+    free_seasons: number[]
+  }>('/access/redeem', { method: 'POST', body: JSON.stringify({ code }) })
+
+  storeToken(body.token, body.expires_at)
+  announceAccessChange()
+  return {
+    pro: true,
+    expires_at: body.expires_at,
+    expires_in: body.expires_in,
+    free_seasons: body.free_seasons,
+    redemption_available: true,
+  }
+}
+
+export function signOutOfPro(): void {
+  clearToken()
+  announceAccessChange()
 }
 
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
