@@ -9,6 +9,7 @@ import { DEMO_RACES } from '@/lib/constants'
 import { seasonYears } from '@/lib/seasons'
 import { ACCESS_CHANGED_EVENT, hasToken, isProSeason } from '@/lib/access'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
+import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import type { RaceListItem, SessionInfo } from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -198,33 +199,51 @@ export function RaceSelector() {
               {sessions.length > 0 ? (
                 sessions.map((s) => {
                   const isSelected = selectedSessionKey === s.session_key
+                  const isFuture = Boolean(s.date_start && new Date(s.date_start).getTime() > Date.now())
+                  const selectedMeeting = races.find((r) => r.meeting_key === selectedMeetingKey)
                   return (
-                    <button
-                      key={s.session_key}
-                      onClick={() => setSelectedSessionKey(s.session_key)}
-                      onMouseEnter={() => {
-                        if (
-                          s.session_type === 'Race' &&
-                          TELEMETRY_PREFETCH_SESSIONS.has(s.session_key) &&
-                          !prefetchedRef.current.has(s.session_key)
-                        ) {
-                          prefetchedRef.current.add(s.session_key)
-                          fetch(
-                            `${API_BASE}/telemetry/${s.session_key}?drivers=VER,NOR,PIA,LEC,RUS&lap_mode=fastest_clean`,
-                          ).catch(() => {
-                            prefetchedRef.current.delete(s.session_key)
-                          })
-                        }
-                      }}
-                      className={[
-                        'bg-bg-elevated border rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] transition-all whitespace-nowrap outline-none',
-                        isSelected
-                          ? 'border-signal-red text-signal-red'
-                          : 'border-border-default text-text-secondary hover:border-border-default/80 hover:text-text-primary',
-                      ].join(' ')}
-                    >
-                      {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
-                    </button>
+                    <span key={s.session_key} className="inline-flex items-center gap-1">
+                      <button
+                        onClick={() => setSelectedSessionKey(s.session_key)}
+                        onMouseEnter={() => {
+                          if (
+                            s.session_type === 'Race' &&
+                            TELEMETRY_PREFETCH_SESSIONS.has(s.session_key) &&
+                            !prefetchedRef.current.has(s.session_key)
+                          ) {
+                            prefetchedRef.current.add(s.session_key)
+                            fetch(
+                              `${API_BASE}/telemetry/${s.session_key}?drivers=VER,NOR,PIA,LEC,RUS&lap_mode=fastest_clean`,
+                            ).catch(() => {
+                              prefetchedRef.current.delete(s.session_key)
+                            })
+                          }
+                        }}
+                        className={[
+                          'bg-bg-elevated border rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] transition-all whitespace-nowrap outline-none',
+                          isSelected
+                            ? 'border-signal-red text-signal-red'
+                            : 'border-border-default text-text-secondary hover:border-border-default/80 hover:text-text-primary',
+                        ].join(' ')}
+                      >
+                        {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
+                      </button>
+                      {isFuture && s.date_start && s.date_end && selectedMeeting && (
+                        <AddToCalendarButton
+                          compact
+                          event={{
+                            uid: `pitwall-${s.session_key}@pitwallengineer.com`,
+                            summary: `Pit Wall — ${selectedMeeting.meeting_name} ${s.session_name}`,
+                            description: 'Full strategy analysis on pitwallengineer.com once published.',
+                            location: [selectedMeeting.circuit_short_name, selectedMeeting.country_name]
+                              .filter(Boolean)
+                              .join(', '),
+                            dateStart: s.date_start,
+                            dateEnd: s.date_end,
+                          }}
+                        />
+                      )}
+                    </span>
                   )
                 })
               ) : selectedMeetingKey && !loadingSessions ? (

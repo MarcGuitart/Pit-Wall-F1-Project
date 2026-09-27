@@ -20,6 +20,7 @@ import { ACCESS_CHANGED_EVENT, PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
 import { formatLocalDateTime, formatUtcTime } from '@/lib/format'
 import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
+import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -151,21 +152,35 @@ export function ProSection() {
 
         {/* The current season's real calendar, not a placeholder */}
         {nextRace && (
-          <p className="font-mono text-[10px] text-text-muted mb-6 leading-relaxed">
-            {nextRace.status === 'processing' ? (
-              <>
-                <span className="text-signal-amber">{nextRace.meetingName}</span> has finished —
-                analysis processing. It publishes automatically once the data settles; no fixed time.
-              </>
-            ) : (
-              <>
-                Next: <span className="text-text-secondary">{nextRace.meetingName}</span>
-                {nextRace.circuitShortName ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
-                <span className="text-text-secondary">{formatLocalDateTime(nextRace.dateStart)}</span>
-                {nextRace.dateEnd && <> · race ends {formatUtcTime(nextRace.dateEnd)}</>}
-              </>
+          <div className="flex items-center gap-2 flex-wrap mb-6">
+            <p className="font-mono text-[10px] text-text-muted leading-relaxed">
+              {nextRace.status === 'processing' ? (
+                <>
+                  <span className="text-signal-amber">{nextRace.meetingName}</span> has finished —
+                  analysis processing. It publishes automatically once the data settles; no fixed time.
+                </>
+              ) : (
+                <>
+                  Next: <span className="text-text-secondary">{nextRace.meetingName}</span>
+                  {nextRace.circuitShortName ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
+                  <span className="text-text-secondary">{formatLocalDateTime(nextRace.dateStart)}</span>
+                  {nextRace.dateEnd && <> · race ends {formatUtcTime(nextRace.dateEnd)}</>}
+                </>
+              )}
+            </p>
+            {nextRace.status === 'upcoming' && nextRace.dateEnd && (
+              <AddToCalendarButton
+                event={{
+                  uid: `pitwall-next-${currentSeasonYear}-race@pitwallengineer.com`,
+                  summary: `Pit Wall — ${nextRace.meetingName} Race`,
+                  description: 'Full strategy analysis on pitwallengineer.com once published.',
+                  location: [nextRace.circuitShortName, nextRace.countryName].filter(Boolean).join(', '),
+                  dateStart: nextRace.dateStart,
+                  dateEnd: nextRace.dateEnd,
+                }}
+              />
             )}
-          </p>
+          </div>
         )}
         {!nextRace && <div className="mb-6" />}
 
