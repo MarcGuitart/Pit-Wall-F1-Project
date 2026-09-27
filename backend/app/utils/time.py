@@ -7,34 +7,82 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
+from app.core.config import settings
+
 
 # ── Historical session guard ───────────────────────────────────────────────
+#
+# A session is "historical" once OpenF1 has had time to publish its final data.
+# OpenF1's session metadata carries date_end, so use it: the per-type durations
+# below are only a fallback for metadata that lacks it. They are deliberately
+# generous (a Race is 3 h) and using them when date_end exists locks a
+# two-hour race for 90 minutes longer than necessary.
 
 SESSION_DURATION_ESTIMATE: dict[str, timedelta] = {
     "Race": timedelta(hours=3),
     "Qualifying": timedelta(hours=2),
     "Practice": timedelta(hours=1, minutes=30),
+    "Practice 1": timedelta(hours=1, minutes=30),
+    "Practice 2": timedelta(hours=1, minutes=30),
+    "Practice 3": timedelta(hours=1, minutes=30),
     "Sprint Qualifying": timedelta(hours=1),
     "Sprint": timedelta(hours=1, minutes=30),
 }
 
-LIVE_WINDOW_BUFFER = timedelta(minutes=30)
+# How long after the session actually ends before the analysis is allowed.
+# Override with SESSION_UNLOCK_BUFFER_MINUTES.
+DEFAULT_UNLOCK_BUFFER = timedelta(minutes=30)
+LIVE_WINDOW_BUFFER = DEFAULT_UNLOCK_BUFFER      # kept: older callers import this name
+
+
+def unlock_buffer() -> timedelta:
+    """The configured post-session buffer."""
+    minutes = getattr(settings, "session_unlock_buffer_minutes", None)
+    return timedelta(minutes=minutes) if minutes is not None else DEFAULT_UNLOCK_BUFFER
+
+
+def _parse(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def session_end(
+    date_start: str, session_type: str, date_end: str | None = None
+) -> tuple[datetime, str]:
+    """
+    (end_of_session, source) where source is "published" when OpenF1 gave a
+    usable date_end and "estimated" when the per-type duration was used.
+    """
+    published = _parse(date_end)
+    if published is not None:
+        return published, "published"
+    start = _parse(date_start)
+    if start is None:
+        raise ValueError("neither date_end nor a parsable date_start")
+    return start + SESSION_DURATION_ESTIMATE.get(session_type, timedelta(hours=3)), "estimated"
 
 
 def estimate_session_end(date_start: str, session_type: str) -> datetime:
-    start = datetime.fromisoformat(date_start.replace("Z", "+00:00"))
-    duration = SESSION_DURATION_ESTIMATE.get(session_type, timedelta(hours=3))
-    return start + duration
+    """Fallback estimate only; prefer session_end(), which honours date_end."""
+    return session_end(date_start, session_type)[0]
 
 
-def is_session_historical(date_start: str, session_type: str) -> tuple[bool, datetime]:
+def is_session_historical(
+    date_start: str, session_type: str, date_end: str | None = None
+) -> tuple[bool, datetime]:
     """
-    Returns (is_historical, unlock_at).
-    Historical = now > estimated_end + 30min buffer.
+    Returns (is_historical, unlock_at). unlock_at is the real date_end plus the
+    configured buffer when OpenF1 published one, otherwise the per-type estimate
+    plus the same buffer.
     """
-    unlock_at = estimate_session_end(date_start, session_type) + LIVE_WINDOW_BUFFER
-    now = datetime.now(timezone.utc)
-    return now >= unlock_at, unlock_at
+    end, _source = session_end(date_start, session_type, date_end)
+    unlock_at = end + unlock_buffer()
+    return datetime.now(timezone.utc) >= unlock_at, unlock_at
 
 
 # ── Position lookup ────────────────────────────────────────────────────────

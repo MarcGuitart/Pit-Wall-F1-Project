@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     openf1_rate_limit_window_s: float = 60.0
     cache_dir: str = _DEFAULT_CACHE_DIR
     environment: str = "development"
+    # Minutes after a session's real end (date_end) before /analysis will serve it.
+    session_unlock_buffer_minutes: int = 30
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

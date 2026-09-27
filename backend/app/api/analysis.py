@@ -204,7 +204,10 @@ async def get_analysis(
         date_start = session_meta.get("date_start")
         session_type = session_meta.get("session_type", "Race")
         if date_start:
-            historical, unlock_at = is_session_historical(date_start, session_type)
+            # date_end is what OpenF1 publishes; the per-type estimate is only a fallback
+            historical, unlock_at = is_session_historical(
+                date_start, session_type, session_meta.get("date_end")
+            )
             if not historical:
                 minutes_remaining = max(
                     0,
