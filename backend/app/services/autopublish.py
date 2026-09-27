@@ -34,11 +34,22 @@ the real 2026 season:
 
 STUCK_AFTER is therefore the point where "not yet" stops meaning "wait": a
 session past it with no chequered flag or no laps at all has a data problem, not
-a timing one, and is reported instead of waited on. Those exist — Sakhir and
-Jeddah 2026 both have zero laps in OpenF1.
+a timing one, and is reported instead of waited on.
+
+Two of those exist, and neither is a data problem: Sakhir and Jeddah 2026 were
+cancelled, so there is no race to wait for. Two independent guards keep them out
+of the candidate list, because one of them depends on a third party:
+
+  is_cancelled   OpenF1 /sessions carries the flag, and it is true for both. A
+                 cancelled session is never a candidate. This needs no
+                 maintenance and covers every future cancellation.
+  exclusions     backend/excluded_sessions.json, session_key plus a written
+                 reason, versioned and reviewed like code. It is the escape
+                 hatch for a session that will never settle for a reason OpenF1
+                 does not express.
 
 Everything here is a pure function over already-fetched documents. The network,
-the git commit and the notifications live in scripts/autopublish.py.
+the file, the git commit and the notifications live in scripts/autopublish.py.
 """
 from __future__ import annotations
 
@@ -64,6 +75,10 @@ MAX_PER_RUN = 2
 # Sprints and grands prix both carry session_type "Race" in OpenF1; the name is
 # what differs. Both are published.
 RACE_SESSION_TYPE = "Race"
+
+# Versioned, edited by hand. Read by scripts/autopublish.py, which passes the
+# result in — this module stays a set of pure functions over documents.
+EXCLUSIONS_FILE = "excluded_sessions.json"
 
 
 @dataclass(frozen=True)
@@ -130,6 +145,30 @@ def is_race_session(meta: dict) -> bool:
     return (meta.get("session_type") or "") == RACE_SESSION_TYPE
 
 
+def is_cancelled(meta: dict) -> bool:
+    """
+    OpenF1 marks a cancelled session with is_cancelled: true.
+
+    Read strictly: only the boolean True excludes. A missing field means the
+    session predates the flag or the endpoint changed shape, and that must read
+    as "not cancelled" — defaulting the other way would silently stop
+    publishing the whole season.
+    """
+    return meta.get("is_cancelled") is True
+
+
+def parse_exclusions(data: dict | None) -> dict[int, str]:
+    """{session_key: reason} from the contents of excluded_sessions.json."""
+    rows = (data or {}).get("excluded") or []
+    out: dict[int, str] = {}
+    for row in rows:
+        key = row.get("session_key")
+        if isinstance(key, int):
+            label = row.get("label") or f"session {key}"
+            out[key] = f"{label}: {row.get('reason') or 'no reason recorded'}"
+    return out
+
+
 def has_chequered(race_control: list[dict]) -> bool:
     for row in race_control or []:
         for field in ("message", "flag"):
@@ -150,15 +189,21 @@ def select_candidates(
     done_keys: set[int],
     now: datetime | None = None,
     year: int | None = None,
+    excluded: dict[int, str] | None = None,
 ) -> list[Candidate]:
     """
     Race sessions of `year` that have started and are not already published,
     oldest end first. A session that has not started yet is not a candidate;
     one that is mid-race is, and fails the readiness check instead — that is
     where "not yet" is decided, so the reason is reported rather than hidden.
+
+    Cancelled and excluded sessions are dropped here rather than failing the
+    readiness check, because they are not waiting for anything: leaving them in
+    would file an issue an hour, for ever, about a race that did not happen.
     """
     now = now or datetime.now(timezone.utc)
     year = year if year is not None else now.year
+    excluded = excluded or {}
     out: list[Candidate] = []
     for meta in sessions:
         if not is_race_session(meta):
@@ -167,6 +212,8 @@ def select_candidates(
             continue
         key = meta.get("session_key")
         if not isinstance(key, int) or key in done_keys:
+            continue
+        if is_cancelled(meta) or key in excluded:
             continue
         date_start = meta.get("date_start")
         started = parse_utc(date_start)
@@ -222,7 +269,16 @@ def readiness(
 
 
 def publishable(ready: list[Candidate], limit: int = MAX_PER_RUN) -> tuple[list[Candidate], list[Candidate]]:
-    """(publish now, deferred to the next run) — oldest first, `limit` at a time."""
+    """
+    (publish now, deferred to the next run) — oldest first, `limit` at a time.
+
+    limit=0 means no cap, not "publish nothing": it is the backfill, where an
+    explicit list of sessions is published in one run and one commit. A plain
+    ready[:0] would silently publish nothing at all, which is the one reading
+    that looks like success and is not.
+    """
+    if limit <= 0:
+        return list(ready), []
     return ready[:limit], ready[limit:]
 
 

@@ -18,19 +18,24 @@ take documents rather than fetching them.
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
 from app.core.version import ANALYSIS_VERSION
 from app.services.autopublish import (
+    EXCLUSIONS_FILE,
     MAX_PER_RUN,
     STUCK_AFTER,
     Candidate,
     has_chequered,
+    is_cancelled,
     is_published,
     is_race_session,
     lap_count,
+    parse_exclusions,
     publishable,
     readiness,
     select_candidates,
@@ -370,3 +375,97 @@ def test_a_session_with_no_date_end_falls_back_to_the_type_estimate():
     assert readiness(c, FINISHED_RC, laps(51), 51, estimated_end - timedelta(minutes=1)).clock is False
     assert readiness(c, FINISHED_RC, laps(51), 51,
                      estimated_end + unlock_buffer()).clock is True
+
+
+# ── cancelled and excluded sessions ──────────────────────────────────────────
+#
+# Sakhir and Jeddah 2026 were cancelled. Before this they were candidates that
+# failed the readiness check for ever: six months on, every hourly run found
+# them stuck and filed an issue about a race that did not happen.
+
+SAKHIR = datetime(2026, 4, 12, 15, tzinfo=timezone.utc)
+
+
+def cancelled_session(key: int = 11261, circuit: str = "Sakhir") -> dict:
+    meta = session(key, circuit=circuit, start=SAKHIR,
+                   end=SAKHIR + timedelta(hours=2))
+    meta["is_cancelled"] = True
+    return meta
+
+
+def test_a_cancelled_session_is_never_a_candidate():
+    now = SAKHIR + timedelta(days=180)
+    assert select_candidates([cancelled_session()], set(), now, 2026) == []
+
+
+def test_only_the_boolean_true_means_cancelled():
+    """
+    A missing or absent flag must read as "not cancelled". Defaulting the other
+    way would silently stop publishing the entire season the day OpenF1 renames
+    the field.
+    """
+    now = BAKU_END + timedelta(hours=3)
+    for value in (False, None, "false", 0):
+        meta = session(11377)
+        if value is not None:
+            meta["is_cancelled"] = value
+        assert len(select_candidates([meta], set(), now, 2026)) == 1, value
+    assert not is_cancelled({})
+    assert not is_cancelled({"is_cancelled": "true"})
+    assert is_cancelled({"is_cancelled": True})
+
+
+def test_an_excluded_session_is_never_a_candidate():
+    now = BAKU_END + timedelta(hours=3)
+    meta = session(11377)
+    assert len(select_candidates([meta], set(), now, 2026)) == 1
+    assert select_candidates([meta], set(), now, 2026, {11377: "by hand"}) == []
+
+
+def test_the_exclusion_file_in_the_repo_names_sakhir_and_jeddah_with_reasons():
+    path = Path(__file__).resolve().parents[1] / EXCLUSIONS_FILE
+    excluded = parse_exclusions(json.loads(path.read_text()))
+    assert set(excluded) == {11261, 11269}
+    for key, reason in excluded.items():
+        assert "cancel" in reason.lower(), key
+        assert len(reason) > 40, "a reason, not a label"
+
+
+def test_a_malformed_exclusion_row_is_ignored_rather_than_guessed():
+    parsed = parse_exclusions({"excluded": [
+        {"session_key": 11261, "label": "Sakhir", "reason": "cancelled"},
+        {"session_key": "11269", "reason": "a string key"},
+        {"reason": "no key at all"},
+        {},
+    ]})
+    assert list(parsed) == [11261]
+
+
+def test_no_exclusions_file_means_nothing_is_excluded():
+    assert parse_exclusions(None) == {}
+    assert parse_exclusions({}) == {}
+
+
+# ── the backfill cap ─────────────────────────────────────────────────────────
+
+def test_the_default_cap_defers_the_rest():
+    ready = [candidate(11234 + i) for i in range(5)]
+    now, later = publishable(ready)
+    assert len(now) == MAX_PER_RUN
+    assert len(later) == 5 - MAX_PER_RUN
+
+
+def test_limit_zero_is_no_cap_not_publish_nothing():
+    """
+    The backfill. ready[:0] is empty, and an empty publish list reads as
+    "nothing was ready" — a success that published nothing.
+    """
+    ready = [candidate(11234 + i) for i in range(19)]
+    now, later = publishable(ready, 0)
+    assert len(now) == 19
+    assert later == []
+
+
+def test_a_negative_limit_is_treated_as_no_cap_rather_than_reversed_slicing():
+    ready = [candidate(11234 + i) for i in range(3)]
+    assert publishable(ready, -1) == (ready, [])

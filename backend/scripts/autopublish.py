@@ -4,6 +4,21 @@ Decide which finished races to publish, and compute them. Run by a GitHub Action
     python scripts/autopublish.py                          # cron: pick candidates
     python scripts/autopublish.py --session-keys 11377      # a specific session
     python scripts/autopublish.py --dry-run                 # decide, compute nothing
+    python scripts/autopublish.py --session-keys 11234,11240,... --limit 0   # backfill
+
+Backfill is the same run with the per-run cap lifted, not a second code path.
+The cap exists so that a mistake on the hourly cron is two races wide rather
+than a season; a backfill is a deliberate act with an explicit list, so the
+argument that justifies the cap does not apply. Everything else — readiness,
+exclusions, the analysis pipeline — is identical, and the workflow commits the
+whole set once, so nineteen races cost one commit and one deploy instead of ten
+hours of hourly runs and ten deploys.
+
+Rate limiting needs no special handling here and must not be given any: every
+request goes through the process-wide BlockingLimiter in app.clients.openf1_client
+(55/min with an account token), which blocks rather than drops. A backfill is
+one process, so it is the same limiter — adding a second throttle on top would
+only make it slower than it has to be.
 
 It writes three things and nothing else:
 
@@ -42,9 +57,13 @@ from app.core import cache  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.version import ANALYSIS_VERSION  # noqa: E402
 from app.services.autopublish import (  # noqa: E402
+    EXCLUSIONS_FILE,
     MAX_PER_RUN,
     Candidate,
+    is_cancelled,
     is_published,
+    is_race_session,
+    parse_exclusions,
     publishable,
     readiness,
     select_candidates,
@@ -53,6 +72,21 @@ from app.services.autopublish import (  # noqa: E402
 
 def log(msg: str) -> None:
     print(msg, flush=True)
+
+
+def read_exclusions(path: Path) -> dict[int, str]:
+    """
+    The versioned exclusion list. A missing file is not an error — it means
+    nothing is excluded, which is the state the repo started in. A malformed
+    one is: it is committed, so a typo in it should stop the run rather than
+    silently publish something the file was meant to hold back.
+    """
+    if not path.exists():
+        log(f"no {path.name} — nothing excluded by hand")
+        return {}
+    excluded = parse_exclusions(json.loads(path.read_text()))
+    log(f"{path.name}: {len(excluded)} session(s) excluded by hand")
+    return excluded
 
 
 # ── the state file: lap counts from the previous run ─────────────────────────
@@ -116,9 +150,11 @@ def headline(analysis: dict) -> dict:
     }
 
 
-async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, year: int | None) -> dict:
+async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, year: int | None,
+              exclusions_path: Path | None = None, limit: int = MAX_PER_RUN) -> dict:
     now = datetime.now(timezone.utc)
     state = read_state(state_path)
+    excluded = read_exclusions(exclusions_path or Path(EXCLUSIONS_FILE))
     report: dict = {
         "at": now.isoformat(timespec="seconds"),
         "analysis_version": ANALYSIS_VERSION,
@@ -126,6 +162,7 @@ async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, y
         "waiting": [],
         "stuck": [],
         "deferred": [],
+        "skipped": [],
         "errors": [],
     }
 
@@ -139,9 +176,20 @@ async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, y
                 continue
             metas.append(rows[0])
         # An explicit request bypasses the year filter but not the readiness
-        # check: asking for a session by hand must not publish a live race.
-        done: set[int] = set()
-        candidates = [c for m in metas for c in select_candidates([m], done, now, m.get("year"))]
+        # check, and not the exclusions: asking for a session by hand must not
+        # publish a live race, and must not resurrect a cancelled one. Typing a
+        # key is not a reason to believe it more than the file that says why it
+        # is excluded.
+        done = set()
+        candidates = []
+        for m in metas:
+            key = m.get("session_key")
+            if is_cancelled(m) or key in excluded:
+                why = excluded.get(key) or "OpenF1 reports is_cancelled: true"
+                log(f"  {key} skipped: {why}")
+                report["skipped"].append({"session_key": key, "why": why, "asked_for": True})
+                continue
+            candidates.extend(select_candidates([m], done, now, m.get("year"), excluded))
     else:
         year = year or now.year
         try:
@@ -154,8 +202,22 @@ async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, y
             if isinstance(m.get("session_key"), int)
             and is_published(cache.get_full_analysis(m["session_key"]), ANALYSIS_VERSION)
         }
-        candidates = select_candidates(metas, done, now, year)
+        candidates = select_candidates(metas, done, now, year, excluded)
+        # Only race sessions are reported as skipped. A cancelled weekend also
+        # cancels its practice and qualifying, and counting those would say "10
+        # cancelled" for two cancelled races.
+        for m in metas:
+            key = m.get("session_key")
+            if not isinstance(key, int) or key in done or not is_race_session(m):
+                continue
+            if is_cancelled(m) or key in excluded:
+                report["skipped"].append({
+                    "session_key": key,
+                    "label": f"{m.get('circuit_short_name') or '?'} {m.get('year')} · {m.get('session_name')}",
+                    "why": excluded.get(key) or "OpenF1 reports is_cancelled: true",
+                })
         log(f"{len(metas)} sessions in {year}: {len(done)} already published at v{ANALYSIS_VERSION}, "
+            f"{len(report['skipped'])} cancelled or excluded, "
             f"{len(candidates)} candidate race session(s)")
 
     # ── readiness ────────────────────────────────────────────────────────────
@@ -183,12 +245,17 @@ async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, y
     write_state(state_path, state)
 
     # ── publish ──────────────────────────────────────────────────────────────
-    now_publish, deferred = publishable(ready, MAX_PER_RUN)
+    now_publish, deferred = publishable(ready, limit)
+    report["limit"] = limit
     report["deferred"] = [{"session_key": c.session_key, "label": c.label} for c in deferred]
     if deferred:
-        log(f"  {len(deferred)} ready session(s) deferred to the next run (cap {MAX_PER_RUN})")
+        log(f"  {len(deferred)} ready session(s) deferred to the next run (cap {limit})")
+    if limit == 0 and now_publish:
+        log(f"  backfill: publishing all {len(now_publish)} ready session(s) in one run")
 
-    for c in now_publish:
+    for i, c in enumerate(now_publish, start=1):
+        if len(now_publish) > MAX_PER_RUN:
+            log(f"  [{i}/{len(now_publish)}]")
         log(f"  publishing {c.session_key} {c.label}")
         if dry_run:
             report["published"].append({"session_key": c.session_key, "label": c.label, "dry_run": True})
@@ -217,6 +284,11 @@ def main() -> int:
                     help="where the previous run's lap counts live")
     ap.add_argument("--dry-run", action="store_true", help="decide and report, compute nothing")
     ap.add_argument("--cache-dir", help="write the cache somewhere else (backend/cache/ is versioned)")
+    ap.add_argument("--exclusions-file", default=EXCLUSIONS_FILE,
+                    help="sessions that must never be published, with reasons")
+    ap.add_argument("--limit", type=int, default=MAX_PER_RUN,
+                    help=f"publish at most this many (default {MAX_PER_RUN}); "
+                         f"0 = no cap, and requires --session-keys")
     args = ap.parse_args()
 
     if args.cache_dir:
@@ -231,7 +303,19 @@ def main() -> int:
             log("--session-keys must be integers separated by commas")
             return 2
 
-    report = asyncio.run(run(keys, Path(args.state_file), args.dry_run, args.year))
+    if args.limit < 0:
+        log("--limit cannot be negative")
+        return 2
+    # The cap is what stops a bad hourly run publishing a whole season. Lifting
+    # it is only allowed together with the list of what to publish, so an
+    # automatic search can never do it.
+    if args.limit == 0 and not keys:
+        log("--limit 0 needs --session-keys: an unbounded automatic search is "
+            "exactly the accident the per-run cap exists to prevent")
+        return 2
+
+    report = asyncio.run(run(keys, Path(args.state_file), args.dry_run, args.year,
+                             Path(args.exclusions_file), args.limit))
     log("REPORT:" + json.dumps(report, default=str))
 
     if report["errors"]:

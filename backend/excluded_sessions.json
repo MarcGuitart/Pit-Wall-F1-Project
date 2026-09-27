@@ -1,0 +1,36 @@
+{
+  "_comment": [
+    "Sessions the automatic publication must never consider, with the reason each",
+    "one is here. Read by scripts/autopublish.py and enforced in",
+    "app/services/autopublish.py; edited by hand, reviewed like code.",
+    "",
+    "This is the escape hatch, not the main mechanism. A session OpenF1 marks",
+    "is_cancelled is excluded automatically and does not belong in this file —",
+    "the two below are listed anyway, because the flag is a field on a third",
+    "party's API and a file in this repo is the thing we control. If OpenF1 ever",
+    "flips them back, the list still holds.",
+    "",
+    "Add a session here when it will never settle and the reason is known: a",
+    "cancelled race, a session OpenF1 published under a key it later abandoned,",
+    "a test session. Do not add one that is merely slow — that is what the",
+    "readiness check is for, and hiding it here loses the race.",
+    "",
+    "Closing the GitHub issue is NOT how a session is silenced. The issue comes",
+    "back on the next run, by design: an unexplained stuck session should keep",
+    "asking. This file is how it stops."
+  ],
+  "excluded": [
+    {
+      "session_key": 11261,
+      "label": "Sakhir 2026 · Race",
+      "reason": "Cancelled. OpenF1 /sessions returns is_cancelled: true, and the session has zero laps and no CHEQUERED FLAG in race_control. There is no race to analyse.",
+      "added": "2026-09-27"
+    },
+    {
+      "session_key": 11269,
+      "label": "Jeddah 2026 · Race",
+      "reason": "Cancelled. OpenF1 /sessions returns is_cancelled: true, and the session has zero laps and no CHEQUERED FLAG in race_control. There is no race to analyse.",
+      "added": "2026-09-27"
+    }
+  ]
+}
