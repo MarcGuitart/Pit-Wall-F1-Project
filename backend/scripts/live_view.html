@@ -88,12 +88,13 @@ const fmt = v => v === null || v === undefined ? '—' : v;
 const secs = v => v === null || v === undefined ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
 
 function render(s) {
-  $('flag').textContent = s.flag;
-  $('flag').className = 'flag ' + s.flag;
-  $('flag').title = s.flag_source || '';
+  const ts = s.track_status || {};
+  $('flag').textContent = ts.flag;
+  $('flag').className = 'flag ' + ts.flag;
+  $('flag').title = ts.source || '';
   $('lap').textContent = s.current_lap || 0;
   $('session').textContent = fmt(s.session_key);
-  $('msgs').textContent = s.messages_total;
+  $('msgs').textContent = (s.feed || {}).messages_total;
   $('gen').textContent = s.generated_at;
 
   const f = s.feed || {};
@@ -102,53 +103,59 @@ function render(s) {
   $('token').textContent = f.token_expires_in_s == null ? 'n/a'
     : Math.round(f.token_expires_in_s / 60) + 'm left · ' + f.renewals + ' renewal(s)';
 
-  const rows = (s.grid || []).map(r => `<tr>
+  const rows = (s.tower || []).map(r => `<tr>
       <td class="pos">${r.position}</td>
       <td class="code" style="color:${r.colour ? '#' + r.colour : '#f0f2f5'}">${r.code}</td>
       <td>${fmt(r.lap_number)}</td>
       <td>${secs(r.last_lap_s)}</td>
       <td>${fmt(r.compound)}</td>
-      <td class="dim">${fmt(r.stint)}</td>
+      <td class="dim">${fmt(r.stint_number)}</td>
       <td class="dim">${fmt(r.team)}</td>
     </tr>`).join('');
   $('grid').innerHTML = rows || '<tr><td colspan="7" class="dim">waiting for position data…</td></tr>';
 
   const a = s.analysis || {};
-  const c = a.chaos || {};
-  if (c.ok) {
-    const b = c.breakdown || {};
-    const parts = Object.keys(b).map(k =>
-      `<span class="chip">${k.replace('position_','').replace('_',' ')} ${b[k].points.toFixed(1)} <span class="dim">(${(b[k].normalized*100).toFixed(0)}%)</span></span>`).join(' ');
-    $('chaos').innerHTML = `<b style="font-size:20px">${c.score}</b> <span class="warn">${c.level}</span>
-      <span class="dim">method ${c.method_version} · peak L${fmt(c.peak_chaos_lap)} · timeline total_laps=${c.timeline_total_laps}</span><br>${parts}`;
+  const c = s.chaos || {};
+  if (c.error) {
+    $('chaos').innerHTML = `<span class="bad">FAILED</span> <span class="dim">${c.error}</span>`;
+  } else if (c.score == null) {
+    $('chaos').innerHTML = `<span class="dim">not published yet</span>`;
     $('chaosCaveat').textContent = c.caveat || '';
-  } else { $('chaos').innerHTML = `<span class="bad">FAILED</span> <span class="dim">${c.error || '—'}</span>`; }
+  } else {
+    const parts = (c.breakdown || []).map(b =>
+      `<span class="chip">${b.component.replace('position_','').replace('_',' ')} ${b.points.toFixed(1)} <span class="dim">(${(b.normalized*100).toFixed(0)}%)</span></span>`).join(' ');
+    $('chaos').innerHTML = `<b style="font-size:20px">${c.score}</b> `
+      + (c.final ? `<span class="warn">${c.level}</span>` : `<span class="dim">no level until the flag</span>`)
+      + ` <span class="dim">method ${c.method_version} · peak L${fmt(c.peak_chaos_lap)} · over ${c.denominator_laps} lap(s)</span><br>${parts}`;
+    $('chaosCaveat').textContent = c.caveat || '';
+  }
 
-  const w = a.weather_conditions || {};
+  const w = a.weather || {};
   $('weather').innerHTML = w.ok
-    ? `rain periods <b>${w.rain_periods}</b> · wet laps <b>${w.wet_laps}</b> <span class="dim">of ${w.laps_indexed} indexed</span>`
+    ? `rain periods <b>${w.rain_periods}</b> · wet laps <b>${(w.wet_laps || []).length}</b> <span class="dim">of ${w.laps_indexed} indexed</span>`
     : `<span class="bad">FAILED</span> <span class="dim">${w.error || '—'}</span>`;
 
-  const p = a.pit_cycles || {};
+  const p = a.pit || {};
   if (p.ok) {
-    $('pit').innerHTML = `cycles <b>${p.cycles}</b> · stops <b>${p.stops}</b> · `
-      + (p.cycles_not_yet_closed
-          ? `<span class="bad">${p.cycles_not_yet_closed} still open — provisional</span>`
+    $('pit').innerHTML = `cycles <b>${(p.cycles || []).length}</b> · stops <b>${p.stops}</b> · `
+      + (p.open_cycles
+          ? `<span class="warn">${p.open_cycles} still settling — no deltas published for them</span>`
           : `<span class="ok">all closed</span>`);
-    $('pitCaveat').textContent = p.caveat || '';
+    $('pitCaveat').textContent = `A cycle is read ${p.settle_laps} lap(s) after its last stop, `
+      + `once the whole field has passed that lap (field is through L${p.field_through_lap}).`;
   } else { $('pit').innerHTML = `<span class="bad">FAILED</span> <span class="dim">${p.error || '—'}</span>`; }
 
-  $('topics').innerHTML = Object.entries(s.messages || {})
+  $('topics').innerHTML = Object.entries((s.feed || {}).messages || {})
     .sort((x, y) => y[1] - x[1])
     .map(([t, n]) => `<span class="chip">${t.replace('v1/','')} ${n}</span>`).join(' ') || '—';
 
-  const ku = s.key_updates || {};
+  const ku = (s.feed || {}).key_updates || {};
   const total = Object.values(ku).reduce((a, b) => a + b, 0);
   $('keys').innerHTML = total
     ? Object.entries(ku).sort((x,y)=>y[1]-x[1]).map(([t,n]) => `<span class="chip">${t.replace('v1/','')} ${n}</span>`).join(' ')
     : '<span class="dim">none yet — cached/REST records carry no _key, only MQTT messages do</span>';
   $('keylog').textContent = (s.recent_key_updates || []).length
-    ? s.recent_key_updates.map(u => `${u.iso}  ${u.topic.replace('v1/','')}  ${u._key}  (seen ${u.times}x)`).join('\n')
+    ? s.recent_key_updates.map(u => `${u.iso}  ${u.topic.replace('v1/','')}  ${u._key}`).join('\n')
     : '—';
 }
 

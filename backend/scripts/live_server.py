@@ -3,14 +3,22 @@ Experimental live snapshot server. A third process, on its own port, with its
 own MQTT client_id. It does not touch the recorder, /analysis, the cache or
 anything under app/api.
 
-    python scripts/live_server.py                       # live MQTT
+    python scripts/live_server.py                                  # live MQTT
+    python scripts/live_server.py --replay-capture live/2026-09-26_race_11377 --speed 60
     python scripts/live_server.py --replay 9636 --replay-speed 0.02
     open http://127.0.0.1:8099/
 
-Endpoints (no auth, no persistence — this is a one-night experiment):
-    GET /               the observation page
-    GET /events         SSE stream, one snapshot per push
-    GET /snapshot.json  the current snapshot, once
+Endpoints (no auth, no persistence):
+    GET /                               the raw observation page
+    GET /events                         SSE stream, one snapshot per push
+    GET /snapshot.json                  the current snapshot, once
+    GET /live/{session_key}/snapshot    the same, refusing a key we are not on
+    GET /live/{session_key}/stream      the same SSE, refusing a key we are not on
+
+The session-scoped pair is what the Next.js /live/[sessionKey] route calls. It
+is served with CORS open to the configured frontend origins, because the
+frontend must never reach OpenF1 itself: the browser talks to this process,
+this process talks to the broker.
 
 MQTT allows many subscribers on the same topics, so this runs alongside
 live_recorder.py without interfering: separate connection, separate client_id,
@@ -22,7 +30,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import queue
+import re
 import ssl
 import sys
 import threading
@@ -42,9 +52,27 @@ from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
-from live_state import TOPICS, RaceState, replay  # noqa: E402
+from live_state import TOPICS, RaceState, replay, replay_capture  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, QOS = "mqtt.openf1.org", 8883, 1
+
+# Any local dev origin is allowed, whatever port `next dev` picked. Deployed
+# origins come from LIVE_ALLOWED_ORIGINS (comma separated) — an allow-list, not
+# a wildcard, because the SSE stream is the only thing standing between the
+# browser and credentials it must never hold.
+_LOCAL_ORIGIN_RE = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
+ALLOWED_ORIGINS = tuple(
+    o.strip() for o in (os.environ.get("LIVE_ALLOWED_ORIGINS") or "").split(",") if o.strip()
+)
+
+
+def origin_allowed(origin: str | None) -> str | None:
+    """The value to echo back in Access-Control-Allow-Origin, or None."""
+    if not origin:
+        return None
+    if origin in ALLOWED_ORIGINS or _LOCAL_ORIGIN_RE.match(origin):
+        return origin
+    return None
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
 RENEW_BEFORE_S = 420.0
 HERE = Path(__file__).resolve().parent
@@ -229,21 +257,66 @@ def make_handler(state: RaceState, hub: Hub, feed: LiveFeed | None):
         def log_message(self, fmt, *args):     # quiet: the interesting log is ours
             pass
 
+        def _cors(self) -> None:
+            allowed = origin_allowed(self.headers.get("Origin"))
+            if allowed:
+                self.send_header("Access-Control-Allow-Origin", allowed)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
         def _send(self, code: int, body: bytes, ctype: str) -> None:
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
 
+        def _json(self, code: int, payload: dict) -> None:
+            self._send(code, json.dumps(payload, default=str).encode(), "application/json")
+
+        def do_OPTIONS(self):
+            self.send_response(204)
+            self._cors()
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def _session_mismatch(self, wanted: int) -> dict | None:
+            """A page asking for a session this process is not following."""
+            running = state.session_key
+            if running is None or running == wanted:
+                return None
+            return {
+                "error": "SESSION_NOT_LIVE",
+                "message": f"This live server is following session {running}, not {wanted}.",
+                "session_key": running,
+            }
+
         def do_GET(self):
-            if self.path.startswith("/events"):
+            path = self.path.split("?", 1)[0]
+
+            m = re.fullmatch(r"/live/(\d+)/(snapshot|stream)", path)
+            if m:
+                wanted, kind = int(m.group(1)), m.group(2)
+                mismatch = self._session_mismatch(wanted)
+                if mismatch:
+                    return self._json(409, mismatch)
+                if kind == "stream":
+                    return self.sse()
+                return self._json(200, snapshot_payload(state, hub, feed))
+
+            if path.startswith("/events"):
                 return self.sse()
-            if self.path.startswith("/snapshot.json"):
-                body = json.dumps(snapshot_payload(state, hub, feed), default=str).encode()
-                return self._send(200, body, "application/json")
-            if self.path in ("/", "/index.html"):
+            if path.startswith("/snapshot.json"):
+                return self._json(200, snapshot_payload(state, hub, feed))
+            if path == "/health":
+                return self._json(200, {
+                    "ok": True, "session_key": state.session_key,
+                    "mode": "mqtt" if feed else "replay",
+                    "browsers": hub.count,
+                })
+            if path in ("/", "/index.html"):
                 if not page.exists():
                     return self._send(500, b"live_view.html is missing", "text/plain")
                 return self._send(200, page.read_bytes(), "text/html; charset=utf-8")
@@ -255,6 +328,8 @@ def make_handler(state: RaceState, hub: Hub, feed: LiveFeed | None):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self._cors()
             self.end_headers()
             try:
                 first = json.dumps(snapshot_payload(state, hub, feed), default=str)
@@ -277,30 +352,46 @@ def make_handler(state: RaceState, hub: Hub, feed: LiveFeed | None):
 
 def snapshot_payload(state: RaceState, hub: Hub, feed: LiveFeed | None) -> dict:
     snap = state.snapshot(include_analysis=True)
-    snap["feed"] = {
+    snap["feed"].update({
         "mode": "mqtt" if feed else "replay",
-        "connected": bool(feed and feed.connected),
+        "connected": bool(feed.connected) if feed else True,
         "token_expires_in_s": round(feed.token_expires_in) if feed else None,
         "renewals": feed.renewals if feed else 0,
         "browsers": hub.count,
-    }
+    })
     return snap
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Experimental live snapshot server (isolated).")
+    ap = argparse.ArgumentParser(description="Live snapshot server (isolated from the recorder).")
     ap.add_argument("--port", type=int, default=8099)
+    ap.add_argument("--replay-capture", metavar="DIR",
+                    help="no MQTT: replay a recorder capture directory at its real arrival "
+                         "times, so the page sees the race exactly as it was published")
+    ap.add_argument("--speed", type=float, default=1.0,
+                    help="capture replay speed multiplier (1 = real time, 60 = a minute a "
+                         "race-hour). Feed outages are scaled with everything else.")
     ap.add_argument("--replay", type=int, metavar="SESSION_KEY",
-                    help="no MQTT: replay a cached session so the page can be exercised")
+                    help="no MQTT: replay a cached REST session (no real arrival times)")
     ap.add_argument("--replay-speed", type=float, default=0.02,
-                    help="seconds to sleep every 50 replayed events (default 0.02)")
+                    help="cached-session replay: seconds to sleep every 50 events")
     args = ap.parse_args()
 
     state = RaceState(session_key=args.replay)
     hub = Hub()
     feed: LiveFeed | None = None
 
-    if args.replay:
+    if args.replay_capture:
+        cap = Path(args.replay_capture)
+        log("MODE", f"capture replay of {cap} at {args.speed}x real time (no MQTT)")
+
+        def run_capture():
+            info = replay_capture(cap, state, speed=args.speed)
+            log("REPLAY", f"capture finished: {info['events_fed']} events, "
+                          f"reached lap {info['reached_lap']}, "
+                          f"{len(info['gaps_observed'])} feed gap(s) reproduced")
+        threading.Thread(target=run_capture, daemon=True).start()
+    elif args.replay:
         log("MODE", f"replay of cached session {args.replay} (no MQTT)")
         threading.Thread(target=replay, args=(args.replay, state),
                          kwargs={"speed": args.replay_speed}, daemon=True).start()
