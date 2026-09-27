@@ -5,6 +5,12 @@ plus the two structural cases: 422 validation and 500 with CORS headers.
 
 OpenF1 is never contacted: httpx.AsyncClient is swapped for one with a
 MockTransport wherever a test would otherwise leave the process.
+
+These sessions are synthetic, so their year is unknown, and an unknown year is
+PRO — the gate fails closed on purpose (app/core/access.py). Every request here
+therefore carries a valid access token: this file is about what the error
+envelope looks like once you are through the gate, and the gate itself is
+covered in test_pro_access.py.
 """
 from __future__ import annotations
 
@@ -14,17 +20,30 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from pydantic import SecretStr
+
 from app.clients import openf1_client
-from app.core import cache
+from app.core import access, cache
 from app.core.config import settings
 from app.main import app
 
 ORIGIN = "http://localhost:3000"   # first entry of settings.cors_origins
+PRO_CODE = "error-contract-test-code"
+
+
+@pytest.fixture(autouse=True)
+def pro_access(monkeypatch):
+    """A token on every request, so the PRO gate is never what is being measured."""
+    monkeypatch.setattr(settings, "pro_access_codes", [PRO_CODE])
+    monkeypatch.setattr(settings, "pro_token_secret", SecretStr("error-contract-test-secret"))
+    return access.encode_token(access.mint_token(access.code_id(PRO_CODE)))
 
 
 @pytest.fixture
-def client():
-    return TestClient(app, raise_server_exceptions=False)
+def client(pro_access):
+    c = TestClient(app, raise_server_exceptions=False)
+    c.headers.update({"Authorization": f"Bearer {pro_access}"})
+    return c
 
 
 @pytest.fixture
