@@ -29,6 +29,11 @@ on:
         description: 'Decide and report, publish nothing'
         required: false
         default: 'false'
+      backfill:
+        description: 'Publish every ready session in one run and one commit. Needs session_keys.'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write      # commit the analysis
@@ -46,7 +51,12 @@ defaults:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The hourly run publishes two races and finishes in minutes. A backfill
+    # publishes a season: nineteen races at roughly a dozen rate-limited OpenF1
+    # requests each, plus the analysis, and the 55/min limiter blocks rather
+    # than drops. Six hours is generous on purpose — the job is run by hand,
+    # rarely, and a backfill killed at 45 minutes wastes everything it computed.
+    timeout-minutes: ${{ inputs.backfill && 360 || 45 }}
 
     steps:
       - uses: actions/checkout@v4
@@ -79,10 +89,19 @@ jobs:
           ENVIRONMENT: ci
           SESSION_KEYS: ${{ github.event.inputs.session_keys }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+          BACKFILL: ${{ inputs.backfill }}
         run: |
           ARGS=""
           [ -n "$SESSION_KEYS" ] && ARGS="$ARGS --session-keys $SESSION_KEYS"
           [ "$DRY_RUN" = "true" ] && ARGS="$ARGS --dry-run"
+          if [ "$BACKFILL" = "true" ]; then
+            if [ -z "$SESSION_KEYS" ]; then
+              echo "::error::backfill needs session_keys — an unbounded automatic search is"
+              echo "::error::the accident the per-run cap exists to prevent"
+              exit 1
+            fi
+            ARGS="$ARGS --limit 0"
+          fi
           set +e
           python scripts/autopublish.py --state-file .autopublish-state.json $ARGS 2>&1 | tee run.log
           set -e
@@ -124,8 +143,11 @@ jobs:
             exit 0
           fi
           git diff --staged --stat
-          NAMES=$(python -c "import json;r=json.load(open('report.json'));print(', '.join(p.get('label','?') for p in r['published']) or 'a finished session')")
-          git commit -m "feat(cache): publish ${NAMES} [skip ci]"
+          # One commit, whether it carries two races or a season.
+          python scripts/publish_commit_message.py report.json > commit-message.txt
+          cat commit-message.txt
+          git commit -F commit-message.txt
+          rm -f commit-message.txt
           for i in 1 2 3; do
             git pull --rebase origin "${{ github.ref_name }}" \
               && git push origin "HEAD:${{ github.ref_name }}" && break
