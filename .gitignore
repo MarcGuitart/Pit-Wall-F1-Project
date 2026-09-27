@@ -93,3 +93,21 @@ desktop.ini
 /DIAGNOSTIC.md
 /DIAGNOSTIC_ADDENDUM.md
 /SPRINT_PLAN.md
+
+# Raw OpenF1 endpoints for newly published sessions. The seven sessions
+# committed before this rule keep their raw files — git ignores nothing already
+# tracked — but nothing new adds them. intervals.json alone is 3.7 MB for one
+# race against 72 KB for the whole analysis, and the site only ever serves the
+# analysis. This is also a guard on the publication Action: whatever it stages,
+# it cannot commit a raw endpoint.
+backend/cache/*/laps.json
+backend/cache/*/stints.json
+backend/cache/*/pit.json
+backend/cache/*/position.json
+backend/cache/*/intervals.json
+backend/cache/*/race_control.json
+backend/cache/*/weather.json
+backend/cache/*/drivers.json
+backend/cache/*/team_radio.json
+backend/cache/*/car_data_*.json
+backend/.autopublish-state.json
