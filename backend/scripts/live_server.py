@@ -24,29 +24,52 @@ MQTT allows many subscribers on the same topics, so this runs alongside
 live_recorder.py without interfering: separate connection, separate client_id,
 separate token. The recorder remains the system of record; if this process
 dies, nothing is lost.
+
+The HTTP half is ASGI (Starlette on uvicorn), not a ThreadingHTTPServer. A
+snapshot is 26 KB and goes out every 2 s, so a thread per viewer put the ceiling
+in the low hundreds on a 512 MB instance — thread stacks, not work. Viewers are
+now coroutines on one loop, each holding an asyncio.Queue.
+
+The MQTT client and the capture replay stay on threads. Both are blocking by
+nature, paho owns its own loop, and neither should be converted just to match:
+the reason to be async here is ten thousand idle sockets, which is not what
+either of those is.
+
+Responses are gzipped, including the SSE stream, which matters more than it
+looks: 26 KB becomes 4.5 KB, and over a two-hour race that is 94 MB per viewer
+against 16 MB. The stream compresses each frame with an explicit sync flush
+rather than through GZipMiddleware, because a compressor that buffers is
+indistinguishable from a feed that has stopped.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
-import queue
-import re
 import ssl
 import sys
 import threading
 import time
 import traceback
+import zlib
 from datetime import datetime, timezone
 from functools import wraps
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, ".")           # backend/ — for app.*
 
 import paho.mqtt.client as mqtt  # noqa: E402
+import uvicorn  # noqa: E402
 from paho.mqtt.enums import CallbackAPIVersion  # noqa: E402
+from starlette.applications import Starlette  # noqa: E402
+from starlette.middleware import Middleware  # noqa: E402
+from starlette.middleware.cors import CORSMiddleware  # noqa: E402
+from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse  # noqa: E402
+from starlette.routing import Route  # noqa: E402
 
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
 from app.core.config import settings  # noqa: E402
@@ -56,23 +79,16 @@ from live_state import TOPICS, RaceState, replay, replay_capture  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, QOS = "mqtt.openf1.org", 8883, 1
 
-# Any local dev origin is allowed, whatever port `next dev` picked. Deployed
-# origins come from LIVE_ALLOWED_ORIGINS (comma separated) — an allow-list, not
-# a wildcard, because the SSE stream is the only thing standing between the
-# browser and credentials it must never hold.
-_LOCAL_ORIGIN_RE = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
+# Deployed origins come from LIVE_ALLOWED_ORIGINS (comma separated) — an
+# allow-list and not a wildcard, because this stream is the only thing standing
+# between a browser and credentials it must never hold. Any local dev origin is
+# allowed on top, whatever port `next dev` happened to pick; the regex is passed
+# to CORSMiddleware in build_app().
 ALLOWED_ORIGINS = tuple(
     o.strip() for o in (os.environ.get("LIVE_ALLOWED_ORIGINS") or "").split(",") if o.strip()
 )
+LOCAL_ORIGIN_RE = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
-
-def origin_allowed(origin: str | None) -> str | None:
-    """The value to echo back in Access-Control-Allow-Origin, or None."""
-    if not origin:
-        return None
-    if origin in ALLOWED_ORIGINS or _LOCAL_ORIGIN_RE.match(origin):
-        return origin
-    return None
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
 RENEW_BEFORE_S = 420.0
 HERE = Path(__file__).resolve().parent
@@ -103,36 +119,56 @@ def guard(fn):
 
 
 class Hub:
-    """Fan-out of snapshots to connected browsers."""
+    """
+    Fan-out of snapshots to connected viewers.
 
-    def __init__(self) -> None:
-        self.clients: list[queue.Queue] = []
-        self.lock = threading.Lock()
+    One asyncio.Queue per viewer, bounded. A viewer that cannot keep up misses
+    frames rather than growing a buffer: every frame is the whole state, so the
+    next one supersedes the one that was dropped and nothing is lost by
+    skipping. An unbounded queue would turn one stalled browser into the
+    process's memory problem.
 
-    def subscribe(self) -> queue.Queue:
-        q: queue.Queue = queue.Queue(maxsize=8)
-        with self.lock:
-            self.clients.append(q)
+    publish() is called from the event loop. The producers that are not on it —
+    nothing today, but the MQTT thread is one edit away — must go through
+    publish_threadsafe().
+    """
+
+    def __init__(self, maxsize: int = 8) -> None:
+        self.maxsize = maxsize
+        self.clients: set[asyncio.Queue[str]] = set()
+        self.dropped = 0
+        # The most recent published frame, handed to a viewer the moment it
+        # connects. Without it every connection computed its own snapshot, on
+        # the event loop, before yielding anything — about 0.1 s of synchronous
+        # work each. Three hundred viewers arriving together then spent thirty
+        # seconds starving the loop, and most of them saw no frame at all while
+        # it lasted. Rendering the state once and sending the same string to
+        # everyone is the whole point of the fan-out; the connect path was the
+        # one place still ignoring it.
+        self.latest: str | None = None
+
+    def subscribe(self) -> asyncio.Queue[str]:
+        q: asyncio.Queue[str] = asyncio.Queue(maxsize=self.maxsize)
+        self.clients.add(q)
         return q
 
-    def unsubscribe(self, q: queue.Queue) -> None:
-        with self.lock:
-            if q in self.clients:
-                self.clients.remove(q)
+    def unsubscribe(self, q: asyncio.Queue[str]) -> None:
+        self.clients.discard(q)
 
     def publish(self, payload: str) -> None:
-        with self.lock:
-            targets = list(self.clients)
-        for q in targets:
+        self.latest = payload
+        for q in list(self.clients):
             try:
                 q.put_nowait(payload)
-            except queue.Full:
-                pass          # a slow browser simply misses a frame
+            except asyncio.QueueFull:
+                self.dropped += 1      # a slow viewer simply misses a frame
+
+    def publish_threadsafe(self, loop: asyncio.AbstractEventLoop, payload: str) -> None:
+        loop.call_soon_threadsafe(self.publish, payload)
 
     @property
     def count(self) -> int:
-        with self.lock:
-            return len(self.clients)
+        return len(self.clients)
 
 
 class LiveFeed:
@@ -248,106 +284,175 @@ class LiveFeed:
             pass
 
 
-def make_handler(state: RaceState, hub: Hub, feed: LiveFeed | None):
+# ── SSE, compressed ─────────────────────────────────────────────────────────
+#
+# GZipMiddleware is left to the ordinary JSON responses and kept away from the
+# stream. A generic compressor is allowed to buffer until it has enough input to
+# be worth a block, and on a feed that sends 4.5 KB every two seconds that
+# buffering is indistinguishable from the race having stopped — which is the one
+# thing this page must never imply. So the stream owns its compressor and flushes
+# it at every frame boundary: Z_SYNC_FLUSH emits a complete block and leaves the
+# dictionary intact, so the next frame still compresses against everything sent
+# so far. Roughly 26 KB to 4.5 KB, measured on the Baku snapshot.
+
+SSE_HEADERS = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-store",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",     # tell any proxy in front not to undo this
+}
+KEEPALIVE_S = 15.0                  # a comment frame, so idle connections survive
+
+
+def _wants_gzip(request: Request) -> bool:
+    return "gzip" in request.headers.get("accept-encoding", "").lower()
+
+
+async def sse_response(request: Request, state: RaceState, hub: Hub, feed: "LiveFeed | None") -> StreamingResponse:
+    gzip_it = _wants_gzip(request)
+    headers = dict(SSE_HEADERS)
+    if gzip_it:
+        headers["Content-Encoding"] = "gzip"
+        headers["Vary"] = "Accept-Encoding"
+
+    async def frames():
+        q = hub.subscribe()
+        # wbits 16+15 asks zlib for a gzip wrapper rather than a raw deflate stream.
+        compressor = zlib.compressobj(6, zlib.DEFLATED, 16 + zlib.MAX_WBITS) if gzip_it else None
+
+        def encode(text: str) -> bytes:
+            raw = text.encode()
+            if compressor is None:
+                return raw
+            return compressor.compress(raw) + compressor.flush(zlib.Z_SYNC_FLUSH)
+
+        try:
+            # The last published frame, at most PUSH_INTERVAL_S old. Only the
+            # first viewer of a fresh process pays to render one, and it pays in
+            # a worker thread rather than on the loop.
+            first = hub.latest
+            if first is None:
+                first = await asyncio.to_thread(
+                    lambda: json.dumps(snapshot_payload(state, hub, feed), default=str))
+                hub.latest = first
+            yield encode(f"data: {first}\n\n")
+            while True:
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=KEEPALIVE_S)
+                    yield encode(f"data: {payload}\n\n")
+                except asyncio.TimeoutError:
+                    yield encode(": keep-alive\n\n")
+        except asyncio.CancelledError:
+            raise                      # the viewer went away; not an error
+        finally:
+            hub.unsubscribe(q)
+
+    return StreamingResponse(frames(), headers=headers)
+
+
+def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None", push_interval: float = PUSH_INTERVAL_S) -> Starlette:
     page = HERE / "live_view.html"
 
-    class Handler(BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.1"
+    def session_mismatch(wanted: int) -> dict | None:
+        """A page asking for a session this process is not following."""
+        running = state.session_key
+        if running is None or running == wanted:
+            return None
+        return {
+            "error": "SESSION_NOT_LIVE",
+            "message": f"This live server is following session {running}, not {wanted}.",
+            "session_key": running,
+        }
 
-        def log_message(self, fmt, *args):     # quiet: the interesting log is ours
-            pass
+    async def snapshot_route(request: Request) -> Response:
+        wanted = int(request.path_params["session_key"])
+        mismatch = session_mismatch(wanted)
+        if mismatch:
+            return JSONResponse(mismatch, status_code=409)
+        return JSONResponse(snapshot_payload(state, hub, feed))
 
-        def _cors(self) -> None:
-            allowed = origin_allowed(self.headers.get("Origin"))
-            if allowed:
-                self.send_header("Access-Control-Allow-Origin", allowed)
-            self.send_header("Vary", "Origin")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+    async def stream_route(request: Request) -> Response:
+        wanted = int(request.path_params["session_key"])
+        mismatch = session_mismatch(wanted)
+        if mismatch:
+            return JSONResponse(mismatch, status_code=409)
+        return await sse_response(request, state, hub, feed)
 
-        def _send(self, code: int, body: bytes, ctype: str) -> None:
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self._cors()
-            self.end_headers()
-            self.wfile.write(body)
+    async def events_route(request: Request) -> Response:
+        return await sse_response(request, state, hub, feed)
 
-        def _json(self, code: int, payload: dict) -> None:
-            self._send(code, json.dumps(payload, default=str).encode(), "application/json")
+    async def snapshot_json(request: Request) -> Response:
+        return JSONResponse(snapshot_payload(state, hub, feed))
 
-        def do_OPTIONS(self):
-            self.send_response(204)
-            self._cors()
-            self.send_header("Content-Length", "0")
-            self.end_headers()
+    async def health(request: Request) -> Response:
+        return JSONResponse({
+            "ok": True,
+            "session_key": state.session_key,
+            "mode": "mqtt" if feed else "replay",
+            "viewers": hub.count,
+            "frames_dropped": hub.dropped,
+        })
 
-        def _session_mismatch(self, wanted: int) -> dict | None:
-            """A page asking for a session this process is not following."""
-            running = state.session_key
-            if running is None or running == wanted:
-                return None
-            return {
-                "error": "SESSION_NOT_LIVE",
-                "message": f"This live server is following session {running}, not {wanted}.",
-                "session_key": running,
-            }
+    async def index(request: Request) -> Response:
+        if not page.exists():
+            return Response("live_view.html is missing", status_code=500, media_type="text/plain")
+        return FileResponse(page, media_type="text/html; charset=utf-8",
+                            headers={"Cache-Control": "no-store"})
 
-        def do_GET(self):
-            path = self.path.split("?", 1)[0]
+    async def pusher() -> None:
+        """
+        One task builds the snapshot; every viewer is sent the same string.
 
-            m = re.fullmatch(r"/live/(\d+)/(snapshot|stream)", path)
-            if m:
-                wanted, kind = int(m.group(1)), m.group(2)
-                mismatch = self._session_mismatch(wanted)
-                if mismatch:
-                    return self._json(409, mismatch)
-                if kind == "stream":
-                    return self.sse()
-                return self._json(200, snapshot_payload(state, hub, feed))
-
-            if path.startswith("/events"):
-                return self.sse()
-            if path.startswith("/snapshot.json"):
-                return self._json(200, snapshot_payload(state, hub, feed))
-            if path == "/health":
-                return self._json(200, {
-                    "ok": True, "session_key": state.session_key,
-                    "mode": "mqtt" if feed else "replay",
-                    "browsers": hub.count,
-                })
-            if path in ("/", "/index.html"):
-                if not page.exists():
-                    return self._send(500, b"live_view.html is missing", "text/plain")
-                return self._send(200, page.read_bytes(), "text/html; charset=utf-8")
-            return self._send(404, b"not found", "text/plain")
-
-        def sse(self):
-            q = hub.subscribe()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Connection", "keep-alive")
-            self.send_header("X-Accel-Buffering", "no")
-            self._cors()
-            self.end_headers()
+        The alternative — each connection rendering its own — recomputes the
+        whole analysis per viewer per frame, which is the cost that actually
+        grows with the audience.
+        """
+        while True:
+            await asyncio.sleep(push_interval)
             try:
-                first = json.dumps(snapshot_payload(state, hub, feed), default=str)
-                self.wfile.write(f"data: {first}\n\n".encode())
-                self.wfile.flush()
-                while True:
-                    try:
-                        payload = q.get(timeout=15)
-                        self.wfile.write(f"data: {payload}\n\n".encode())
-                    except queue.Empty:
-                        self.wfile.write(b": keep-alive\n\n")
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                pass
-            finally:
-                hub.unsubscribe(q)
+                payload = await asyncio.to_thread(
+                    lambda: json.dumps(snapshot_payload(state, hub, feed), default=str))
+                hub.publish(payload)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log("BUG!", f"pusher: {type(exc).__name__}: {exc}")
 
-    return Handler
+    @contextlib.asynccontextmanager
+    async def lifespan(_app: Starlette):
+        task = asyncio.create_task(pusher())
+        try:
+            yield
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    middleware = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=list(ALLOWED_ORIGINS),
+            allow_origin_regex=LOCAL_ORIGIN_RE,
+            allow_methods=["GET"],
+            allow_headers=["Content-Type"],
+        ),
+        # The stream sets its own Content-Encoding, so this passes it through
+        # untouched and compresses the ordinary responses.
+        Middleware(GZipMiddleware, minimum_size=500),
+    ]
+
+    return Starlette(
+        routes=[
+            Route("/live/{session_key:int}/snapshot", snapshot_route),
+            Route("/live/{session_key:int}/stream", stream_route),
+            Route("/events", events_route),
+            Route("/snapshot.json", snapshot_json),
+            Route("/health", health),
+            Route("/", index),
+        ],
+        middleware=middleware,
+        lifespan=lifespan,
+    )
 
 
 def snapshot_payload(state: RaceState, hub: Hub, feed: LiveFeed | None) -> dict:
@@ -365,6 +470,8 @@ def snapshot_payload(state: RaceState, hub: Hub, feed: LiveFeed | None) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Live snapshot server (isolated from the recorder).")
     ap.add_argument("--port", type=int, default=8099)
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="0.0.0.0 to serve beyond this machine; leave it local otherwise")
     ap.add_argument("--replay-capture", metavar="DIR",
                     help="no MQTT: replay a recorder capture directory at its real arrival "
                          "times, so the page sees the race exactly as it was published")
@@ -403,27 +510,24 @@ def main() -> int:
         feed = LiveFeed(state)
         threading.Thread(target=feed.run, daemon=True).start()
 
-    def pusher():
-        while True:
-            time.sleep(PUSH_INTERVAL_S)
-            try:
-                hub.publish(json.dumps(snapshot_payload(state, hub, feed), default=str))
-            except Exception as exc:
-                log("BUG!", f"pusher: {type(exc).__name__}: {exc}")
-    threading.Thread(target=pusher, daemon=True).start()
-
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, hub, feed))
-    server.daemon_threads = True
+    app = build_app(state, hub, feed)
     log("SERVE", f"http://127.0.0.1:{args.port}/  (Ctrl+C to stop)")
+    config = uvicorn.Config(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level="warning",       # our own log is the interesting one
+        access_log=False,
+        timeout_graceful_shutdown=3,
+    )
     try:
-        server.serve_forever()
+        uvicorn.Server(config).run()
     except KeyboardInterrupt:
         print()
         log("STOP", "shutting down")
     finally:
         if feed:
             feed.stop()
-        server.server_close()
     return 0
 
 
