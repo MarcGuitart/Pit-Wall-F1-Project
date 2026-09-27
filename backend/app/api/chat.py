@@ -1,6 +1,7 @@
 """
 POST /chat  — AI-backed race engineer chat.
-GET  /chat/health — Connectivity check (Ollama + Groq).
+GET  /chat/health — Connectivity check (Ollama + Groq), including whether the
+                   provider actually serves the configured model.
 
 AI priority: Ollama (local) → Groq (free cloud) → offline message.
 The /analysis/{session_key} endpoint must have been called first.
@@ -19,7 +20,14 @@ from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
 from app.domain.models import FullRaceAnalysis
 from app.services.chat_service import build_chat_context, select_signals
-from app.clients.ollama_client import LLMRateLimited, active_model, answer_engineer_question
+from app.clients.ollama_client import (
+    MODEL_LIST_TTL_S,
+    NOT_CONFIGURED,
+    LLMRateLimited,
+    active_model,
+    answer_engineer_question,
+    groq_model_ids,
+)
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -114,46 +122,87 @@ class ChatResponse(BaseModel):
     model: str | None = None
 
 
-@router.get("/chat/health")
-async def chat_health() -> dict:
-    """Check Ollama and Groq availability."""
-    groq_available = bool(settings.groq_api_key)
-    provider, model = await active_model()
-    active = {
-        "active_provider": provider,
-        "active_model": model,
+async def _groq_health() -> dict:
+    """
+    Whether Groq could actually answer a question right now.
+
+    A key being present is not availability. Every one of the three
+    model-decommissioned incidents in this project's history had a valid key and
+    a green health check, so the check asks the provider for its model list and
+    looks for the configured model in it. The list is cached for a few minutes
+    (MODEL_LIST_TTL_S) so polling this endpoint does not hammer the provider.
+    """
+    if not settings.groq_api_key:
+        return {
+            "groq_configured": False,
+            "groq_available": False,
+            "groq_model": settings.groq_model,
+            "groq_model_available": None,
+            "groq_reason": NOT_CONFIGURED,
+        }
+
+    ids, failure = await groq_model_ids()
+    if ids is None:
+        # Could not read the list. That is not proof the model is gone, so the
+        # verdict is "unknown", not "available" — a green light we cannot
+        # justify is the exact failure this check exists to stop.
+        return {
+            "groq_configured": True,
+            "groq_available": False,
+            "groq_model": settings.groq_model,
+            "groq_model_available": None,
+            "groq_reason": failure,
+            "groq_model_list_cached_for_s": MODEL_LIST_TTL_S,
+        }
+
+    present = settings.groq_model in ids
+    return {
+        "groq_configured": True,
+        "groq_available": present,
         "groq_model": settings.groq_model,
-        "groq_reasoning_effort": settings.groq_reasoning_effort,
+        "groq_model_available": present,
+        "groq_reason": None if present else "model_unavailable",
+        "groq_models_served": len(ids),
+        # Only on failure, and only the ids — they are public product names.
+        **({} if present else {"groq_available_models": ids}),
+        "groq_model_list_cached_for_s": MODEL_LIST_TTL_S,
     }
 
+
+@router.get("/chat/health")
+async def chat_health() -> dict:
+    """Can /chat answer right now, and if not, which side is at fault."""
+    groq = await _groq_health()
+    provider, model = await active_model()
+    ollama: dict = {
+        "ollama_reachable": False,
+        "base_url": settings.ollama_base_url,
+        "model": settings.ollama_model,
+        "model_available": False,
+        "available_models": [],
+    }
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(f"{settings.ollama_base_url}/api/tags")
             r.raise_for_status()
-            tags = r.json()
-            models = [m["name"] for m in tags.get("models", [])]
-            model_available = any(settings.ollama_model in m for m in models)
-            ai_ready = model_available or groq_available
-            return {
-                "ollama_reachable": True,
-                "base_url": settings.ollama_base_url,
-                "model": settings.ollama_model,
-                "model_available": model_available,
-                "available_models": models,
-                "groq_available": groq_available,
-                "ai_ready": ai_ready,
-                **active,
-            }
+            models = [m["name"] for m in r.json().get("models", [])]
+        ollama.update(
+            ollama_reachable=True,
+            available_models=models,
+            model_available=any(settings.ollama_model in m for m in models),
+        )
     except Exception as exc:
-        return {
-            "ollama_reachable": False,
-            "base_url": settings.ollama_base_url,
-            "model": settings.ollama_model,
-            "error": str(exc),
-            "groq_available": groq_available,
-            "ai_ready": groq_available,
-            **active,
-        }
+        # Expected on the server, where there is no Ollama at all.
+        ollama["ollama_error"] = type(exc).__name__
+
+    return {
+        **ollama,
+        **groq,
+        "ai_ready": ollama["model_available"] or groq["groq_available"],
+        "active_provider": provider,
+        "active_model": model,
+        "groq_reasoning_effort": settings.groq_reasoning_effort,
+    }
 
 
 @router.post("/chat", response_model=ChatResponse)
