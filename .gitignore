@@ -38,6 +38,8 @@ backend/.env.production
 backend/fastf1_cache/
 # Live MQTT captures (scripts/live_recorder.py) — raw stream dumps, can be GB
 backend/live/
+# Generated race reports (scripts/postrace_report.py) — output, not source
+backend/reports/
 backend/*.log
 backend/**/*.log
 
