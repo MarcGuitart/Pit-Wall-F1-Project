@@ -90,6 +90,7 @@ def _sessions_from_analysis_cache(meeting_key: int) -> list[SessionInfo]:
                         session_name=meta.get("session_name", ""),
                         session_type=meta.get("session_type", ""),
                         date_start=meta.get("date_start"),
+                        date_end=meta.get("date_end"),
                     ))
                 continue
             except Exception:
@@ -144,6 +145,7 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
             session_name=s.get("session_name", ""),
             session_type=s.get("session_type", ""),
             date_start=s.get("date_start"),
+            date_end=s.get("date_end"),
         )
         for s in sessions
     ]

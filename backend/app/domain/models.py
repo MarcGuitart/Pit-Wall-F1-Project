@@ -403,6 +403,12 @@ class SessionInfo(BaseModel):
     session_name: str
     session_type: str
     date_start: Optional[str] = None
+    # Scheduled end, as OpenF1 publishes it — present even for a session that
+    # has not happened yet, since it is the calendar entry, not a result. Added
+    # for the landing page's "Race ends [time] UTC" copy (Block 19); the older
+    # analysis-cache fallback path may not have it for a session cached before
+    # this field existed, hence Optional.
+    date_end: Optional[str] = None
 
 
 # ── Circuit Telemetry (FastF1 — loaded lazily) ─────────────────────────────

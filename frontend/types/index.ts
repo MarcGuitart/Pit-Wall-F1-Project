@@ -378,4 +378,7 @@ export type SessionInfo = {
   session_name: string
   session_type: string
   date_start: string
+  /** Scheduled end, as OpenF1 publishes it. Optional: a session cached before
+   *  this field existed, or scheduled far enough out, may not have it yet. */
+  date_end?: string | null
 }

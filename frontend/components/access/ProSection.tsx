@@ -18,6 +18,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchAccessStatus, redeemAccessCode, signOutOfPro, type AccessStatus } from '@/lib/api'
 import { ACCESS_CHANGED_EVENT, PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
+import { formatLocalDateTime, formatUtcTime } from '@/lib/format'
+import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -64,6 +66,20 @@ export function ProSection() {
 
   const pro = status?.pro === true
   const seasons = proSeasons()
+  const currentSeasonYear = seasons[0]
+
+  // The current season's card: when the next (or currently running) Grand Prix
+  // actually is, from real calendar data — never a guess at when the write-up
+  // will be ready, which is what the hourly publication Action decides.
+  const [nextRace, setNextRace] = useState<NextRaceCardInfo | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    if (currentSeasonYear === undefined) return
+    fetchNextRaceCardInfo(currentSeasonYear).then((info) => {
+      if (!cancelled) setNextRace(info)
+    })
+    return () => { cancelled = true }
+  }, [currentSeasonYear])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,12 +136,38 @@ export function ProSection() {
         </div>
 
         {/* The bays */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
           {seasons.map((year, i) => (
-            <SeasonBay key={year} year={year} unlocked={pro} current={i === 0} />
+            <SeasonBay
+              key={year}
+              year={year}
+              unlocked={pro}
+              current={i === 0}
+              nextRace={i === 0 ? nextRace : null}
+            />
           ))}
           <LiveBay unlocked={pro} />
         </div>
+
+        {/* The current season's real calendar, not a placeholder */}
+        {nextRace && (
+          <p className="font-mono text-[10px] text-text-muted mb-6 leading-relaxed">
+            {nextRace.status === 'processing' ? (
+              <>
+                <span className="text-signal-amber">{nextRace.meetingName}</span> has finished —
+                analysis processing. It publishes automatically once the data settles; no fixed time.
+              </>
+            ) : (
+              <>
+                Next: <span className="text-text-secondary">{nextRace.meetingName}</span>
+                {nextRace.circuitShortName ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
+                <span className="text-text-secondary">{formatLocalDateTime(nextRace.dateStart)}</span>
+                {nextRace.dateEnd && <> · race ends {formatUtcTime(nextRace.dateEnd)}</>}
+              </>
+            )}
+          </p>
+        )}
+        {!nextRace && <div className="mb-6" />}
 
         {/* What it is */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border-subtle border border-border-subtle rounded-[4px] overflow-hidden mb-6">
@@ -310,14 +352,21 @@ function Bay({ label, sub, unlocked, accent }: {
   )
 }
 
-function SeasonBay({ year, unlocked, current }: { year: number; unlocked: boolean; current: boolean }) {
+function SeasonBay({ year, unlocked, current, nextRace }: {
+  year: number
+  unlocked: boolean
+  current: boolean
+  nextRace?: NextRaceCardInfo | null
+}) {
+  const sub = current
+    ? nextRace?.status === 'processing'
+      ? 'analysis processing'
+      : nextRace
+        ? 'race weekend ahead'
+        : 'current season'
+    : 'full season'
   return (
-    <Bay
-      label={String(year)}
-      sub={current ? 'current season' : 'full season'}
-      unlocked={unlocked}
-      accent={current}
-    />
+    <Bay label={String(year)} sub={sub} unlocked={unlocked} accent={current} />
   )
 }
 

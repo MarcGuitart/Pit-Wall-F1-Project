@@ -44,3 +44,30 @@ export function formatLapNumber(lap: number | null): string {
   if (lap == null) return '–'
   return `L${lap}`
 }
+
+/**
+ * A session's start, in whoever is reading it's own timezone — never a fixed
+ * UTC offset baked into the copy. `Intl`/`Date` read the browser's timezone by
+ * default, so passing no `timeZone` is the correct call, not an omission.
+ */
+export function formatLocalDateTime(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** The same instant, explicitly in UTC — for "ends at" alongside a local time,
+ *  so both are unambiguous without asking the reader to do the conversion. */
+export function formatUtcTime(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return (
+    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+  )
+}
