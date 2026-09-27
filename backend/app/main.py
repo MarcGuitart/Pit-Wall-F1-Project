@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.errors import ErrorEnvelopeMiddleware, install_error_handlers
+from app.api.access import router as access_router
 from app.api.races import router as races_router
 from app.api.analysis import router as analysis_router
 from app.api.admin import router as admin_router
@@ -32,6 +33,7 @@ app.add_middleware(
 
 install_error_handlers(app)
 
+app.include_router(access_router)
 app.include_router(races_router)
 app.include_router(analysis_router)
 app.include_router(admin_router)

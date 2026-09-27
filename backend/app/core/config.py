@@ -51,7 +51,33 @@ class Settings(BaseSettings):
     chat_rate_limit_per_ip: int = 100
     chat_rate_limit_window_s: int = 3600
 
+    # ── PRO access ──────────────────────────────────────────────────────────
+    # Seasons anyone may read without a code. Everything else — 2025, the
+    # current season, live mode — needs one.
+    free_seasons: list[int] = [2023, 2024]
+    # The access codes themselves, comma-separated or a JSON array. These are
+    # secrets: they go in Render's environment and never in this repo, not even
+    # as a real-looking example. Empty means the PRO seasons are locked to
+    # everyone, which is the correct default for a fresh checkout.
+    pro_access_codes: list[str] = []
+    # Signing key for the access tokens. Empty disables redemption entirely
+    # rather than signing with a guessable default: a predictable secret is the
+    # same as no gate at all, and failing closed is the only safe direction.
+    pro_token_secret: SecretStr = SecretStr("")
+    pro_token_ttl_days: int = 30
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+    @field_validator("pro_access_codes", "free_seasons", mode="before")
+    @classmethod
+    def _parse_list(cls, v: object) -> object:
+        """Accept a JSON array or a comma-separated string from an env var."""
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except (_json.JSONDecodeError, ValueError):
+                return [item.strip() for item in v.split(",") if item.strip()]
+        return v
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -68,6 +94,11 @@ class Settings(BaseSettings):
     def openf1_credentials_configured(self) -> bool:
         """True when any OpenF1 credential is set (account or static token)."""
         return bool(self.openf1_username and self.openf1_password.get_secret_value()) or bool(self.openf1_api_token)
+
+    @property
+    def pro_access_configured(self) -> bool:
+        """True when a code could actually be redeemed. Both halves are needed."""
+        return bool(self.pro_access_codes) and bool(self.pro_token_secret.get_secret_value())
 
     @property
     def cache_path(self) -> Path:

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.core import cache
+from app.core.access import require_season_access
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
@@ -205,12 +206,30 @@ async def chat_health() -> dict:
     }
 
 
+def _chat_year(session_key: int) -> int | None:
+    """The season, from the local metadata. Unknown is PRO, never free."""
+    meta = cache.get_session_meta(session_key)
+    if isinstance(meta, dict) and isinstance(meta.get("year"), int):
+        return meta["year"]
+    analysis = cache.get_full_analysis(session_key)
+    if isinstance(analysis, dict):
+        year = (analysis.get("race") or {}).get("year")
+        if isinstance(year, int):
+            return year
+    return None
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     # 0. Rate limit before anything that costs LLM quota
     enforce_chat_rate_limit(request)
 
-    # 1. Load analysis from cache (must have been computed via /analysis first)
+    # 1. PRO gate. /chat reads the analysis straight from disk, so without this
+    #    a PRO race that had been computed once would be readable, in prose,
+    #    by anyone who knew its session_key — a back door around /analysis.
+    require_season_access(request, _chat_year(req.session_key), req.session_key)
+
+    # 2. Load analysis from cache (must have been computed via /analysis first)
     raw = cache.get_analysis(req.session_key)
     if raw is None:
         raise AppError(
@@ -231,10 +250,10 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             status=500,
         ) from exc
 
-    # 2. Build compact context string
+    # 3. Build compact context string
     context = build_chat_context(analysis, req.focused_driver, question=req.question)
 
-    # 3. Call AI (Ollama → Groq fallback)
+    # 4. Call AI (Ollama → Groq fallback)
     session_name = f"{analysis.race.meeting_name} {analysis.race.year}"
     try:
         reply = await answer_engineer_question(
@@ -249,7 +268,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             details={"provider": exc.provider, "model": exc.model, "retry_after_seconds": exc.retry_after_s},
         ) from exc
 
-    # 4. Cited signals: only ids the model declared AND that were in the subset it was sent
+    # 5. Cited signals: only ids the model declared AND that were in the subset it was sent
     catalog = select_signals(analysis, req.question, req.focused_driver)
     seen: set[str] = set()
     cited: list[CitedSignal] = []

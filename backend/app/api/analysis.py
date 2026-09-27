@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
 from app.core.config import settings
@@ -27,6 +27,7 @@ from app.services.race_phase_service import classify_race_phases
 from app.services.crossover_service import detect_crossover_windows, compute_weather_winners_losers
 from app.services.clean_air_service import estimate_clean_air_value
 from app.services.classification_service import compute_race_classification
+from app.core.access import require_season_access
 from app.utils.time import is_session_historical
 
 router = APIRouter(tags=["analysis"])
@@ -194,12 +195,43 @@ def _build_race_brain(
 
 # ── Main analysis endpoint ─────────────────────────────────────────────────
 
+async def _session_year(session_key: int) -> int | None:
+    """
+    The season this session belongs to, as cheaply as possible.
+
+    The PRO gate runs before the analysis cache is read, so this has to answer
+    without computing anything. Two of the three sources are local files; the
+    network is only reached for a session this deployment has never seen.
+    """
+    meta = analysis_cache.get_session_meta(session_key)
+    if isinstance(meta, dict) and isinstance(meta.get("year"), int):
+        return meta["year"]
+    cached = analysis_cache.get_full_analysis(session_key)
+    if isinstance(cached, dict):
+        year = (cached.get("race") or {}).get("year")
+        if isinstance(year, int):
+            return year
+    try:
+        fetched = await _fetch_session_meta(session_key)
+    except Exception as exc:
+        logger.warning("[PRO] could not read the year for %s: %s", session_key, exc)
+        return None
+    year = fetched.get("year")
+    return year if isinstance(year, int) else None
+
+
 @router.get("/analysis/{session_key}", response_model=FullRaceAnalysis)
 async def get_analysis(
     session_key: int,
+    request: Request,
     force_refresh: bool = False,
 ) -> FullRaceAnalysis:
     logger.info("[ANALYSIS REQUEST] session_key=%s force_refresh=%s", session_key, force_refresh)
+
+    # 0. PRO gate, before anything is read or computed — including the cache, so
+    #    a PRO race that happens to be on disk is no easier to reach than one
+    #    that is not, and force_refresh cannot be used to step around it.
+    require_season_access(request, await _session_year(session_key), session_key)
 
     # 1. Fast path: full analysis cache (no lock needed for read)
     if not force_refresh:

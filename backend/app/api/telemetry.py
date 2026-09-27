@@ -10,9 +10,10 @@ FastF1 is never loaded on Render (it would OOM the 512 MB free tier container).
 """
 import logging
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from app.core import cache
+from app.core.access import require_season_access
 from app.core.config import settings
 from app.core.errors import AppError
 from app.domain.models import TelemetryData
@@ -26,12 +27,34 @@ router = APIRouter(tags=["telemetry"])
 logger = logging.getLogger(__name__)
 
 
+def _telemetry_year(session_key: int) -> int | None:
+    """
+    The season, from whichever local file has it. Telemetry is only ever served
+    for a session /analysis has already run on, so one of these two exists; a
+    session with neither is unknown, and unknown is PRO.
+    """
+    meta = cache.get_session_meta(session_key)
+    if isinstance(meta, dict) and isinstance(meta.get("year"), int):
+        return meta["year"]
+    analysis = cache.get_full_analysis(session_key)
+    if isinstance(analysis, dict):
+        year = (analysis.get("race") or {}).get("year")
+        if isinstance(year, int):
+            return year
+    return None
+
+
 @router.get("/telemetry/{session_key}", response_model=TelemetryData)
 async def get_telemetry(
     session_key: int,
+    request: Request,
     drivers: str = Query(default="NOR,VER,HAM"),
     lap_mode: str = Query(default="fastest_clean", pattern="^(fastest_clean|representative)$"),
 ) -> TelemetryData:
+    # PRO gate first. Telemetry has its own pre-computed files, so a PRO session
+    # could otherwise be read here without ever touching /analysis.
+    require_season_access(request, _telemetry_year(session_key), session_key)
+
     driver_list = [d.strip().upper() for d in drivers.split(",") if d.strip()][:5]
     cache_key = f"telemetry_{lap_mode}_" + "_".join(sorted(driver_list))
 
