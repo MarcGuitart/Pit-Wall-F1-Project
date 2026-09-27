@@ -1,15 +1,194 @@
+# Pit Wall IQ on Render — three services, deliberately separate.
+#
+#   pit-wall-iq-backend   the analysis API. Free tier today.
+#   pit-wall-recorder     holds an MQTT subscription and writes the capture to
+#                         a persistent disk. The system of record.
+#   pit-wall-live         holds a second MQTT subscription and serves the live
+#                         page. A view; losing it costs nothing permanent.
+#
+# Why the recorder and the live server are two services with two subscriptions,
+# rather than one process or one subscription shared:
+#
+#   One process fails the rule that a bug in the server must never kill the
+#   recording — they would share an event loop, a memory limit and a deploy.
+#
+#   One subscription, with the live server following the recorder's files, is
+#   better on paper and impossible here: a Render disk belongs to exactly one
+#   service and cannot be mounted by a second.
+#
+#   Two subscriptions on one account is a thing already proven rather than
+#   assumed. The Baku recording ran the recorder and the experimental live
+#   server side by side for three hours, each with its own client_id and its own
+#   token, without either interfering with the other.
+#
+# Build filters exist for one reason: the publication Action commits to main
+# every hour, and a commit is a deploy. Without them, publishing a race during a
+# session redeploys the recorder and drops the subscription. That is the hazard
+# an earlier note left to "do not deploy on a race day", and this is the
+# mechanism instead. Two caveats worth knowing: filters apply to autodeploys
+# only — a manual deploy always goes through — and a change to this file always
+# deploys everything, filters or not.
+#
+# Nothing here is deployed. Secrets marked sync:false are set in the Render
+# dashboard; none of them belong in this repo.
+
 services:
+  # ── the analysis API ───────────────────────────────────────────────────────
   - type: web
     name: pit-wall-iq-backend
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    buildFilter:
+      ignoredPaths:
+        # The live services' own code. It shares app/ with the API, so only the
+        # scripts are exclusively theirs.
+        - backend/scripts/live_*
+        - backend/scripts/recorder_ops.py
+        - backend/requirements-live.txt
+        - backend/requirements-recorder.txt
+        - frontend/**
+        - docs/**
+        - .github/**
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: ENVIRONMENT
         value: production
-      # Set CORS_ORIGINS to your Vercel frontend URL after first deploy, e.g.:
-      # CORS_ORIGINS=https://pit-wall-iq.vercel.app
-      # Set GROQ_API_KEY if you want AI chat in production (free at console.groq.com)
+      # The frontend's origin, e.g. https://pitwallengineer.com
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OPENF1_USERNAME
+        sync: false
+      - key: OPENF1_PASSWORD
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # PRO access. The live server must hold the same two values, or a token
+      # minted by one will not verify on the other.
+      - key: PRO_TOKEN_SECRET
+        sync: false
+      - key: PRO_ACCESS_CODES
+        sync: false
+
+  # ── the recorder: the system of record ─────────────────────────────────────
+  - type: web
+    name: pit-wall-recorder
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements-recorder.txt
+    # --out-root, not --out: this process stays subscribed for weeks and writes
+    # <disk>/<session_key>, rolling when the session_key in the messages changes.
+    # --ops adds the health endpoint below, the Telegram alerts and the upload.
+    startCommand: python scripts/live_recorder.py --out-root /var/captures --ops
+    # A web service rather than a background worker, for one reason: Render
+    # health checks are a web-service feature, and "the process is alive" is
+    # exactly the check that cannot tell a recorder that is recording from one
+    # that is running and subscribed to nothing.
+    healthCheckPath: /health
+    # Preserved across deploys and restarts. Without it the capture lives in the
+    # container filesystem and a deploy destroys it mid-session, with no replay
+    # to recover it from — MQTT has no history.
+    #
+    # 5 GB at $0.25/GB/month is $1.25. The Baku race was 25 MB, so this holds a
+    # couple of hundred sessions; the archive upload means it never has to hold
+    # more than the current season anyway.
+    #
+    # A disk removes zero-downtime deploys and multi-instance scaling. Both are
+    # free here: a deploy already interrupts recording, which is the problem
+    # being solved, and two recorders would write the same messages twice.
+    disk:
+      name: captures
+      mountPath: /var/captures
+      sizeGB: 5
+    buildFilter:
+      paths:
+        - backend/scripts/live_recorder.py
+        - backend/scripts/recorder_ops.py
+        - backend/scripts/notify_telegram.py
+        - backend/requirements-live.txt
+        - backend/requirements-recorder.txt
+        - backend/app/clients/openf1_auth.py
+        - backend/app/core/config.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENF1_USERNAME
+        sync: false
+      - key: OPENF1_PASSWORD
+        sync: false
+      # Where a finished capture is archived. S3-compatible: Cloudflare R2's
+      # endpoint is https://<account_id>.r2.cloudflarestorage.com
+      - key: CAPTURE_BUCKET
+        sync: false
+      - key: CAPTURE_ENDPOINT_URL
+        sync: false
+      - key: CAPTURE_REGION
+        value: auto
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      # The same bot the publication Action already uses.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
+  # ── the live server: a view, not a record ──────────────────────────────────
+  - type: web
+    name: pit-wall-live
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements-live.txt
+    # 0.0.0.0 is also what switches the unauthenticated development routes off:
+    # /events, /snapshot.json and the raw observation page are registered only
+    # on a loopback bind, so they cannot become a way around the PRO gate.
+    startCommand: python scripts/live_server.py --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    # No disk. It holds nothing worth keeping, and a disk would cost it
+    # zero-downtime deploys and the ability to run more than one instance —
+    # which is exactly what a service full of long-lived SSE connections wants.
+    buildFilter:
+      paths:
+        - backend/scripts/live_server.py
+        - backend/scripts/live_state.py
+        - backend/scripts/live_view.html
+        - backend/requirements-live.txt
+        - backend/app/clients/openf1_auth.py
+        - backend/app/core/access.py
+        - backend/app/core/config.py
+        # live_state calls these directly. The coupling is real and the filter
+        # has to admit it: a filter wrong in the optimistic direction ships a
+        # live server running against services it was never tested with.
+        - backend/app/services/**
+        - backend/app/domain/**
+        - backend/app/utils/**
+      ignoredPaths:
+        # The hourly publication commit. This is the one that matters.
+        - backend/cache/**
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENF1_USERNAME
+        sync: false
+      - key: OPENF1_PASSWORD
+        sync: false
+      # Comma-separated. Local development origins are always allowed on top.
+      - key: LIVE_ALLOWED_ORIGINS
+        sync: false
+      # Must match the API's values exactly. A token minted by the API is
+      # verified here by the same code; a different secret refuses every token,
+      # and a different code list silently un-revokes a revoked code.
+      - key: PRO_TOKEN_SECRET
+        sync: false
+      - key: PRO_ACCESS_CODES
+        sync: false

@@ -1,0 +1,7 @@
+# The recorder, which is the live base plus the archive upload.
+-r requirements-live.txt
+
+# S3-compatible, so the bucket can be Cloudflare R2, Backblaze B2 or S3 with an
+# endpoint change and nothing else. Only the recorder uploads; the live server
+# does not, which is why this is not in requirements-live.txt.
+boto3>=1.34

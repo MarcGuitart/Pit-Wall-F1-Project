@@ -1,0 +1,20 @@
+# The live services: recorder and live server.
+#
+# Deliberately not requirements.txt. That file installs polars, fastf1, numpy
+# and groq for the analysis API; none of the live path imports any of them —
+# checked by importing live_server and running a full live_analysis(), which
+# loads only what is below. A recorder that has to build fastf1 to write JSONL
+# is a longer deploy and a larger surface for no reason.
+#
+# fastapi is here for one import: app.core.access, which verifies the PRO token
+# and takes a fastapi Request. That verifier is shared with the API on purpose —
+# two HMAC implementations that can drift apart is a worse outcome than one
+# extra dependency in this service.
+paho-mqtt==2.1.0
+uvicorn[standard]==0.29.0
+starlette==0.37.2
+fastapi==0.111.0
+httpx==0.27.0
+pydantic==2.7.1
+pydantic-settings==2.3.0
+python-dotenv==1.0.1
