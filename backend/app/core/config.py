@@ -2,12 +2,42 @@ import json as _json
 from pathlib import Path
 
 from pydantic import SecretStr, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, DotEnvSettingsSource, EnvSettingsSource
 
 # Absolute path so cache resolution is independent of the process working
 # directory (guards against Render starting uvicorn from the repo root
 # instead of the backend/ subdirectory).
 _DEFAULT_CACHE_DIR = str(Path(__file__).parents[2] / "cache")
+
+
+# Fields typed as a list that must still accept a bare env var.
+#
+# pydantic-settings treats a list field as "complex" and JSON-decodes the
+# environment value *before* any field_validator runs, so the validators below
+# never saw a comma-separated string: PRO_ACCESS_CODES=MYCODE raised
+# SettingsError at import and the whole service failed to start. Typing a code
+# into a dashboard is the most likely way that variable is ever set, and a
+# service that will not boot is a poor answer to it.
+#
+# These two sources hand the raw string through for these fields only, so the
+# validators decide. JSON arrays still work, because the validators try JSON
+# first. (pydantic-settings 2.5 added NoDecode for exactly this; this project
+# is on 2.3.)
+_LENIENT_LIST_FIELDS = {"pro_access_codes", "free_seasons"}
+
+
+class _LenientEnv(EnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name in _LENIENT_LIST_FIELDS and isinstance(value, str):
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
+
+
+class _LenientDotEnv(DotEnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name in _LENIENT_LIST_FIELDS and isinstance(value, str):
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -68,16 +98,34 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                   dotenv_settings, file_secret_settings):
+        return (
+            init_settings,
+            _LenientEnv(settings_cls),
+            _LenientDotEnv(settings_cls),
+            file_secret_settings,
+        )
+
     @field_validator("pro_access_codes", "free_seasons", mode="before")
     @classmethod
     def _parse_list(cls, v: object) -> object:
-        """Accept a JSON array or a comma-separated string from an env var."""
-        if isinstance(v, str):
-            try:
-                return _json.loads(v)
-            except (_json.JSONDecodeError, ValueError):
-                return [item.strip() for item in v.split(",") if item.strip()]
-        return v
+        """
+        Accept a JSON array, a comma-separated string, or a single bare value.
+
+        The bare value is the case worth spelling out: FREE_SEASONS=2023 parses
+        as valid JSON — the integer 2023 — so taking json.loads at its word
+        yields a number where a list belongs. Anything JSON gives back that is
+        not a list is treated as the single element it is.
+        """
+        if not isinstance(v, str):
+            return v
+        try:
+            parsed = _json.loads(v)
+        except (_json.JSONDecodeError, ValueError):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return parsed if isinstance(parsed, list) else [parsed]
 
     @field_validator("cors_origins", mode="before")
     @classmethod
