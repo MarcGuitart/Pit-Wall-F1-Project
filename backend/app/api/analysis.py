@@ -156,9 +156,15 @@ def _build_race_brain(
     top3 = [r.driver_code for r in pace_rows[:3]]
     top3_str = " › ".join(top3) if top3 else "–"
 
-    cliff_drivers = [s.driver_code for s in tyre_rows if s.cliff_risk == "High"]
+    # dict.fromkeys, not set(): a set reorders per process under hash
+    # randomisation, so the same race produced a different summary string on
+    # every regeneration. Dedupe first, then take three, so a driver with two
+    # cliff stints does not cost the summary a name.
+    cliff_drivers = list(dict.fromkeys(
+        s.driver_code for s in tyre_rows if s.cliff_risk == "High"
+    ))
     cliff_str = (
-        f"Tyre cliff risk: {', '.join(set(cliff_drivers[:3]))}. " if cliff_drivers else ""
+        f"Tyre cliff risk: {', '.join(cliff_drivers[:3])}. " if cliff_drivers else ""
     )
 
     slow_threshold = slow_lane_threshold(pit_rows)
