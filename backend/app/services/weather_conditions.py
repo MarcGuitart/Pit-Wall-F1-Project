@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.utils.time import parse_utc
+
 # Records are ~1/minute, so these are approximately minutes.
 MIN_WET_RECORDS = 3        # shortest run of wet records that counts as a rain period
 MAX_DRY_GAP_RECORDS = 2    # longest dry gap that is still the same rain period
@@ -37,13 +39,7 @@ class RainPeriod:
     first_record: dict       # raw weather record at ``start`` (for track temp, etc.)
 
 
-def parse_ts(s: str | None) -> datetime | None:
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None
+parse_ts = parse_utc       # re-exported: several services import it from here
 
 
 def is_wet_record(record: dict) -> bool:

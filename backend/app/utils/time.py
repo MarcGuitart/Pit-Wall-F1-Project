@@ -41,7 +41,20 @@ def unlock_buffer() -> timedelta:
     return timedelta(minutes=minutes) if minutes is not None else DEFAULT_UNLOCK_BUFFER
 
 
-def _parse(value: str | None) -> datetime | None:
+def parse_utc(value: str | None) -> datetime | None:
+    """
+    The one timestamp parser for anything that came off a feed.
+
+    OpenF1 is not consistent about offsets: the REST endpoints stamp every
+    field "...+00:00", but over MQTT only race_control and team_radio carry an
+    offset — laps.date_start, pit.date, position.date, intervals.date and
+    weather.date arrive naive. Both are UTC; parsing them with plain
+    fromisoformat produced a mix of naive and aware datetimes that only blew up
+    when a live pit stop was compared against a race-control neutralisation
+    window ("can't compare offset-naive and offset-aware datetimes").
+
+    Naive input is therefore read as UTC, which is what it always was.
+    """
     if not value:
         return None
     try:
@@ -49,6 +62,9 @@ def _parse(value: str | None) -> datetime | None:
     except (TypeError, ValueError):
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+_parse = parse_utc          # kept: the session-gate helpers below use this name
 
 
 def session_end(

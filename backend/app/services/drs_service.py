@@ -17,6 +17,7 @@ from app.domain.models import (
     DRSTrainSnapshot, DRSAnalysisAggregated, MeaningfulDRSTrain, TrainDynamics,
 )
 from app.domain.race_timeline import RaceTimeline
+from app.utils.time import parse_utc
 
 
 DRS_THRESHOLD = 1.0   # gap ≤ 1.0s = within DRS range
@@ -26,13 +27,7 @@ MIN_TRAIN_SIZE = 3    # minimum cars to constitute a train
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 
-def _parse_ts(s: str | None) -> datetime | None:
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None
+_parse_ts = parse_utc
 
 
 def _build_lap_time_index(laps: list[dict]) -> list[tuple[int, datetime]]:

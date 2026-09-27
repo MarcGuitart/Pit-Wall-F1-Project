@@ -11,16 +11,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.domain.race_timeline import LapSignals, RaceTimeline
+from app.utils.time import parse_utc
 from app.services.weather_conditions import DRY, WET, detect_rain_periods, wet_lap_numbers
 
 
-def _parse_ts(s: str | None) -> datetime | None:
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None
+_parse_ts = parse_utc      # every feed timestamp is read as UTC, offset or not
 
 
 def _build_lap_time_index(laps_data: list[dict]) -> list[tuple[int, datetime]]:
