@@ -14,6 +14,7 @@ from app.services.race_loader import load_session
 from app.services.pace_service import compute_true_pace
 from app.services.tyre_service import compute_tyre_degradation
 from app.services.pit_service import compute_pit_impact_with_cycles, is_slow_stop, slow_lane_threshold
+from app.core.version import ANALYSIS_VERSION
 from app.services.chaos_service import METHOD_VERSION as CHAOS_METHOD_VERSION, compute_chaos_index
 from app.services.notes_service import generate_engineer_notes
 from app.services.decisions_service import compute_decisions
@@ -78,8 +79,9 @@ async def _fetch_session_meta(session_key: int) -> dict:
 def _read_cached_analysis(session_key: int) -> FullRaceAnalysis | None:
     """
     Three outcomes for _analysis.json:
-    - fresh (current chaos method, validates)      → return it
-    - stale (older method or schema, valid JSON)   → None: recompute from the cached raw data
+    - fresh (current pipeline and chaos method, validates) → return it
+    - stale (older ANALYSIS_VERSION, older chaos method, or an older schema,
+      but valid JSON)                              → None: recompute from the cached raw data
     - corrupt (file exists but is not valid JSON)  → ANALYSIS_FAILED; the unreadable
       file is removed by the cache layer so the next request recomputes
     Missing files also return None.
@@ -95,6 +97,14 @@ def _read_cached_analysis(session_key: int) -> FullRaceAnalysis | None:
                 status=500,
                 details={"session_key": session_key, "reason": "corrupt_cache"},
             )
+        return None
+
+    pipeline = cached.get("analysis_version", "1")
+    if pipeline != ANALYSIS_VERSION:
+        logger.info(
+            "[CACHE STALE] %s: pipeline %s != %s — recomputing",
+            session_key, pipeline, ANALYSIS_VERSION,
+        )
         return None
 
     version = (cached.get("chaos") or {}).get("method_version")
@@ -449,6 +459,7 @@ async def get_analysis(
             )
 
             result = FullRaceAnalysis(
+                analysis_version=ANALYSIS_VERSION,
                 race=race_meta,
                 race_brain=race_brain,
                 race_dna=race_dna,

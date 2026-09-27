@@ -356,6 +356,10 @@ class ModuleStatus(BaseModel):
 # ── Updated FullRaceAnalysis ───────────────────────────────────────────────
 
 class FullRaceAnalysis(BaseModel):
+    # Stamp of the pipeline that produced this document (app/core/version.py).
+    # "1" is the default so an analysis written before the stamp existed is
+    # recognised as stale and recomputed.
+    analysis_version: str = "1"
     race: RaceMeta
     race_brain: RaceBrain
     # V4 — deterministic race fingerprint
