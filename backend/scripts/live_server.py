@@ -90,6 +90,7 @@ from starlette.responses import FileResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Route  # noqa: E402
 
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
+from app.core.branding import PRO_NAME  # noqa: E402
 from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
@@ -372,7 +373,7 @@ async def sse_response(request: Request, state: RaceState, hub: Hub, feed: "Live
 PRO_REQUIRED_BODY = {
     "error": {
         "code": "PRO_REQUIRED",
-        "message": "Live mode is part of Pit Wall IQ PRO. It needs an access code.",
+        "message": f"Live mode is part of {PRO_NAME}. It needs an access code.",
         "details": {"live": True},
     }
 }

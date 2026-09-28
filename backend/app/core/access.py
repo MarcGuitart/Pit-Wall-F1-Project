@@ -45,6 +45,7 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
+from app.core.branding import PRO_NAME
 from app.core.config import settings
 from app.core.errors import AppError
 
@@ -225,7 +226,7 @@ def pro_required(year: int | None, session_key: int | None = None) -> AppError:
     """
     return AppError(
         "PRO_REQUIRED",
-        "This season is part of Pit Wall IQ PRO. Races from 2025 onwards and the "
+        f"This season is part of {PRO_NAME}. Races from 2025 onwards and the "
         "current season with Live mode need an access code.",
         status=402,
         details={

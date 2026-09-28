@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.branding import PRODUCT_NAME
 from app.core.config import settings
 from app.core.errors import ErrorEnvelopeMiddleware, install_error_handlers
 from app.api.access import router as access_router
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Pit Wall IQ",
+    title=PRODUCT_NAME,
     description="F1 race strategy intelligence API",
     version="2.0.0",
 )

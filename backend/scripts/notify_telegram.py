@@ -44,6 +44,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+sys.path.insert(0, ".")           # backend/ — for app.core.branding, nothing heavier
+
+from app.core.branding import PRODUCT_NAME  # noqa: E402
+
 API = "https://api.telegram.org"
 CHAOS_EMOJI = {"Low": "🟢", "Medium": "🟡", "High": "🟠", "Extreme": "🔴"}
 
@@ -94,7 +98,7 @@ def build_message(report: dict, env: dict) -> str | None:
     out: list[str] = []
 
     if published:
-        out.append("<b>Pit Wall IQ — race published</b>")
+        out.append(f"<b>{PRODUCT_NAME} — race published</b>")
         out.append("")
         out += published_lines(report)
 
