@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRaceStore } from '@/stores/raceStore'
+import { useAccessStore } from '@/stores/accessStore'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { seasonRangeLabel } from '@/lib/seasons'
 
@@ -17,6 +18,10 @@ type TopBarProps = {
 
 export function TopBar({ breadcrumb }: TopBarProps) {
   const { mode } = useRaceStore()
+  // Both halves required: an active token AND the display preference (Settings'
+  // toggle) still set to show it. A token past its expiry, or hidden by choice,
+  // shows nothing here rather than a stale or unwanted badge.
+  const showProBadge = useAccessStore((s) => s.pro && s.showBadge)
   const [showLiveTip, setShowLiveTip] = useState(false)
 
   return (
@@ -30,6 +35,23 @@ export function TopBar({ breadcrumb }: TopBarProps) {
           ENGINEER
         </span>
       </Link>
+
+      {/* PRO indicator — only when active, never a permanent "Free" that adds
+          noise. Clicks through to Settings, where the toggle and the code
+          field actually live now. */}
+      {showProBadge && (
+        <Link
+          href="/settings"
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-[3px] border border-signal-green/40
+                     bg-signal-green/[0.07] hover:bg-signal-green/[0.14] transition-colors shrink-0"
+          aria-label="PRO access active — open Settings"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" aria-hidden="true" />
+          <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-signal-green">
+            PRO
+          </span>
+        </Link>
+      )}
 
       {/* Breadcrumb */}
       {breadcrumb && breadcrumb.length > 0 && (
