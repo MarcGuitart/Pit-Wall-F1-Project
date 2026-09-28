@@ -72,6 +72,12 @@ services:
         sync: false
       - key: PRO_ACCESS_CODES
         sync: false
+      # INTERNAL_BUILD_SECRET is deliberately absent from this list. It lets
+      # the publication pipeline through the PRO gate before a user token could
+      # exist for a race not yet published, and it is a GitHub Actions secret
+      # only — the publish Action computes in-process, never against this
+      # deployed service, so this API never needs to accept that header from
+      # anyone. Setting it here would be a live bypass with no purpose.
 
   # ── the recorder: the system of record ─────────────────────────────────────
   - type: web

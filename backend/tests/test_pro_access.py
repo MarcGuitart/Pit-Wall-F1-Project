@@ -16,6 +16,7 @@ which is the assertion for the free cases: not 200, but *not the gate*.
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -250,6 +251,53 @@ def test_the_build_secret_grants_no_more_than_a_free_season_already_had(client, 
     with_secret = client.get("/analysis/9539", headers={"X-Internal-Build-Secret": BUILD_SECRET})
     without = client.get("/analysis/9539")
     assert with_secret.status_code == without.status_code
+
+
+# ── fails closed: Block 23 ───────────────────────────────────────────────────
+#
+# INTERNAL_BUILD_SECRET is deliberately absent from Render (render.yaml says
+# so explicitly). These pin the two ways "not configured" could otherwise leak
+# open: the header simply missing, and the classic empty-string-equals-
+# empty-string trap on a comparison that forgot to check for that first.
+
+def test_no_secret_configured_and_no_header_sent_at_all_is_refused(client, configured):
+    """Not even the header key present — the common case in practice, since a
+    caller with nothing to send usually sends nothing, not an empty string."""
+    r = client.get("/analysis/11377")
+    assert error_code(r) == "PRO_REQUIRED"
+
+
+def test_no_secret_configured_and_an_empty_header_is_refused(client, configured):
+    """The trap this guards against: an unset settings secret defaults to "",
+    and "" == "" must never be how a comparison decides "match"."""
+    r = client.get("/analysis/11377", headers={"X-Internal-Build-Secret": ""})
+    assert error_code(r) == "PRO_REQUIRED"
+
+
+def test_has_internal_build_access_returns_false_before_reading_any_header_when_unconfigured():
+    """
+    Unit-level, not just through the HTTP gate: with no secret configured,
+    has_internal_build_access() must short-circuit to False without needing a
+    header at all — asserted directly against a bare Request-like object with
+    no headers, which the full-app test above cannot distinguish from "the
+    header lookup happened to return an empty default".
+    """
+    class NoHeaders:
+        headers: dict = {}
+
+    assert access.has_internal_build_access(NoHeaders()) is False  # type: ignore[arg-type]
+
+
+def test_the_comparison_is_hmac_compare_digest_not_equality(build_secret_configured):
+    """
+    Static, not behavioural: a plain `==` and compare_digest agree on every
+    input this test suite could construct, so the only way to actually pin
+    down that the timing-safe comparison is what's used is to read the source.
+    """
+    import inspect
+    source = inspect.getsource(access.has_internal_build_access)
+    assert "hmac.compare_digest(" in source
+    assert re.search(r"provided\s*==\s*secret|secret\s*==\s*provided", source) is None
 
 
 def test_the_header_is_bearer_and_no_cookie_is_ever_set(client, configured):
