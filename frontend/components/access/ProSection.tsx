@@ -18,10 +18,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAccessStore } from '@/stores/accessStore'
+import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
 import { formatExpiry, formatLocalDateTime, formatUtcTime } from '@/lib/format'
 import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
-import { fetchLiveServerStatus, fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 
 const PRO_FEATURES = [
@@ -49,38 +49,9 @@ export function ProSection() {
     return () => { cancelled = true }
   }, [currentSeasonYear])
 
-  // Live status: only checked for a PRO visitor, since the live server itself
-  // is the only source of truth for "data is arriving" — never the clock alone
-  // (a session can start late). Polled, not fetched once: the point of this
-  // caption is to flip to a link the moment the session actually starts,
-  // while someone might be sitting on this page.
-  const [liveSessionKey, setLiveSessionKey] = useState<number | null>(null)
-  const [liveChecked, setLiveChecked] = useState(false)
-  const [nextLive, setNextLive] = useState<NextLiveSessionInfo | null>(null)
-
-  useEffect(() => {
-    if (!pro || currentSeasonYear === undefined) {
-      setLiveSessionKey(null)
-      setLiveChecked(false)
-      return
-    }
-    let cancelled = false
-
-    async function poll() {
-      const status = await fetchLiveServerStatus()
-      if (cancelled) return
-      setLiveSessionKey(status.sessionKey)
-      if (status.sessionKey === null) {
-        const next = await fetchNextLiveSession(currentSeasonYear as number)
-        if (!cancelled) setNextLive(next)
-      }
-      if (!cancelled) setLiveChecked(true)
-    }
-
-    poll()
-    const id = setInterval(poll, 60_000)
-    return () => { cancelled = true; clearInterval(id) }
-  }, [pro, currentSeasonYear])
+  // Live status: shared with TopBar's Live pill (hooks/useLiveStatus.ts,
+  // Block 22) so the two never disagree about whether a session is live.
+  const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
 
   return (
     <section

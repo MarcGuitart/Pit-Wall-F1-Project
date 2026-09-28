@@ -4,8 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRaceStore } from '@/stores/raceStore'
 import { useAccessStore } from '@/stores/accessStore'
+import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
-import { seasonRangeLabel } from '@/lib/seasons'
+import { proSeasons } from '@/lib/access'
+import { formatLocalDateTime } from '@/lib/format'
 
 type BreadcrumbItem = {
   label: string
@@ -22,6 +24,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
   // toggle) still set to show it. A token past its expiry, or hidden by choice,
   // shows nothing here rather than a stale or unwanted badge.
   const showProBadge = useAccessStore((s) => s.pro && s.showBadge)
+  const pro = useAccessStore((s) => s.pro)
+  const currentSeasonYear = proSeasons()[0]
+  const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
   const [showLiveTip, setShowLiveTip] = useState(false)
 
   return (
@@ -91,30 +96,75 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             Historical
           </div>
 
-          {/* Live — coming soon */}
+          {/* Live — a real link once a session is live (verified against the live
+              server, never the clock alone), the real next session when PRO but
+              nothing is live, or an invitation to Settings without PRO. Status
+              shared with the landing page's Live bay via useLiveStatus. */}
           <div className="relative">
-            <button
-              onMouseEnter={() => setShowLiveTip(true)}
-              onMouseLeave={() => setShowLiveTip(false)}
-              onFocus={() => setShowLiveTip(true)}
-              onBlur={() => setShowLiveTip(false)}
-              className="px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] text-text-muted/50 cursor-not-allowed flex items-center gap-1.5"
-              aria-label="Live mode — coming soon"
-            >
-              Live
-              <span className="px-1 py-0.5 rounded-[2px] bg-signal-amber/15 border border-signal-amber/30 text-signal-amber font-mono text-[7px] leading-none">
-                SOON
+            {pro && liveSessionKey !== null ? (
+              <Link
+                href={`/live/${liveSessionKey}`}
+                className="px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] text-signal-green flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" aria-hidden="true" />
+                Live
+              </Link>
+            ) : pro ? (
+              <span
+                onMouseEnter={() => setShowLiveTip(true)}
+                onMouseLeave={() => setShowLiveTip(false)}
+                onFocus={() => setShowLiveTip(true)}
+                onBlur={() => setShowLiveTip(false)}
+                tabIndex={0}
+                className="px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary cursor-default flex items-center gap-1.5 outline-none"
+                aria-label="Live mode — no session live right now"
+              >
+                Live
               </span>
-            </button>
+            ) : (
+              <Link
+                href="/settings"
+                onMouseEnter={() => setShowLiveTip(true)}
+                onMouseLeave={() => setShowLiveTip(false)}
+                onFocus={() => setShowLiveTip(true)}
+                onBlur={() => setShowLiveTip(false)}
+                className="px-3 py-1 rounded-[2px] font-display font-bold text-[10px] uppercase tracking-[1px] text-text-muted/50 hover:text-text-secondary flex items-center gap-1.5"
+                aria-label="Live mode — PRO, open Settings"
+              >
+                Live
+                <span className="px-1 py-0.5 rounded-[2px] bg-signal-amber/15 border border-signal-amber/30 text-signal-amber font-mono text-[7px] leading-none">
+                  PRO
+                </span>
+              </Link>
+            )}
             {showLiveTip && (
               <div className="absolute top-full right-0 mt-2 z-50 pointer-events-none">
-                <div className="bg-bg-elevated border border-border-default rounded-[4px] px-3 py-2 shadow-xl w-[210px]">
-                  <div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-signal-amber mb-1">
-                    Live mode · Coming soon
-                  </div>
-                  <div className="font-mono text-[9px] text-text-muted leading-relaxed">
-                    Real-time is not available yet. The live mode will allow you to follow along with the race as it happens. At the moment, you can explore historical races from {seasonRangeLabel()}.
-                  </div>
+                <div className="bg-bg-elevated border border-border-default rounded-[4px] px-3 py-2 shadow-xl w-[220px]">
+                  {pro ? (
+                    <>
+                      <div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary mb-1">
+                        No live session right now
+                      </div>
+                      <div className="font-mono text-[9px] text-text-muted leading-relaxed">
+                        {liveChecked && nextLive ? (
+                          <>Next live session: {nextLive.meetingName} {nextLive.sessionName}, {formatLocalDateTime(nextLive.dateStart)}</>
+                        ) : liveChecked ? (
+                          <>No upcoming session is scheduled.</>
+                        ) : (
+                          <>Checking…</>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-signal-amber mb-1">
+                        Live mode · PRO
+                      </div>
+                      <div className="font-mono text-[9px] text-text-muted leading-relaxed">
+                        Follow the race as it happens, live. Part of PRO — enter an access code in Settings to unlock it.
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
