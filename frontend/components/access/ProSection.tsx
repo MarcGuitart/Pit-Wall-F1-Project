@@ -1,28 +1,28 @@
 'use client'
 
 /**
- * The PRO section of the landing page.
+ * The PRO section of the landing page — informational only.
  *
- * Two states, one component. Locked: the PRO seasons as sealed garage bays, a
- * "Coming soon" price button that promises nothing it cannot deliver, and a code
- * field for whoever already has one. Unlocked: the same bays open, the expiry
- * visible, and a way out.
+ * Block 20: the code field and the "access active" banner both moved to
+ * /settings, which owns that whole exchange now. This section explains what
+ * PRO brings (the bays reflect the real calendar, same as before) and points
+ * at Settings for anyone who wants to act on it. It reads the shared access
+ * store rather than fetching its own status — Settings and TopBar read the
+ * same value, so there is exactly one place that decides "is PRO active".
  *
- * The UI decides nothing. Every PRO request is gated on the backend and refused
- * there with PRO_REQUIRED; a locked bay here is a courtesy, not a security
- * boundary, and clicking one goes to the same page it always did — the backend
- * answers.
+ * The UI still decides nothing about access itself. Every PRO request is
+ * gated on the backend and refused there with PRO_REQUIRED; a locked bay here
+ * is a courtesy, not a security boundary.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchAccessStatus, redeemAccessCode, signOutOfPro, type AccessStatus } from '@/lib/api'
-import { ACCESS_CHANGED_EVENT, PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
-import { ApiError } from '@/lib/errors'
-import { formatLocalDateTime, formatUtcTime } from '@/lib/format'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useAccessStore } from '@/stores/accessStore'
+import { PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
+import { formatExpiry, formatLocalDateTime, formatUtcTime } from '@/lib/format'
 import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
 import { fetchLiveServerStatus, fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
-import Link from 'next/link'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -30,44 +30,9 @@ const PRO_FEATURES = [
   { label: 'Live mode', sub: 'the race as it happens — in build' },
 ]
 
-const REDEEM_ERROR: Record<string, string> = {
-  INVALID_ACCESS_CODE: 'That code is not valid.',
-  RATE_LIMITED: 'Too many attempts. Wait a few minutes and try again.',
-  PRO_ACCESS_UNAVAILABLE: 'Access codes are not switched on yet.',
-}
-
-function formatExpiry(epochSeconds: number | null): string | null {
-  if (!epochSeconds) return null
-  return new Date(epochSeconds * 1000).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 export function ProSection() {
-  const [status, setStatus] = useState<AccessStatus | null>(null)
-  const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [showField, setShowField] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const refresh = useCallback(() => {
-    fetchAccessStatus().then(setStatus)
-  }, [])
-
-  useEffect(() => {
-    refresh()
-    window.addEventListener(ACCESS_CHANGED_EVENT, refresh)
-    return () => window.removeEventListener(ACCESS_CHANGED_EVENT, refresh)
-  }, [refresh])
-
-  useEffect(() => {
-    if (showField) inputRef.current?.focus()
-  }, [showField])
-
-  const pro = status?.pro === true
+  const pro = useAccessStore((s) => s.pro)
+  const expiresAt = useAccessStore((s) => s.expiresAt)
   const seasons = proSeasons()
   const currentSeasonYear = seasons[0]
 
@@ -117,24 +82,6 @@ export function ProSection() {
     return () => { cancelled = true; clearInterval(id) }
   }, [pro, currentSeasonYear])
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const trimmed = code.trim()
-    if (!trimmed || submitting) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      setStatus(await redeemAccessCode(trimmed))
-      setCode('')
-      setShowField(false)
-    } catch (err) {
-      const apiCode = err instanceof ApiError ? err.code : ''
-      setError(REDEEM_ERROR[apiCode] ?? 'Could not check that code. Try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   return (
     <section
       id="pro"
@@ -142,18 +89,10 @@ export function ProSection() {
       aria-labelledby="pro-heading"
     >
       <div className="max-w-5xl mx-auto px-6 py-10">
-        {/* Header strip */}
+        {/* Header strip — informational; the access state and the code field
+            live in Settings now, not here. */}
         <div className="flex items-start justify-between gap-6 flex-wrap mb-7">
           <div>
-            <div className="inline-flex items-center gap-2 mb-2">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${pro ? 'bg-signal-green' : 'bg-signal-amber'}`}
-                aria-hidden="true"
-              />
-              <span className="font-display font-bold text-[9px] uppercase tracking-[2px] text-text-muted">
-                {pro ? 'Access granted' : 'Restricted area'}
-              </span>
-            </div>
             <h2
               id="pro-heading"
               className="font-display font-black text-[34px] md:text-[42px] leading-[0.95] uppercase tracking-[-0.5px] text-text-primary"
@@ -167,8 +106,7 @@ export function ProSection() {
             </p>
           </div>
 
-          {pro ? <ActiveBadge status={status} onSignOut={() => { signOutOfPro(); refresh() }} />
-               : <ComingSoon />}
+          <SettingsLink pro={pro} expiresAt={expiresAt} />
         </div>
 
         {/* The bays */}
@@ -265,65 +203,15 @@ export function ProSection() {
           ))}
         </div>
 
-        {/* The code field */}
-        {!pro && (
-          <div className="border-t border-border-subtle pt-5">
-            {!showField ? (
-              <button
-                type="button"
-                onClick={() => setShowField(true)}
-                className="font-mono text-[11px] text-text-secondary hover:text-signal-blue transition-colors underline underline-offset-4 decoration-border-default"
-              >
-                I already have an access code
-              </button>
-            ) : (
-              <form onSubmit={submit} className="flex flex-wrap items-start gap-2">
-                <div className="flex-1 min-w-[220px]">
-                  <label
-                    htmlFor="pro-code"
-                    className="block font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted mb-1.5"
-                  >
-                    Access code
-                  </label>
-                  <input
-                    ref={inputRef}
-                    id="pro-code"
-                    type="text"
-                    value={code}
-                    onChange={(e) => { setCode(e.target.value); setError(null) }}
-                    placeholder="PW-…"
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-invalid={error !== null}
-                    aria-describedby={error ? 'pro-code-error' : undefined}
-                    className="w-full bg-bg-primary border border-border-default rounded-[3px] px-3 py-2
-                               font-mono text-[12px] text-text-primary placeholder:text-text-muted
-                               focus:outline-none focus:border-signal-blue transition-colors"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={submitting || code.trim().length === 0}
-                  className="mt-[22px] px-4 py-2 rounded-[3px] border border-signal-red bg-signal-red/10
-                             font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red
-                             hover:bg-signal-red/20 disabled:opacity-40 disabled:hover:bg-signal-red/10
-                             disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? 'Checking…' : 'Unlock'}
-                </button>
-              </form>
-            )}
-
-            <p
-              id="pro-code-error"
-              role="status"
-              aria-live="polite"
-              className={`font-mono text-[10px] mt-2 ${error ? 'text-signal-red' : 'sr-only'}`}
-            >
-              {error ?? ''}
-            </p>
-          </div>
-        )}
+        {/* The exchange itself — code, expiry, sign out — lives in Settings. */}
+        <div className="border-t border-border-subtle pt-5">
+          <Link
+            href="/settings"
+            className="font-mono text-[11px] text-text-secondary hover:text-signal-blue transition-colors underline underline-offset-4 decoration-border-default"
+          >
+            {pro ? 'Manage your PRO access in Settings' : 'Have an access code? Enter it in Settings'} →
+          </Link>
+        </div>
       </div>
     </section>
   )
@@ -331,50 +219,42 @@ export function ProSection() {
 
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
-function ComingSoon() {
+function SettingsLink({ pro, expiresAt }: { pro: boolean; expiresAt: number | null }) {
+  const until = formatExpiry(expiresAt)
+  if (pro) {
+    return (
+      <Link
+        href="/settings"
+        className="text-right group"
+        aria-label="PRO access active — manage in Settings"
+      >
+        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-[3px] border border-signal-green/40 bg-signal-green/[0.07] group-hover:bg-signal-green/[0.14] transition-colors">
+          <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" aria-hidden="true" />
+          <span className="font-display font-bold text-[10px] uppercase tracking-[2px] text-signal-green">
+            PRO access active
+          </span>
+        </div>
+        <div className="font-mono text-[9px] text-text-muted mt-1.5 group-hover:text-text-secondary transition-colors">
+          {until ? `valid until ${until}` : 'valid on this browser'} — manage in Settings →
+        </div>
+      </Link>
+    )
+  }
   return (
-    <div className="text-right">
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
+    <Link href="/settings" className="text-right group">
+      <div
         title={PRO_PRICE_LABEL}
-        className="group px-4 py-2.5 rounded-[3px] border border-signal-amber/40 bg-signal-amber/[0.07]
-                   cursor-not-allowed text-left"
+        className="inline-block px-4 py-2.5 rounded-[3px] border border-signal-amber/40 bg-signal-amber/[0.07] group-hover:bg-signal-amber/[0.14] transition-colors text-left"
       >
         <div className="font-display font-bold text-[10px] uppercase tracking-[2px] text-signal-amber">
           Coming soon
         </div>
         <div className="font-mono text-[11px] text-text-secondary mt-0.5">€2.99 / month</div>
-      </button>
+      </div>
       <p className="font-mono text-[9px] text-text-muted mt-1.5 max-w-[210px] leading-relaxed">
-        {PRO_PRICE_LABEL}
+        {PRO_PRICE_LABEL} — have a code? Settings →
       </p>
-    </div>
-  )
-}
-
-function ActiveBadge({ status, onSignOut }: { status: AccessStatus | null; onSignOut: () => void }) {
-  const until = formatExpiry(status?.expires_at ?? null)
-  return (
-    <div className="text-right">
-      <div className="inline-flex items-center gap-2 px-3 py-2 rounded-[3px] border border-signal-green/40 bg-signal-green/[0.07]">
-        <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" aria-hidden="true" />
-        <span className="font-display font-bold text-[10px] uppercase tracking-[2px] text-signal-green">
-          PRO access active
-        </span>
-      </div>
-      <div className="font-mono text-[9px] text-text-muted mt-1.5">
-        {until ? `valid until ${until}` : 'valid on this browser'}
-      </div>
-      <button
-        type="button"
-        onClick={onSignOut}
-        className="font-mono text-[10px] text-text-muted hover:text-signal-red transition-colors mt-1 underline underline-offset-4 decoration-border-default"
-      >
-        Sign out of PRO
-      </button>
-    </div>
+    </Link>
   )
 }
 
