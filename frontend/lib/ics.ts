@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from '@/lib/brand'
+
 /**
  * A downloadable .ics file (RFC 5545) for one F1 session. No external service,
  * no Google Calendar API — the file is built entirely client-side and handed
@@ -81,7 +83,7 @@ export function buildSessionIcs(input: IcsEventInput): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Pit Wall IQ//Race Calendar//EN',
+    `PRODID:-//${PRODUCT_NAME}//Race Calendar//EN`,
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     `UID:${escapeIcsText(input.uid)}`,

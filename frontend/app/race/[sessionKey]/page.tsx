@@ -9,6 +9,7 @@ import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScre
 import { AnalysisPage } from '@/components/analysis/AnalysisPage'
 import { SessionUnavailableState } from '@/components/analysis/SessionUnavailableState'
 import { ProWall } from '@/components/access/ProWall'
+import { PRODUCT_NAME } from '@/lib/brand'
 
 export default function RacePage() {
   const params = useParams()
@@ -23,10 +24,10 @@ export default function RacePage() {
   // Update browser tab title once race data is available — must be before any early return
   useEffect(() => {
     if (analysis) {
-      document.title = `${analysis.race.meeting_name} ${analysis.race.year} · Pit Wall IQ`
+      document.title = `${analysis.race.meeting_name} ${analysis.race.year} · ${PRODUCT_NAME}`
     }
     return () => {
-      document.title = 'Pit Wall IQ — Race Strategy Intelligence'
+      document.title = `${PRODUCT_NAME} — Race Strategy Intelligence`
     }
   }, [analysis])
 

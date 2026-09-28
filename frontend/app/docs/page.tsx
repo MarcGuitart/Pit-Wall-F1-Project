@@ -1,6 +1,6 @@
 /**
- * Public documentation — what Pit Wall IQ is, what's free, what's PRO, how
- * live mode works at a high level, and where the data comes from.
+ * Public documentation — what Pit Wall Engineer is, what's free, what's PRO,
+ * how live mode works at a high level, and where the data comes from.
  *
  * No code, no internal architecture: this is the page a visitor reads before
  * they know or care what a Zustand store or an SSE stream is. That level of
@@ -12,10 +12,11 @@
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { FREE_SEASONS, PRO_PRICE_LABEL } from '@/lib/access'
+import { PRODUCT_NAME } from '@/lib/brand'
 
 export const metadata = {
-  title: 'Docs — Pit Wall Engineer',
-  description: 'What Pit Wall Engineer is, what is free, what PRO adds, and where the data comes from.',
+  title: `Docs — ${PRODUCT_NAME}`,
+  description: `What ${PRODUCT_NAME} is, what is free, what PRO adds, and where the data comes from.`,
 }
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -48,7 +49,7 @@ export default function DocsPage() {
           Docs
         </h1>
         <p className="font-mono text-[11px] text-text-muted mb-8">
-          What Pit Wall Engineer is, what is free, and what PRO adds.
+          What {PRODUCT_NAME} is, what is free, and what PRO adds.
         </p>
 
         {/* Section jump links */}
@@ -67,7 +68,7 @@ export default function DocsPage() {
 
         <Section id="what-it-is" title="What it is">
           <p>
-            Pit Wall Engineer turns raw Formula&nbsp;1 timing data into the kind of analysis a race
+            {PRODUCT_NAME} turns raw Formula&nbsp;1 timing data into the kind of analysis a race
             engineer would actually run: true pace with pit stops and safety cars stripped out, tyre
             degradation, pit stop impact, race phases, weather crossovers, and a Chaos Index that scores
             how disordered a race was.

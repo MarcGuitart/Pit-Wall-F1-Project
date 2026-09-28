@@ -13,6 +13,7 @@ import { PitCyclesLive } from '@/components/live/PitCyclesLive'
 import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
 import { RadioFeed } from '@/components/live/RadioFeed'
 import { ProWall } from '@/components/access/ProWall'
+import { PRODUCT_NAME } from '@/lib/brand'
 
 /**
  * The pit wall during the race.
@@ -43,9 +44,9 @@ export default function LiveSessionPage() {
   const [focusedDriver, setFocusedDriver] = useState<string | null>(null)
 
   useEffect(() => {
-    document.title = `Live · session ${sessionKey} · Pit Wall IQ`
+    document.title = `Live · session ${sessionKey} · ${PRODUCT_NAME}`
     return () => {
-      document.title = 'Pit Wall IQ — Race Strategy Intelligence'
+      document.title = `${PRODUCT_NAME} — Race Strategy Intelligence`
     }
   }, [sessionKey])
 
