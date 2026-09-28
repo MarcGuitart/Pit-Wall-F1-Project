@@ -7,6 +7,8 @@
  * part that was genuinely home-only, so it survives here as an optional prop
  * rather than a second footer.
  */
+import Link from 'next/link'
+
 type SiteFooterProps = {
   /** The "Project Implemented by" block with LinkedIn and CV links. Home only. */
   attribution?: boolean
@@ -17,6 +19,10 @@ export function SiteFooter({ attribution = false }: SiteFooterProps) {
     <footer className="border-t border-border-subtle px-6 py-4">
       <div className="max-w-5xl mx-auto flex items-center justify-between flex-wrap gap-4">
         <p className="font-mono text-[10px] text-text-muted leading-relaxed max-w-xl">
+          <Link href="/docs" className="text-text-secondary hover:text-signal-blue underline underline-offset-4 decoration-border-default">
+            Docs
+          </Link>
+          {' · '}
           Unofficial project, not associated in any way with the Formula 1 companies. F1, FORMULA 1
           and related marks are trademarks of Formula One Licensing B.V. Data via{' '}
           <span className="text-text-secondary">OpenF1</span> &amp; FastF1; team radio clips are

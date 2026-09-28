@@ -121,6 +121,14 @@ export function TopBar({ breadcrumb }: TopBarProps) {
           </div>
         </div>
 
+        {/* Docs */}
+        <Link
+          href="/docs"
+          className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary hover:text-text-primary transition-colors"
+        >
+          Docs
+        </Link>
+
         {/* Radio trigger */}
         <RadioTrigger />
       </div>
