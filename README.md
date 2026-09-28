@@ -14,6 +14,8 @@ A post-race intelligence dashboard that turns raw Formula 1 timing data into the
 ![OpenF1](https://img.shields.io/badge/Data-OpenF1-E10600)
 ![AI](https://img.shields.io/badge/AI-Ollama%20local-black)
 
+**[pitwallengineer.com](https://pitwallengineer.com)** · **[What's free, what's PRO, and how live mode works →](https://pitwallengineer.com/docs)**
+
 </div>
 
 <p align="center">
@@ -33,7 +35,7 @@ What makes it more than a timing table is the layer of interpretation on top of 
 <p align="center">
   <img src="assets/landing.png" alt="Pit Wall Engineer landing page" width="100%" />
   <br />
-  <em>Select any season from 2023–2025, any Grand Prix, any session.</em>
+  <em>Select any season, any Grand Prix, any session — see <a href="https://pitwallengineer.com/docs">/docs</a> for what's free and what's PRO.</em>
 </p>
 
 <p align="center">
@@ -187,6 +189,8 @@ Replace `<session_key>` with the OpenF1 session key (e.g. `9662` for Abu Dhabi 2
 ## Data source
 
 Data via [OpenF1](https://openf1.org), free and with no API key required for historical sessions. Historical race data is available from 2023 onwards. The backend caches all OpenF1 responses per session key and endpoint, so loading a race a second time is near-instant and works offline. Cache files are treated as immutable for past sessions.
+
+OpenF1's own data being free doesn't mean every season is free to read on the live site — see [pitwallengineer.com/docs](https://pitwallengineer.com/docs) for what's open access and what's PRO.
 
 ---
 
