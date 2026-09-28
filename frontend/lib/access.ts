@@ -15,6 +15,7 @@ import { FIRST_SEASON, currentSeason } from '@/lib/seasons'
 
 const TOKEN_KEY = 'pwiq_pro_token'
 const EXPIRY_KEY = 'pwiq_pro_expires_at'
+const SHOW_BADGE_KEY = 'pwiq_pro_show_badge'
 
 /** Seasons anyone may read. Mirrors FREE_SEASONS on the backend, which decides. */
 export const FREE_SEASONS = [2023, 2024]
@@ -113,4 +114,20 @@ export const ACCESS_CHANGED_EVENT = 'pwiq:access-changed'
 export function announceAccessChange(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(ACCESS_CHANGED_EVENT))
+}
+
+/**
+ * Whether the TopBar badge should be shown, given a valid token. Purely a
+ * display preference for this browser — turning it off never touches the
+ * token itself (Settings' "Sign out" is the only thing that does). Defaults
+ * to true, so a freshly redeemed token is visible without the visitor having
+ * to opt in.
+ */
+export function getShowProBadgePreference(): boolean {
+  const raw = safeGet(SHOW_BADGE_KEY)
+  return raw === null ? true : raw === '1'
+}
+
+export function setShowProBadgePreference(show: boolean): void {
+  safeSet(SHOW_BADGE_KEY, show ? '1' : '0')
 }
