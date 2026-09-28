@@ -71,3 +71,14 @@ export function formatUtcTime(iso: string): string {
     d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
   )
 }
+
+/** A redeemed token's expiry, as a short date — "27 Oct 2026". null input or
+ *  output means "no expiry to show", not an error. */
+export function formatExpiry(epochSeconds: number | null): string | null {
+  if (!epochSeconds) return null
+  return new Date(epochSeconds * 1000).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
