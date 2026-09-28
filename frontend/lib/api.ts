@@ -194,11 +194,6 @@ export async function redeemAccessCode(code: string): Promise<AccessStatus> {
   }
 }
 
-export function signOutOfPro(): void {
-  clearToken()
-  announceAccessChange()
-}
-
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)
