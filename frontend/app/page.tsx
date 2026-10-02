@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { RaceSelector } from '@/components/landing/RaceSelector'
 import { LandingVideoBackground } from '@/components/landing/LandingVideoBackground'
 import { ProSection } from '@/components/access/ProSection'
+import { IntroAnimation } from '@/components/brand/IntroAnimation'
 
 const STEPS = [
   { num: '01', title: 'Select a session', sub: 'Season, race and session type' },
@@ -12,6 +13,7 @@ const STEPS = [
 export default function HomePage() {
   return (
     <AppShell footerAttribution>
+      <IntroAnimation />
       <div className="min-h-[calc(100vh-48px)] flex flex-col">
         {/* Hero */}
         <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
