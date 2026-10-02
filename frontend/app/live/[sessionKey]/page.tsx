@@ -14,6 +14,7 @@ import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
 import { RadioFeed } from '@/components/live/RadioFeed'
 import { ProWall } from '@/components/access/ProWall'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { PracticePitWall } from '@/components/live/PracticePitWall'
 
 /**
  * The pit wall during the race.
@@ -77,10 +78,10 @@ export default function LiveSessionPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="font-display font-black text-[22px] uppercase tracking-[1px] text-text-primary leading-none">
-              Live pit wall
+              {snapshot?.profile === 'practice' ? 'Practice pit wall' : snapshot?.profile === 'qualifying' ? 'Qualifying pit wall' : 'Live pit wall'}
             </h1>
             <p className="font-mono text-[10px] text-text-muted mt-1">
-              Session {sessionKey}
+              {[snapshot?.session_name, snapshot?.location, `Session ${sessionKey}`].filter(Boolean).join(' · ')}
               {snapshot?.feed.mode === 'replay' && ' · replaying a recorded capture'}
             </p>
           </div>
@@ -98,6 +99,9 @@ export default function LiveSessionPage() {
           <WaitingForFeed error={error} />
         ) : (
           <>
+            {snapshot.profile === 'practice' || snapshot.profile === 'qualifying' ? (
+              <PracticePitWall snapshot={snapshot} focusedDriver={focusedDriver} onFocus={setFocusedDriver} />
+            ) : <>
             <TrackStatusBanner
               status={snapshot.track_status}
               currentLap={snapshot.current_lap}
@@ -145,6 +149,7 @@ export default function LiveSessionPage() {
               </div>
             </div>
 
+            </>}
             <FeedFooter snapshot={snapshot} />
           </>
         )}

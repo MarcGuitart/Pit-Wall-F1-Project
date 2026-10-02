@@ -1074,6 +1074,8 @@ def practice_tower(state: RaceState) -> list[dict]:
             "best_lap_number": best_lap,
             "best_lap_s": best_time,
             "sectors": sectors,
+            "speed_traps": {key: detail.get(key) for key in ("i1_speed", "i2_speed", "st_speed")},
+            "segments": {key: detail.get(key) for key in ("seg1", "seg2", "seg3")},
             "ideal_lap": _ideal_lap(state, dn),
             "laps": len(state.lap_times.get(dn, {})),
             "clean_laps": len(clean_laps),

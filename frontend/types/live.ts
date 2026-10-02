@@ -137,6 +137,10 @@ export type FeedHealth = {
 
 export type LiveSnapshot = {
   session_key: number | null
+  session_type?: string | null
+  session_name?: string | null
+  location?: string | null
+  profile?: 'practice' | 'qualifying' | 'race'
   generated_at: string
   uptime_s: number
   current_lap: number
@@ -148,15 +152,72 @@ export type LiveSnapshot = {
   track_status: TrackStatus
   drivers_known: number
   tower: TowerRow[]
+  practice_tower?: PracticeTowerRow[]
+  long_runs?: LongRunRow[]
+  session_status?: {
+    flag: Flag
+    since: string | null
+    source: string
+    red_flags: number
+    minutes_under_red: number
+    periods: { flag: Flag; start: string; end: string; duration_s: number }[]
+  } | null
   radio: RadioClip[]
   feed: FeedHealth
   chaos: LiveChaos | null
   notes: LiveNote[]
   pit_watch: PitWatchSignal[]
   analysis: {
+    profile?: string
     inputs: Record<string, number>
+    weather?: {
+      ok: boolean
+      air_temperature?: number | null
+      track_temperature?: number | null
+      track_temperature_trend?: 'rising' | 'falling' | 'steady' | null
+      rainfall?: number | null
+      rain_periods?: number
+      wet_laps?: number[]
+      note?: string
+      error?: string
+    }
+    session_timeline?: {
+      bands: { flag: Flag; start: string; end: string; duration_s: number }[]
+      markers: { type: string; at: string | null; code?: string; lap_number?: number; time_s?: number }[]
+    }
     timeline?: { ok: boolean; total_laps?: number; error?: string }
-    weather?: { ok: boolean; rain_periods?: number; wet_laps?: number[]; note?: string; error?: string }
     pit?: { ok: boolean; cycles?: PitCycleLive[]; stops?: number; open_cycles?: number; settle_laps?: number; error?: string }
   }
+}
+
+export type PracticeTowerRow = {
+  position: number
+  driver_number: number
+  code: string
+  full_name: string | null
+  team: string | null
+  colour: string | null
+  best_lap_number: number
+  best_lap_s: number
+  gap_to_p1: number | null
+  sectors: Record<'sector1' | 'sector2' | 'sector3', { time: number | null; colour: 'purple' | 'green' | 'yellow' | null }>
+  speed_traps?: { i1_speed: number | null; i2_speed: number | null; st_speed: number | null }
+  segments?: { seg1: number[] | null; seg2: number[] | null; seg3: number[] | null }
+  ideal_lap: { sector1: number; sector2: number; sector3: number; total: number } | null
+  laps: number
+  clean_laps: number
+  compound: string | null
+  tyre_age: number | null
+  stops: number
+}
+
+export type LongRunRow = {
+  driver_number: number
+  code: string
+  lap_start: number
+  lap_end: number
+  laps: number
+  median_s: number
+  compound: string | null
+  confidence: 'Low' | 'Medium' | 'High'
 }
