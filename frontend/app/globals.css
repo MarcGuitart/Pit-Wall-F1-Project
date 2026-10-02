@@ -50,3 +50,12 @@ body {
   88%  { opacity: 1; }
   100% { transform: translateX(130vw); opacity: 0; }
 }
+
+/* IntroAnimation's prefers-reduced-motion variant (Block 25 Task 0) — opacity
+   only, no transform at all: the zoom itself is the motion being avoided. */
+@keyframes pwIntroReducedFade {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}

@@ -36,16 +36,62 @@ function renderAndEnter() {
 }
 
 describe('prefers-reduced-motion', () => {
-  it('never renders the overlay when the preference is active', () => {
+  it('renders a short fade instead of nothing at all (Block 25)', () => {
     mockMatchMedia(true)
     renderAndEnter()
+    expect(screen.getByLabelText('Skip intro')).toBeTruthy()
+  })
+
+  it('never scales the car — only opacity, via the reduced-fade keyframe', () => {
+    mockMatchMedia(true)
+    renderAndEnter()
+    const overlay = screen.getByLabelText('Skip intro')
+    expect(overlay.style.animation).toContain('pwIntroReducedFade')
+    expect(overlay.style.transform).toBe('')
+    // the inner wrapper has a fixed width and no transform/transition at all
+    const wrapper = overlay.firstElementChild as HTMLElement
+    expect(wrapper.style.transform).toBe('')
+    expect(wrapper.style.transition).toBe('')
+  })
+
+  it('is shorter than the full animation', () => {
+    mockMatchMedia(true)
+    renderAndEnter()
+    act(() => {
+      vi.advanceTimersByTime(499)
+    })
+    expect(screen.getByLabelText('Skip intro')).toBeTruthy()
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
     expect(screen.queryByLabelText('Skip intro')).toBeNull()
   })
 
-  it('does not mark the intro as seen when it was suppressed by the preference', () => {
+  it('marks the session seen once the fade completes — it did play something', () => {
     mockMatchMedia(true)
     renderAndEnter()
-    expect(sessionStorage.getItem(SEEN_KEY)).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(sessionStorage.getItem(SEEN_KEY)).toBe('1')
+  })
+
+  it('is skippable like the full animation', () => {
+    mockMatchMedia(true)
+    renderAndEnter()
+    const overlay = screen.getByLabelText('Skip intro')
+    act(() => {
+      fireEvent.click(overlay)
+    })
+    expect(sessionStorage.getItem(SEEN_KEY)).toBe('1')
+    expect(screen.queryByLabelText('Skip intro')).toBeNull()
+  })
+
+  it('does not show the full zoom animation instead', () => {
+    mockMatchMedia(true)
+    renderAndEnter()
+    const overlay = screen.getByLabelText('Skip intro')
+    expect(overlay.style.transition).not.toContain('opacity 220ms')
   })
 })
 
