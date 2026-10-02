@@ -156,12 +156,32 @@ class RaceState:
         self.store: dict[str, OrderedDict[str, dict]] = {t: OrderedDict() for t in TOPICS}
         self._synthetic = Counter()      # per-topic counter for documents with no _key
 
+        # session identity — never arrives on a live topic, so the caller sets
+        # it once it knows (a REST lookup at startup, or a cached
+        # _session_meta.json during replay). Unknown defaults to the "race"
+        # profile: the one this module was built around first, and the safe
+        # direction if a profile is ever genuinely unknown live.
+        self.session_type: str | None = None
+        self.session_name: str | None = None
+        self.location: str | None = None       # the GP's host city/circuit — see
+        # set_session_meta()'s own note on why this is not country_name.
+
         # derived view
         self.drivers: dict[int, dict] = {}
         self.position: dict[int, int] = {}
         self.gap: dict[int, dict] = {}               # dn -> {gap_to_leader, interval, at}
         self.last_lap: dict[int, dict] = {}          # dn -> {lap_number, lap_duration, at}
         self.lap_times: dict[int, dict[int, float]] = defaultdict(dict)   # dn -> lap -> duration
+        # dn -> lap -> the recv timestamp *that specific lap* completed at.
+        # last_lap["at"] only ever holds the driver's most recent message, so
+        # it cannot date a historical lap once a later one has arrived — using
+        # it for that gave every session-best marker in a replayed timeline
+        # the same timestamp (the last message received for that driver).
+        self.lap_completed_at: dict[int, dict[int, float]] = defaultdict(dict)
+        # dn -> lap -> {sector1/2/3, seg1/2/3, i1_speed, i2_speed, st_speed}.
+        # Only practice/qualifying's panels read this (sector colours, ideal
+        # lap) — OpenF1 does not publish segments during a race at all.
+        self.lap_detail: dict[int, dict[int, dict]] = defaultdict(dict)
         self.stints: dict[int, dict[int, dict]] = defaultdict(dict)       # dn -> stint_number -> rec
         self.pit_laps: dict[int, list[int]] = defaultdict(list)
         self.radio: deque = deque(maxlen=60)
@@ -170,6 +190,12 @@ class RaceState:
         self.flag_since: float | None = None
         self.flag_source: str = "assumed (no race_control message yet)"
         self.flag_laps: set[int] = set()             # laps seen under SC/VSC/RED, live
+        # Time-indexed flag history — closed periods only (the current, still
+        # open one is flag/flag_since above). A practice or qualifying session
+        # has no shared lap axis (cars run different laps at once), so its
+        # timeline and its red-flag tally are built on the session clock, not
+        # on lap numbers, which is what this is for.
+        self.flag_periods: list[dict] = []
         self.current_lap: int = 0
 
         self.chequered: bool = False
@@ -185,6 +211,45 @@ class RaceState:
         self.update_log: deque = deque(maxlen=200)
         self.dropped_no_key = Counter()
         self.gaps: list[dict] = []                   # observed holes in the feed
+
+    # ── session identity ────────────────────────────────────────────────────
+
+    def set_session_meta(self, session_type: str | None, session_name: str | None,
+                         location: str | None) -> None:
+        """
+        Called once, by whoever knows — the CLI replay helpers below read it
+        from a cached _session_meta.json; live_server.py reads it from a
+        single REST lookup at startup, since no MQTT topic ever carries it.
+
+        ``location`` and not ``country_name``: OpenF1 labels the Kuala Lumpur
+        session country_name "Bahrain" (confirmed directly against 11727/
+        11728, not assumed) — a leftover from how the calendar entry was
+        created, not a data error that is likely to be fixed before tomorrow.
+        ``location`` is the host city and has never shown that mislabelling.
+        """
+        with self.lock:
+            self.session_type = session_type
+            self.session_name = session_name
+            self.location = location
+
+    @property
+    def profile(self) -> str:
+        """
+        "practice" | "qualifying" | "race" — which panel set applies.
+
+        Unknown session_type (never set, or a value this project has not
+        seen) defaults to "race": the profile every service downstream was
+        built for, and the one where every existing guarantee (chaos only
+        past MIN_CHAOS_LAPS, no level pre-flag, SC/VSC-aware pit cycles)
+        already holds. A sprint's session_type is "Race" in OpenF1 regardless
+        of its session_name, so it gets the race profile too, correctly — it
+        is a real points race with a real finishing order.
+        """
+        if self.session_type == "Practice":
+            return "practice"
+        if self.session_type == "Qualifying":
+            return "qualifying"
+        return "race"
 
     # ── ingest ───────────────────────────────────────────────────────────────
 
@@ -279,6 +344,7 @@ class RaceState:
         dur = msg.get("lap_duration")
         if isinstance(dur, (int, float)) and dur > 0:
             self.lap_times[dn][ln] = float(dur)
+            self.lap_completed_at[dn][ln] = recv
         prev = self.last_lap.get(dn, {})
         # A lap is published when it starts, without a duration, and republished
         # when it completes. Keep the newest lap number, but never lose a
@@ -294,6 +360,22 @@ class RaceState:
             self.current_lap = ln
         if self.flag in (FLAG_SC, FLAG_VSC, FLAG_RED):
             self.flag_laps.add(ln)
+
+        # Sector times, mini-sector colours and speed traps — practice/quali
+        # only read this, but it costs nothing to keep it always, and OpenF1
+        # fills it in incrementally (a sector arrives as its own car crosses
+        # the line), so each field is stored only when actually present
+        # rather than overwriting a known value with a not-yet-arrived None.
+        detail = self.lap_detail[dn].setdefault(ln, {})
+        for field, key in (
+            ("duration_sector_1", "sector1"), ("duration_sector_2", "sector2"),
+            ("duration_sector_3", "sector3"), ("segments_sector_1", "seg1"),
+            ("segments_sector_2", "seg2"), ("segments_sector_3", "seg3"),
+            ("i1_speed", "i1_speed"), ("i2_speed", "i2_speed"), ("st_speed", "st_speed"),
+        ):
+            value = msg.get(field)
+            if value is not None:
+                detail[key] = value
         return {"driver": dn, "lap": ln, "lap_duration": dur}
 
     def _on_stints(self, msg: dict, recv: float) -> dict:
@@ -365,9 +447,25 @@ class RaceState:
             self.flag_laps.add(lap)
 
         if new and new != self.flag:
-            prev, self.flag, self.flag_since = self.flag, new, recv
+            prev, prev_since = self.flag, self.flag_since
+            self.flag, self.flag_since = new, recv
             self.flag_source = (msg.get("message") or flag or "?")[:140]
+            if prev_since is not None:
+                self.flag_periods.append({
+                    "flag": prev, "start": prev_since, "end": recv,
+                    "duration_s": round(recv - prev_since, 1),
+                })
             out.update({"flag": new, "from": prev, "because": self.flag_source})
+            out["banner"] = {
+                "flag": new, "from": prev, "at": iso(recv),
+                "because": self.flag_source,
+                # Severity for the frontend's styling, not a new flag value:
+                # a red flag is sober (it is the session stopping, often for a
+                # real incident — the banner should inform, not alarm), a
+                # safety car is the one that should read as more urgent — it
+                # means the session is still live and changing fast.
+                "severity": "red" if new == FLAG_RED else "sc" if new in (FLAG_SC, FLAG_VSC) else "normal",
+            }
         return out
 
     # ── race distance ────────────────────────────────────────────────────────
@@ -467,6 +565,32 @@ class RaceState:
             })
         return rows
 
+    def session_status(self, now: float | None = None) -> dict:
+        """
+        The practice/qualifying replacement for Chaos: there is no race
+        distance to take a fraction of, so there is nothing to score. What is
+        real and useful instead is simply what has happened to the session —
+        the current flag, how many times it has gone red, and how much of the
+        session's own clock has been lost to red flags.
+        """
+        now = now if now is not None else self.clock()
+        with self.lock:
+            periods = list(self.flag_periods)
+            if self.flag_since is not None:
+                # the still-open current period counts too
+                periods = periods + [{"flag": self.flag, "start": self.flag_since,
+                                      "end": now, "duration_s": round(now - self.flag_since, 1)}]
+            red_periods = [p for p in periods if p["flag"] == FLAG_RED]
+            red_seconds = sum(p["duration_s"] for p in red_periods)
+            return {
+                "flag": self.flag,
+                "since": iso(self.flag_since) if self.flag_since else None,
+                "source": self.flag_source,
+                "red_flags": len(red_periods),
+                "minutes_under_red": round(red_seconds / 60, 1),
+                "periods": periods,
+            }
+
     def settled_through(self, now: float | None = None) -> int:
         """
         The last lap the whole field has started.
@@ -515,6 +639,10 @@ class RaceState:
             now = self.clock()
             snap = {
                 "session_key": self.session_key,
+                "session_type": self.session_type,
+                "session_name": self.session_name,
+                "location": self.location,     # the GP's host city — never country_name
+                "profile": self.profile,
                 "generated_at": iso(now),
                 "uptime_s": round(now - self.started, 1),
                 "current_lap": self.current_lap,
@@ -540,6 +668,11 @@ class RaceState:
             snap["notes"] = snap["analysis"].pop("notes", [])
             snap["pit_watch"] = snap["analysis"].pop("pit_watch", [])
             snap["chaos"] = snap["analysis"].pop("chaos", None)
+            if self.profile != "race":
+                snap["session_status"] = snap["analysis"].pop("session_status", None)
+                snap["practice_tower"] = snap["analysis"].pop("practice_tower", [])
+                snap["pace"] = snap["analysis"].pop("pace", [])
+                snap["long_runs"] = snap["analysis"].pop("long_runs", [])
         return snap
 
 
@@ -822,6 +955,344 @@ def _pit_watch(state: RaceState) -> list[dict]:
     return kept
 
 
+# ── practice / qualifying profile ────────────────────────────────────────────
+#
+# Confirmed against real data (11727, 11728 — Kuala Lumpur FP1/FP2), not
+# assumed: segments_sector_1/2/3 and duration_sector_1/2/3 are populated in
+# practice and qualifying; intervals is empty in both (0 rows); position is
+# populated but is track-running-order, not a ranking by pace, which is why
+# the tower below is built from laps alone. OpenF1's own documentation states
+# segments are "not available during races" — this whole panel set has no
+# equivalent there, by design, not by oversight.
+#
+# Segment codes, read from OpenF1's docs directly rather than inferred from
+# frequency: 0 not available, 2048 yellow, 2049 green, 2051 purple, 2064
+# pitlane. These are per *mini*-sector; the sector-level purple/green/yellow
+# used below is computed from duration_sector_1/2/3 directly (session-best and
+# personal-best), which is the standard timing-tower convention and not the
+# same thing as OpenF1's own mini-sector codes.
+
+LONG_RUN_MIN_LAPS = 5
+
+
+def _driver_laps_detail(state: RaceState, dn: int) -> list[tuple[int, dict]]:
+    """(lap_number, detail) for every lap this driver has data for, sorted."""
+    return sorted(state.lap_detail.get(dn, {}).items())
+
+
+def _clean_practice_laps(state: RaceState, dn: int) -> list[int]:
+    """Lap numbers for this driver that count as clean: timed, not a pit in/out
+    lap, not under a neutralising flag. Same exclusion shape as the post-race
+    pace service, applied live."""
+    pit = set(state.pit_laps.get(dn, []))
+    skip = pit | {l + 1 for l in pit} | state.flag_laps
+    return sorted(
+        ln for ln, t in state.lap_times.get(dn, {}).items()
+        if ln not in skip
+    )
+
+
+def _ideal_lap(state: RaceState, dn: int) -> dict | None:
+    """Sum of this driver's own best sector 1 + best sector 2 + best sector 3,
+    whether or not they came from the same lap — the standard "theoretical
+    best" shown on a timing tower. None until at least one sector time of
+    each kind has arrived."""
+    bests: dict[str, float] = {}
+    for _, detail in _driver_laps_detail(state, dn):
+        for key in ("sector1", "sector2", "sector3"):
+            v = detail.get(key)
+            if isinstance(v, (int, float)) and (key not in bests or v < bests[key]):
+                bests[key] = v
+    if len(bests) < 3:
+        return None
+    return {"sector1": bests["sector1"], "sector2": bests["sector2"], "sector3": bests["sector3"],
+            "total": round(sum(bests.values()), 3)}
+
+
+def practice_tower(state: RaceState) -> list[dict]:
+    """
+    Ranked by best completed lap — never by live position, which during
+    practice is track-running order (who happens to be ahead on circuit right
+    now), not pace. Gap to P1 is the simple difference in best-lap time.
+    """
+    with state.lock:
+        drivers = list(state.lap_times.keys())
+
+    # session-wide best time per sector, for purple
+    session_best: dict[str, float] = {}
+    for dn in drivers:
+        for ln, detail in _driver_laps_detail(state, dn):
+            for key in ("sector1", "sector2", "sector3"):
+                v = detail.get(key)
+                if isinstance(v, (int, float)) and (key not in session_best or v < session_best[key]):
+                    session_best[key] = v
+
+    rows: list[dict] = []
+    for dn in drivers:
+        best_lap = None
+        best_time = None
+        for ln, t in state.lap_times.get(dn, {}).items():
+            if best_time is None or t < best_time:
+                best_lap, best_time = ln, t
+        if best_time is None:
+            continue
+
+        d = state.drivers.get(dn, {})
+        st = state.current_stint(dn)
+        detail = state.lap_detail.get(dn, {}).get(best_lap, {})
+
+        # personal best per sector, for green (independent of which lap the
+        # overall best-lap time came from — a driver can improve sector 2 on a
+        # lap that is not their fastest overall)
+        personal_best: dict[str, float] = {}
+        for _, det in _driver_laps_detail(state, dn):
+            for key in ("sector1", "sector2", "sector3"):
+                v = det.get(key)
+                if isinstance(v, (int, float)) and (key not in personal_best or v < personal_best[key]):
+                    personal_best[key] = v
+
+        sectors = {}
+        for key in ("sector1", "sector2", "sector3"):
+            v = detail.get(key)
+            if v is None:
+                colour = None
+            elif session_best.get(key) is not None and v <= session_best[key]:
+                colour = "purple"
+            elif personal_best.get(key) is not None and v <= personal_best[key]:
+                colour = "green"
+            else:
+                colour = "yellow"
+            sectors[key] = {"time": v, "colour": colour}
+
+        clean_laps = _clean_practice_laps(state, dn)
+        rows.append({
+            "driver_number": dn,
+            "code": d.get("code", f"D{dn}"),
+            "full_name": d.get("full_name"),
+            "team": d.get("team"),
+            "colour": d.get("colour"),
+            "best_lap_number": best_lap,
+            "best_lap_s": best_time,
+            "sectors": sectors,
+            "ideal_lap": _ideal_lap(state, dn),
+            "laps": len(state.lap_times.get(dn, {})),
+            "clean_laps": len(clean_laps),
+            "compound": st.get("compound"),
+            "tyre_age": st.get("tyre_age_at_start"),
+            "stops": len(state.pit_laps.get(dn, [])),
+        })
+
+    rows.sort(key=lambda r: r["best_lap_s"])
+    p1_time = rows[0]["best_lap_s"] if rows else None
+    for i, r in enumerate(rows, start=1):
+        r["position"] = i
+        r["gap_to_p1"] = None if p1_time is None else round(r["best_lap_s"] - p1_time, 3)
+    return rows
+
+
+def clean_lap_pace(state: RaceState, lists: dict) -> list[dict]:
+    """
+    Median clean-lap pace per driver — the same computation and the same
+    exclusions as the post-race True Pace service (pit in/out, SC/VSC/yellow,
+    statistical outliers, no-timing), run live. Deliberately not called "true
+    pace" here: that name is the finished-race product, with a grid and a
+    finishing order behind it to compare against. This is the same filter
+    applied to a session that has neither.
+    """
+    from app.services.pace_service import compute_true_pace
+
+    drivers_raw = lists.get("v1/drivers") or [
+        {"driver_number": dn, "name_acronym": d.get("code")} for dn, d in state.drivers.items()
+    ]
+    try:
+        rows = compute_true_pace(
+            lists["v1/laps"], lists["v1/stints"], lists["v1/pit"],
+            lists["v1/race_control"], drivers_raw,
+        )
+    except Exception:
+        return []
+    return [
+        {
+            "driver_number": r.driver_number, "code": r.driver_code,
+            "median_clean_lap_s": r.median_clean_lap, "fastest_clean_lap_s": r.fastest_clean_lap,
+            "sample_size": r.sample_size, "confidence": r.confidence,
+        }
+        for r in sorted(rows, key=lambda r: r.median_clean_lap)
+    ]
+
+
+def long_run_pace(state: RaceState) -> list[dict]:
+    """
+    One row per driver's longest run of LONG_RUN_MIN_LAPS or more *consecutive*
+    clean laps — a race-sim stint, not the whole session's pace. Confidence is
+    the same sample-size scale as everywhere else in this project (High ≥12,
+    Medium ≥6, Low otherwise); a run under LONG_RUN_MIN_LAPS is not reported
+    at all, since "a long run" is the claim being made.
+    """
+    from app.utils.statistics import confidence_from_sample, median
+
+    out: list[dict] = []
+    for dn in list(state.lap_times.keys()):
+        clean = set(_clean_practice_laps(state, dn))
+        if not clean:
+            continue
+        ordered = sorted(clean)
+        runs: list[list[int]] = []
+        current: list[int] = []
+        for ln in ordered:
+            if current and ln != current[-1] + 1:
+                runs.append(current)
+                current = []
+            current.append(ln)
+        if current:
+            runs.append(current)
+        candidates = [r for r in runs if len(r) >= LONG_RUN_MIN_LAPS]
+        if not candidates:
+            continue
+        best_run = max(candidates, key=len)
+        times = [state.lap_times[dn][ln] for ln in best_run]
+        st = state.current_stint(dn)
+        d = state.drivers.get(dn, {})
+        out.append({
+            "driver_number": dn, "code": d.get("code", f"D{dn}"),
+            "lap_start": best_run[0], "lap_end": best_run[-1],
+            "laps": len(best_run),
+            "median_s": round(median(times), 3),
+            "compound": st.get("compound"),
+            "confidence": confidence_from_sample(len(best_run)),
+        })
+    out.sort(key=lambda r: r["median_s"])
+    return out
+
+
+def session_timeline(state: RaceState) -> dict:
+    """
+    The session by its own clock — flag bands (green/yellow/SC/VSC/red), rain
+    markers, and a marker for every session-best lap improvement in the order
+    it happened. Used by every profile: race gets the same bands this already
+    was before Block 25 (state.flag_periods, read here rather than recomputed
+    a second way), and practice/qualifying get it as their primary timeline,
+    since they have no race-distance axis to plot one against.
+
+    SC/VSC genuinely happens almost only in a race — a safety car protects
+    track workers clearing an incident during competitive running, which
+    practice and qualifying rarely produce — so no profile-specific folding is
+    applied; the flag is reported exactly as race control called it, for
+    every profile alike.
+
+    Lap-indexed would be wrong for practice/qualifying specifically: drivers
+    are never on the same lap at the same time there, so "lap 14" names a
+    different moment for every car. The session clock is the one axis every
+    driver shares, in any profile.
+    """
+    bands = [
+        {"flag": p["flag"], "start": iso(p["start"]), "end": iso(p["end"]), "duration_s": p["duration_s"]}
+        for p in state.flag_periods
+    ]
+    if state.flag_since is not None:
+        now = state.clock()
+        bands.append({"flag": state.flag, "start": iso(state.flag_since), "end": iso(now),
+                      "duration_s": round(now - state.flag_since, 1)})
+
+    markers: list[dict] = []
+    try:
+        from app.services import weather_conditions
+        lists = state.lists()
+        periods = weather_conditions.detect_rain_periods(lists["v1/weather"], lists["v1/laps"])
+        for p in periods:
+            markers.append({"type": "RAIN", "at": p.start.isoformat() if hasattr(p.start, "isoformat") else str(p.start)})
+    except Exception:
+        pass
+
+    # Every completed lap, in the true order it happened — not grouped by
+    # driver, which would compare "best so far" across laps that did not
+    # actually arrive in that order and misdate or miss an improvement.
+    # Undated laps (recv not recorded — e.g. a cached session fed through
+    # replay()'s invented order) sort last rather than crash, and are still
+    # included: a session-best is still real even if its moment is unknown.
+    all_laps = [
+        (state.lap_completed_at.get(dn, {}).get(ln), dn, ln, t)
+        for dn, by_lap in state.lap_times.items()
+        for ln, t in by_lap.items()
+    ]
+    all_laps.sort(key=lambda row: (row[0] is None, row[0]))
+
+    best_so_far: float | None = None
+    for at, dn, ln, t in all_laps:
+        if best_so_far is None or t < best_so_far:
+            best_so_far = t
+            markers.append({
+                "type": "SESSION_BEST", "driver_number": dn,
+                "code": state.drivers.get(dn, {}).get("code", f"D{dn}"),
+                "lap_number": ln, "time_s": t,
+                "at": iso(at) if at is not None else None,
+            })
+    markers.sort(key=lambda m: m.get("at") or "")
+    return {"bands": bands, "markers": markers}
+
+
+def practice_notes(state: RaceState, tower: list[dict], long_runs: list[dict]) -> list[dict]:
+    """
+    Deterministic engineer notes for practice/qualifying. Same rule as the
+    race profile's _notes(): thresholds over measured values, template text,
+    no model, no causal language ("X because Y") — only what was observed and
+    when. Time-stamped, not lap-stamped, for the reason session_timeline()
+    gives: there is no shared lap axis to stamp a note to.
+    """
+    notes: list[dict] = []
+    now = iso(state.clock())
+
+    def note(kind: str, severity: str, title: str, message: str) -> None:
+        notes.append({
+            "id": f"{kind}-{len(notes)}-{now}", "at": now, "type": kind,
+            "severity": severity, "title": title, "message": message,
+        })
+
+    if state.flag in (FLAG_SC, FLAG_VSC, FLAG_RED):
+        note("TRACK_STATUS", "High", f"{state.flag} on track",
+             f"{state.flag}. Race control: \"{state.flag_source}\".")
+    elif state.flag == FLAG_YELLOW:
+        note("TRACK_STATUS", "Medium", "Local yellow",
+             f"Sector yellow. Race control: \"{state.flag_source}\".")
+
+    if tower:
+        leader = tower[0]
+        note("BEST_LAP", "High", f"{leader['code']} leads on pace",
+             f"{leader['code']} — {leader['best_lap_s']:.3f}s on lap {leader['best_lap_number']}, "
+             f"the best of the session so far.")
+
+    for run in long_runs[:3]:
+        # No promotion below the sample-size scale's High bar for anything
+        # that reads as a degradation claim — a long run's own pace is always
+        # shown (it is a measurement, not an inference), but this project's
+        # rule (decisions_service.DECISION_MIN_CONFIDENCE) is that a trend
+        # claim needs High confidence, so none is made here below it.
+        note("LONG_RUN", "Medium" if run["confidence"] != "High" else "High",
+             f"{run['code']} long run: {run['laps']} laps",
+             f"{run['code']} — {run['laps']} consecutive clean laps on {run['compound'] or 'unknown tyres'} "
+             f"(laps {run['lap_start']}-{run['lap_end']}), median {run['median_s']:.3f}s. "
+             f"Confidence: {run['confidence']}.")
+
+    # Most recent compound changes only (by the lap their new stint started) —
+    # a session well under way has every driver past stint 1, and listing all
+    # of them on every poll buries everything else in the note list.
+    changes = []
+    for dn, by_number in state.stints.items():
+        if not by_number:
+            continue
+        latest = by_number[max(by_number)]
+        if latest.get("stint_number", 1) > 1:
+            changes.append((dn, latest))
+    changes.sort(key=lambda dc: dc[1].get("lap_start") or 0, reverse=True)
+    for dn, latest in changes[:3]:
+        d = state.drivers.get(dn, {})
+        note("COMPOUND_CHANGE", "Medium", f"{d.get('code', f'D{dn}')} changed compound",
+             f"{d.get('code', f'D{dn}')} now on {latest.get('compound', 'unknown')} "
+             f"(stint {latest.get('stint_number')}).")
+
+    return notes
+
+
 def _notes(state: RaceState, chaos: dict, pit: dict) -> list[dict]:
     """
     Deterministic engineer notes. Thresholds over measured values, template
@@ -879,21 +1350,105 @@ def _notes(state: RaceState, chaos: dict, pit: dict) -> list[dict]:
     return notes
 
 
+def _weather_panel(state: RaceState, lists: dict, laps: list[dict]) -> dict:
+    """
+    Air/track temperature, trend and rain — shared by both profiles. The
+    MIN_WET_RECORDS=3 lag is structural (weather_conditions.py), not a
+    live-only approximation: a rain period only exists once 3 wet records have
+    arrived, and records are published roughly once a minute, so a shower is
+    real on the ground for about 3 minutes before this panel can say so.
+    """
+    from app.services import weather_conditions
+
+    weather = lists["v1/weather"]
+    latest = weather[-1] if weather else {}
+    trend = None
+    if len(weather) >= 2:
+        a, b = weather[-2].get("track_temperature"), weather[-1].get("track_temperature")
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            trend = "rising" if b > a else "falling" if b < a else "steady"
+    periods = weather_conditions.detect_rain_periods(weather, laps)
+    idx = weather_conditions.lap_time_index(laps)
+    wet = weather_conditions.wet_lap_numbers(periods, idx)
+    return {
+        "ok": True,
+        "air_temperature": latest.get("air_temperature"),
+        "track_temperature": latest.get("track_temperature"),
+        "track_temperature_trend": trend,
+        "rainfall": latest.get("rainfall"),
+        "rain_periods": len(periods), "wet_laps": sorted(wet),
+        "laps_indexed": len(idx),
+        "note": "a rain period is only counted once MIN_WET_RECORDS (3) wet records have "
+                "arrived — weather updates roughly once a minute, so this panel runs "
+                "about 3 minutes behind the rain actually starting on the ground",
+    }
+
+
 def live_analysis(state: RaceState) -> dict:
     """
     Run the real services on the partial snapshot. Each block is isolated: a
     failure is reported, never raised, and the reason is carried into the
     payload so a limitation is visible in the UI instead of hidden.
-    """
-    from app.services import weather_conditions
-    from app.services.timeline_builder import build_race_timeline
 
+    Branches on state.profile. Race keeps the exact behaviour this module had
+    before Block 25 — chaos, pit cycles, pit watch, lap-indexed notes.
+    Practice and qualifying get their own panel set: session_status instead of
+    chaos (there is no race distance to score), a pace-ranked tower instead of
+    a pit cycle analysis, and time-indexed notes.
+    """
     lists = state.lists()
     laps = lists["v1/laps"]
     out: dict[str, Any] = {
+        "profile": state.profile,
         "inputs": {k.replace("v1/", ""): len(v) for k, v in lists.items()},
         "notes": [], "pit_watch": [], "chaos": None,
     }
+
+    try:
+        out["weather"] = _weather_panel(state, lists, laps)
+    except Exception as exc:
+        out["weather"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    # Session-clock timeline — every profile gets it (distinct from the "timeline"
+    # key below, which is build_race_timeline's own lap-indexed object and exists
+    # only for the race profile). SC/VSC bands are real information for race and
+    # essentially never occur in practice/qualifying, so no profile-specific
+    # folding is applied — the flag is simply reported as it happened.
+    try:
+        out["session_timeline"] = session_timeline(state)
+    except Exception as exc:
+        out["session_timeline"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    if state.profile != "race":
+        try:
+            out["session_status"] = state.session_status()
+        except Exception as exc:
+            out["session_status"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        try:
+            out["practice_tower"] = practice_tower(state)
+        except Exception as exc:
+            out["practice_tower"] = []
+            out["practice_tower_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            out["pace"] = clean_lap_pace(state, lists)
+        except Exception as exc:
+            out["pace"] = []
+            out["pace_error"] = f"{type(exc).__name__}: {exc}"
+        long_runs: list[dict] = []
+        try:
+            long_runs = long_run_pace(state)
+            out["long_runs"] = long_runs
+        except Exception as exc:
+            out["long_runs"] = []
+            out["long_runs_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            out["notes"] = practice_notes(state, out.get("practice_tower") or [], long_runs)
+        except Exception as exc:
+            out["notes_error"] = f"{type(exc).__name__}: {exc}"
+        return out
+
+    # ── race profile — unchanged from before Block 25 ───────────────────────
+    from app.services.timeline_builder import build_race_timeline
 
     timeline = None
     try:
@@ -906,19 +1461,6 @@ def live_analysis(state: RaceState) -> dict:
         out["timeline"] = {"ok": True, "total_laps": timeline.total_laps}
     except Exception as exc:
         out["timeline"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-    try:
-        periods = weather_conditions.detect_rain_periods(lists["v1/weather"], laps)
-        idx = weather_conditions.lap_time_index(laps)
-        wet = weather_conditions.wet_lap_numbers(periods, idx)
-        out["weather"] = {
-            "ok": True, "rain_periods": len(periods), "wet_laps": sorted(wet),
-            "laps_indexed": len(idx),
-            "note": "a rain period is only counted once it reaches MIN_WET_RECORDS, "
-                    "so a shower that started in the last two minutes is not here yet",
-        }
-    except Exception as exc:
-        out["weather"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
     chaos = None
     if timeline is not None:
@@ -1061,6 +1603,15 @@ def replay(session_key: int, state: RaceState, until_lap: int | None = None,
     if not cache_dir.is_dir():
         raise SystemExit(f"no cached session at {cache_dir}")
 
+    meta_path = cache_dir / "_session_meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text())
+            state.set_session_meta(meta.get("session_type"), meta.get("session_name"),
+                                   meta.get("location"))
+        except (OSError, json.JSONDecodeError):
+            pass
+
     raw: dict[str, list[dict]] = {}
     for topic in TOPICS:
         p = cache_dir / f"{topic.replace('v1/', '')}.json"
@@ -1113,6 +1664,11 @@ def main() -> int:
                     help="capture replay speed multiplier; 0 = as fast as possible")
     ap.add_argument("--until-lap", type=int, default=0)
     ap.add_argument("--dump", metavar="FILE", help="write the full snapshot JSON here")
+    ap.add_argument("--session-type", metavar="TYPE",
+                    help='override the profile — "Practice", "Qualifying" or "Race". '
+                         '--replay reads this from _session_meta.json automatically; '
+                         '--replay-capture has no such file, so a capture needs this to '
+                         'get anything but the race profile.')
     args = ap.parse_args()
 
     state = RaceState()
@@ -1128,25 +1684,47 @@ def main() -> int:
         print(f"replay {args.replay}: fed {info['events_fed']} of {info['events_available']} events, "
               f"reached lap {info['reached_lap']}")
 
+    if args.session_type:
+        state.set_session_meta(args.session_type, state.session_name, state.location)
+
     snap = state.snapshot()
     ts = snap["track_status"]
+    print(f"\nprofile={snap['profile']} (session_type={snap['session_type']!r}) · "
+          f"{snap.get('location') or '?'} · {snap.get('session_name') or '?'}")
     print(f"flag={ts['flag']} ({ts['source'][:60]}) · drivers={snap['drivers_known']} · "
           f"lap={snap['current_lap']} · distance={snap['race_distance']} ({snap['race_distance_source']})")
     print(f"documents: {snap['feed']['documents']}")
-    print("\ntop of the order:")
-    for row in snap["tower"][:6]:
-        print(f"  P{row['position']:<2} {row['code']:<4} lap {str(row['lap_number']):<3} "
-              f"gap {str(row['gap_to_leader']):<8} {str(row['compound']):<7} "
-              f"stint {row['stint_number']} ({row['stint_laps']} laps)")
-    c = snap.get("chaos") or {}
-    print(f"\n{c.get('label')}: {c.get('score')} level={c.get('level')} "
-          f"over {c.get('denominator_laps')} lap(s)")
-    p = snap["analysis"].get("pit", {})
-    print(f"pit: {p.get('stops')} stops, {len(p.get('cycles', []))} cycles, "
-          f"{p.get('open_cycles')} in progress")
-    print("\npit window watch:")
-    for s in snap["pit_watch"][:6]:
-        print(f"  [{s['confidence']:<6}] {s['kind']:<18} {s['headline']}")
+
+    if snap["profile"] == "race":
+        print("\ntop of the order:")
+        for row in snap["tower"][:6]:
+            print(f"  P{row['position']:<2} {row['code']:<4} lap {str(row['lap_number']):<3} "
+                  f"gap {str(row['gap_to_leader']):<8} {str(row['compound']):<7} "
+                  f"stint {row['stint_number']} ({row['stint_laps']} laps)")
+        c = snap.get("chaos") or {}
+        print(f"\n{c.get('label')}: {c.get('score')} level={c.get('level')} "
+              f"over {c.get('denominator_laps')} lap(s)")
+        p = snap["analysis"].get("pit", {})
+        print(f"pit: {p.get('stops')} stops, {len(p.get('cycles', []))} cycles, "
+              f"{p.get('open_cycles')} in progress")
+        print("\npit window watch:")
+        for s in snap["pit_watch"][:6]:
+            print(f"  [{s['confidence']:<6}] {s['kind']:<18} {s['headline']}")
+    else:
+        print("\nbest laps:")
+        for row in snap["practice_tower"][:6]:
+            gap = row["gap_to_p1"]
+            print(f"  P{row['position']:<2} {row['code']:<4} {row['best_lap_s']:.3f}s "
+                  f"(+{gap:.3f}) lap {row['best_lap_number']:<3} {str(row['compound']):<7} "
+                  f"{row['clean_laps']} clean laps")
+        ss = snap.get("session_status") or {}
+        print(f"\nsession status: flag={ss.get('flag')} · red flags={ss.get('red_flags')} · "
+              f"{ss.get('minutes_under_red')} min under red")
+        print("\nlong runs:")
+        for r in snap["long_runs"][:5]:
+            print(f"  [{r['confidence']:<6}] {r['code']:<4} {r['laps']} laps "
+                  f"({r['lap_start']}-{r['lap_end']}) median {r['median_s']:.3f}s on {r['compound']}")
+
     print("\nnotes:")
     for n in snap["notes"]:
         print(f"  [{n['severity']:<6}] {n['title']}")

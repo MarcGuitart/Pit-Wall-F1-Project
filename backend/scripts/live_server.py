@@ -90,6 +90,7 @@ from starlette.responses import FileResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Route  # noqa: E402
 
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
+from app.clients.openf1_client import fetch_json  # read-only, one-shot — see resolve_profile_once()  # noqa: E402
 from app.core.branding import PRO_NAME  # noqa: E402
 from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
@@ -534,6 +535,46 @@ def snapshot_payload(state: RaceState, hub: Hub, feed: LiveFeed | None) -> dict:
     return snap
 
 
+def resolve_profile_once(state: RaceState) -> None:
+    """
+    Block 25: live_state's practice/qualifying panels need session_type,
+    which never arrives on any MQTT topic — the only source is a REST lookup.
+    Run in its own thread so it never blocks uvicorn's startup or the MQTT
+    feed thread; it is read-only (the same fetch_json every other read-only
+    script in this project uses) and writes nothing but state.session_type/
+    session_name/location, exactly once.
+
+    Polls state.session_key rather than being handed it directly, because for
+    the live MQTT path it is not known until the first message arrives —
+    sometimes seconds after this process starts, sometimes not until the
+    session itself goes live.
+    """
+    def run():
+        for _ in range(600):           # up to 10 minutes waiting for a session_key
+            if state.session_key is not None:
+                break
+            time.sleep(1.0)
+        else:
+            log("PROFILE", "no session_key arrived in 10 minutes — giving up, staying on the race profile")
+            return
+
+        async def fetch():
+            rows = await fetch_json("sessions", session_key=state.session_key)
+            return rows[0] if rows else {}
+
+        try:
+            meta = asyncio.run(fetch())
+        except Exception as exc:
+            log("PROFILE", f"could not resolve session_type for {state.session_key}: {exc} "
+                           f"— staying on the race profile")
+            return
+        state.set_session_meta(meta.get("session_type"), meta.get("session_name"), meta.get("location"))
+        log("PROFILE", f"session {state.session_key} is {meta.get('session_type')!r} "
+                       f"({meta.get('session_name')}, {meta.get('location')}) -> profile={state.profile}")
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Live snapshot server (isolated from the recorder).")
     ap.add_argument("--port", type=int, default=8099)
@@ -549,6 +590,12 @@ def main() -> int:
                     help="no MQTT: replay a cached REST session (no real arrival times)")
     ap.add_argument("--replay-speed", type=float, default=0.02,
                     help="cached-session replay: seconds to sleep every 50 events")
+    ap.add_argument("--session-type", metavar="TYPE",
+                    help='override the profile — "Practice", "Qualifying" or "Race". '
+                         '--replay reads this from _session_meta.json automatically; a '
+                         'live MQTT session resolves it from OpenF1 once the session_key '
+                         'is known; --replay-capture has neither, so it needs this to get '
+                         'anything but the race profile.')
     args = ap.parse_args()
 
     state = RaceState(session_key=args.replay)
@@ -558,6 +605,8 @@ def main() -> int:
     if args.replay_capture:
         cap = Path(args.replay_capture)
         log("MODE", f"capture replay of {cap} at {args.speed}x real time (no MQTT)")
+        if args.session_type:
+            state.set_session_meta(args.session_type, state.session_name, state.location)
 
         def run_capture():
             info = replay_capture(cap, state, speed=args.speed)
@@ -569,11 +618,21 @@ def main() -> int:
         log("MODE", f"replay of cached session {args.replay} (no MQTT)")
         threading.Thread(target=replay, args=(args.replay, state),
                          kwargs={"speed": args.replay_speed}, daemon=True).start()
+        if args.session_type:
+            state.set_session_meta(args.session_type, state.session_name, state.location)
     else:
         if not token_manager.configured:
             print("FAIL: OPENF1_USERNAME / OPENF1_PASSWORD are not set.")
             return 1
         log("MODE", "live MQTT (separate client_id; the recorder is untouched)")
+        if args.session_type:
+            # Still resolved from OpenF1 normally too, but an explicit override
+            # must win over whatever the background lookup would set — a tester
+            # forcing a profile for a rehearsal must not have it silently
+            # overwritten moments later.
+            state.set_session_meta(args.session_type, state.session_name, state.location)
+        else:
+            resolve_profile_once(state)
         feed = LiveFeed(state)
         threading.Thread(target=feed.run, daemon=True).start()
 
