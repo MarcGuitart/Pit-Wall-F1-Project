@@ -197,11 +197,23 @@ def _build_race_brain(
 
 async def _session_year(session_key: int) -> int | None:
     """
-    The season this session belongs to, as cheaply as possible.
+    The season this session belongs to, as cheaply as possible — and without
+    writing anything to disk.
 
     The PRO gate runs before the analysis cache is read, so this has to answer
     without computing anything. Two of the three sources are local files; the
     network is only reached for a session this deployment has never seen.
+
+    That network fallback used to call _fetch_session_meta(), which caches its
+    result by writing _session_meta.json unconditionally — including for a
+    request the gate is about to refuse. In production this left orphaned
+    _session_meta.json files for sessions whose analysis was never computed
+    (11234, 11240 — Block 22's finding, fixed here at the source rather than
+    cleaned up after the fact): the publication Action committed them as if
+    the race had been published. A plain, uncached fetch answers the one
+    question the gate needs — the year — without that side effect; if access
+    is granted, the normal flow's own _fetch_session_meta() call a few lines
+    below (after the gate) does the real, legitimate caching.
     """
     meta = analysis_cache.get_session_meta(session_key)
     if isinstance(meta, dict) and isinstance(meta.get("year"), int):
@@ -212,11 +224,13 @@ async def _session_year(session_key: int) -> int | None:
         if isinstance(year, int):
             return year
     try:
-        fetched = await _fetch_session_meta(session_key)
+        sessions = await fetch_json("sessions", session_key=session_key)
     except Exception as exc:
         logger.warning("[PRO] could not read the year for %s: %s", session_key, exc)
         return None
-    year = fetched.get("year")
+    if not sessions:
+        return None
+    year = sessions[0].get("year")
     return year if isinstance(year, int) else None
 
 

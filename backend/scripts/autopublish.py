@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import sys
 import time
 from dataclasses import asdict
@@ -143,6 +144,33 @@ async def compute(session_key: int) -> dict:
         raise RuntimeError(f"/analysis returned {r.status_code} {err.get('code')}: {err.get('message')}")
     log(f"    computed in {took:.0f}s")
     return r.json()
+
+
+def discard_incomplete_session(session_key: int) -> None:
+    """
+    After a failed compute(), remove anything left on disk for this session
+    unless it already holds a real analysis from an earlier, successful run.
+
+    Production: 11234 and 11240 ended up with _session_meta.json committed and
+    no _analysis.json, because computing an analysis writes files as it goes —
+    session metadata first, in particular — and a failure partway through
+    (the PRO gate refusing it, or anything later in the pipeline) left those
+    partial writes on disk for the workflow's `git add` to pick up and commit
+    as if the race had published. This makes "failed" and "nothing written"
+    the same thing again, regardless of where in the pipeline it failed —
+    the gate case is fixed at its source too (app/api/analysis.py's
+    _session_year no longer caches through a refused request), but this is
+    the general backstop for every other way compute() can fail partway.
+    """
+    session_dir = settings.cache_path / str(session_key)
+    if not session_dir.exists():
+        return
+    if (session_dir / "_analysis.json").exists():
+        # A previous, successful publish already lives here — a failed retry
+        # (force_refresh=true) must never delete a good result.
+        return
+    shutil.rmtree(session_dir)
+    log(f"    discarded incomplete files for {session_key}")
 
 
 def headline(analysis: dict) -> dict:
@@ -280,6 +308,7 @@ async def run(session_keys: list[int] | None, state_path: Path, dry_run: bool, y
         except Exception as exc:
             log(f"    FAILED: {exc}")
             report["errors"].append({"session_key": c.session_key, "label": c.label, "error": str(exc)})
+            discard_incomplete_session(c.session_key)
             continue
         report["published"].append({
             "session_key": c.session_key,

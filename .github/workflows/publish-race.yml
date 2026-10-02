@@ -140,7 +140,23 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add cache/*/_analysis.json cache/*/_session_meta.json
+          # Only session_keys that actually published — never a blind glob.
+          # A failed session is cleaned off disk by autopublish.py itself
+          # (discard_incomplete_session), but this is the second, independent
+          # guard: even if something slipped past that, a session absent from
+          # report.json's "published" list is never staged here, so a partial
+          # write can never become a commit on its own.
+          python -c "
+          import json
+          report = json.load(open('report.json'))
+          for p in report.get('published', []):
+              if not p.get('dry_run'):
+                  print(p['session_key'])
+          " > published_keys.txt
+          while read -r key; do
+            git add "cache/$key/_analysis.json" "cache/$key/_session_meta.json"
+          done < published_keys.txt
+          rm -f published_keys.txt
           if git diff --staged --quiet; then
             echo "nothing to commit"
             echo "committed=false" >> "$GITHUB_OUTPUT"

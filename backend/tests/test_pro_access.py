@@ -63,6 +63,12 @@ def no_network(monkeypatch):
     import app.api.analysis as analysis_api
     import app.clients.openf1_client as openf1
     monkeypatch.setattr(openf1, "fetch_json", refuse)
+    # analysis.py did `from ... import fetch_json`, a separate name binding —
+    # patching openf1.fetch_json above does not touch it. Block it here too,
+    # or _session_year()'s own direct fetch_json call (Block 23) would be a
+    # real, unmocked network call the first time a test exercises a session
+    # with no pre-existing _session_meta.json.
+    monkeypatch.setattr(analysis_api, "fetch_json", refuse)
     monkeypatch.setattr(analysis_api, "load_session", refuse)
     monkeypatch.setattr(analysis_api, "_fetch_session_meta", refuse)
 
@@ -430,3 +436,97 @@ def test_which_seasons_are_free(monkeypatch, year, free):
     monkeypatch.setattr(settings, "free_seasons", [2023, 2024])
     assert access.is_free_season(year) is free
     assert access.is_pro_season(year) is (not free)
+
+
+# ── a refused request writes nothing to disk — Block 23 ─────────────────────
+#
+# Production: the gate's own year lookup used to fall back to
+# _fetch_session_meta(), which caches by writing _session_meta.json
+# unconditionally — including for a session the gate was about to refuse. The
+# publication Action then committed that orphaned file as if the race had
+# published, for 11234 and 11240, with no _analysis.json alongside it. The
+# fixed year lookup answers from a plain, uncached fetch, so this is the
+# regression: a brand-new session's own directory must not exist at all after
+# a 402, not just be missing analysis.json.
+
+def test_a_refused_pro_session_leaves_no_file_on_disk(client, configured, monkeypatch, tmp_path):
+    """The exact production failure, reproduced: a session with no local cache
+    at all, refused for lack of a token — its directory must never be created."""
+    import app.api.analysis as analysis_api
+
+    async def fake_fetch(endpoint, **params):
+        # _session_year's own path only ever asks for "sessions"; the old,
+        # buggy path (_fetch_session_meta) also asks for "meetings" — handled
+        # here too, so this proves the fix by actually letting the old path
+        # run to completion instead of accidentally short-circuiting it.
+        if endpoint == "sessions":
+            return [{"session_key": 11234, "year": 2026, "meeting_key": 1, "session_type": "Race"}]
+        if endpoint == "meetings":
+            return [{"meeting_name": "Test Grand Prix"}]
+        raise AssertionError(f"unexpected endpoint: {endpoint}")
+
+    monkeypatch.setattr(analysis_api, "fetch_json", fake_fetch)
+
+    session_dir = tmp_path / "11234"
+    assert not session_dir.exists()
+
+    r = client.get("/analysis/11234")
+    assert error_code(r) == "PRO_REQUIRED"
+    assert not session_dir.exists(), (
+        "a refused request must not create the session's cache directory at all"
+    )
+
+
+def test_session_year_never_calls_the_caching_fetch_function(monkeypatch, tmp_path):
+    """
+    Direct, fixture-independent proof of the fix: _session_year()'s network
+    fallback must go through a plain fetch_json(), never through
+    _fetch_session_meta() (the function whose side effect — an unconditional
+    cache write — was the actual bug). Calling _fetch_session_meta at all from
+    this path, even if it somehow wrote somewhere harmless, is the regression.
+    """
+    import app.api.analysis as analysis_api
+
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+
+    async def spy_fetch_session_meta(session_key):
+        raise AssertionError("_session_year must not call _fetch_session_meta")
+
+    async def fake_fetch_json(endpoint, **params):
+        assert endpoint == "sessions"
+        return [{"session_key": 99999, "year": 2026}]
+
+    monkeypatch.setattr(analysis_api, "_fetch_session_meta", spy_fetch_session_meta)
+    monkeypatch.setattr(analysis_api, "fetch_json", fake_fetch_json)
+
+    import asyncio
+    year = asyncio.run(analysis_api._session_year(99999))
+    assert year == 2026
+
+
+def test_a_refused_pro_session_does_not_touch_an_existing_directory_either(
+    client, configured, monkeypatch, tmp_path
+):
+    """The other shape the bug could take: a session directory that already
+    exists (from an earlier, unrelated attempt) must not gain a fresh
+    _session_meta.json from a request that then gets refused."""
+    import app.api.analysis as analysis_api
+
+    async def fake_fetch(endpoint, **params):
+        if endpoint == "sessions":
+            return [{"session_key": 11240, "year": 2026, "meeting_key": 1, "session_type": "Race"}]
+        if endpoint == "meetings":
+            return [{"meeting_name": "Test Grand Prix"}]
+        raise AssertionError(f"unexpected endpoint: {endpoint}")
+
+    monkeypatch.setattr(analysis_api, "fetch_json", fake_fetch)
+
+    session_dir = tmp_path / "11240"
+    session_dir.mkdir()  # exists, but empty — nothing published for it yet
+
+    r = client.get("/analysis/11240")
+    assert error_code(r) == "PRO_REQUIRED"
+    assert list(session_dir.iterdir()) == [], (
+        "a refused request must not write _session_meta.json into an "
+        "already-existing but otherwise empty session directory"
+    )

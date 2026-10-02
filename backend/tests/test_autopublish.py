@@ -557,3 +557,124 @@ def test_compute_sends_no_build_secret_header_when_unconfigured(monkeypatch):
 
     asyncio.run(script.compute(9539))
     assert "X-Internal-Build-Secret" not in seen_headers
+
+
+# ── a session that fails leaves no files behind — Block 23 ──────────────────
+#
+# Production: 11234 and 11240 ended up with _session_meta.json committed and
+# no _analysis.json, because computing an analysis writes files as it goes and
+# a failure partway through left the partial write on disk for the workflow's
+# `git add` to pick up. discard_incomplete_session() is the backstop: after
+# compute() fails for a session, anything it (or the gate it hit) left behind
+# is removed, unless a real analysis from an earlier successful run is there.
+
+def test_discard_incomplete_session_removes_a_bare_directory(tmp_path, monkeypatch):
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "cache_dir", str(tmp_path))
+    session_dir = tmp_path / "11234"
+    session_dir.mkdir()
+    (session_dir / "_session_meta.json").write_text("{}")
+
+    script.discard_incomplete_session(11234)
+
+    assert not session_dir.exists()
+
+
+def test_discard_incomplete_session_is_a_no_op_when_nothing_was_written(tmp_path, monkeypatch):
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "cache_dir", str(tmp_path))
+
+    script.discard_incomplete_session(11234)  # no directory at all
+
+    assert not (tmp_path / "11234").exists()  # still true, and no crash
+
+
+def test_discard_incomplete_session_never_removes_a_real_prior_publish(tmp_path, monkeypatch):
+    """A failed force_refresh retry must not destroy a good result that was
+    already sitting there from an earlier, successful run."""
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "cache_dir", str(tmp_path))
+    session_dir = tmp_path / "9539"
+    session_dir.mkdir()
+    (session_dir / "_analysis.json").write_text('{"race": {"year": 2024}}')
+    (session_dir / "_session_meta.json").write_text("{}")
+
+    script.discard_incomplete_session(9539)
+
+    assert (session_dir / "_analysis.json").exists()
+    assert (session_dir / "_session_meta.json").exists()
+
+
+def test_a_mixed_run_leaves_files_only_for_the_session_that_succeeded(tmp_path, monkeypatch):
+    """
+    One session fails, one succeeds, same run: the exact shape of the
+    production bug. After run(), the failed session's directory must not
+    exist at all; the succeeded one must have its _analysis.json.
+    """
+    import asyncio
+
+    script = _load_autopublish_script()
+    monkeypatch.setattr(script.settings, "cache_dir", str(tmp_path))
+
+    FAIL_KEY, OK_KEY = 11234, 11240
+    now = BAKU_END + timedelta(hours=7)  # settled: ready on a single observation
+
+    metas = {
+        FAIL_KEY: session(FAIL_KEY, name="Race", start=BAKU_START, end=BAKU_END, circuit="Melbourne"),
+        OK_KEY: session(OK_KEY, name="Sprint", start=BAKU_START, end=BAKU_END, circuit="Shanghai"),
+    }
+
+    async def fake_fetch_json(endpoint, **params):
+        if endpoint == "sessions":
+            return [metas[params["session_key"]]]
+        if endpoint == "race_control":
+            return FINISHED_RC
+        if endpoint == "laps":
+            return laps(50)
+        raise AssertionError(f"unexpected endpoint in this test: {endpoint}")
+
+    async def fake_compute(session_key: int) -> dict:
+        if session_key == FAIL_KEY:
+            # Mirrors the real bug: something (the gate, or any later step)
+            # wrote a partial file before failing.
+            d = script.settings.cache_path / str(session_key)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "_session_meta.json").write_text("{}")
+            raise RuntimeError("/analysis returned 402 PRO_REQUIRED: simulated failure")
+        d = script.settings.cache_path / str(session_key)
+        d.mkdir(parents=True, exist_ok=True)
+        analysis = {"race": {"session_key": session_key, "meeting_name": metas[session_key]["circuit_short_name"],
+                             "session_name": metas[session_key]["session_name"], "year": 2026},
+                    "chaos": {"score": 10, "level": "Low"}, "race_classification": [], "modules": {}}
+        (d / "_analysis.json").write_text(json.dumps(analysis))
+        (d / "_session_meta.json").write_text(json.dumps(metas[session_key]))
+        return analysis
+
+    monkeypatch.setattr(script, "fetch_json", fake_fetch_json)
+    monkeypatch.setattr(script, "compute", fake_compute)
+
+    def fake_now():
+        return now
+    import datetime as _dt
+    class FixedDatetime(_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+    monkeypatch.setattr(script, "datetime", FixedDatetime)
+
+    report = asyncio.run(script.run(
+        session_keys=[FAIL_KEY, OK_KEY],
+        state_path=tmp_path / "state.json",
+        dry_run=False,
+        year=None,
+        exclusions_path=tmp_path / "no-such-exclusions.json",
+        limit=10,
+    ))
+
+    assert any(e.get("session_key") == FAIL_KEY for e in report["errors"])
+    assert any(p.get("session_key") == OK_KEY for p in report["published"])
+
+    assert not (tmp_path / str(FAIL_KEY)).exists(), (
+        "the failed session must leave no trace on disk for the workflow to commit"
+    )
+    assert (tmp_path / str(OK_KEY) / "_analysis.json").exists()
