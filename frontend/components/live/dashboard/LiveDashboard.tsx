@@ -5,6 +5,7 @@ import { Archivo } from 'next/font/google'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
 import { LiveEngineer } from './LiveEngineer'
+import { Predictions } from './Predictions'
 import { bandsFromLaps, driversFromLive, formatLap, median, type NeutralBand } from '@/lib/lapCharts'
 import type { LiveConnection as ConnectionState } from '@/hooks/useLiveSession'
 import type { LiveDashboard as Dash, LiveSnapshot, PracticeTowerRow, TowerRow } from '@/types/live'
@@ -63,9 +64,35 @@ const EMPTY_DASH: Dash = {
   stints: {}, pit_stops: [], pit_stops_total: 0, records: [], overtakes: [], lap_times: {}, laps_detail: {},
 }
 
+/**
+ * The dashboard block is newer than some live servers in the field: a server
+ * not yet redeployed still sends weather, session bests and stints in the
+ * older analysis fields. Fill from those rather than show dashes for data
+ * that is actually in the frame.
+ */
+function withFallbacks(snap: LiveSnapshot): Dash {
+  const base = snap.dashboard && !snap.dashboard.error ? snap.dashboard : EMPTY_DASH
+  const w = snap.analysis.weather
+  const weather = base.weather.air_temperature == null && w?.ok
+    ? { ...base.weather, air_temperature: w.air_temperature ?? null, track_temperature: w.track_temperature ?? null, rainfall: w.rainfall ?? null }
+    : base.weather
+  const markers = (snap.analysis.session_timeline?.markers ?? []).filter(m => m.type === 'SESSION_BEST' && m.time_s != null)
+  const records = base.records.length ? base.records : markers.map((m, i) => ({
+    driver_number: -i - 1, code: m.code ?? '?', lap_number: m.lap_number ?? 0, time_s: m.time_s as number, at: m.at,
+    improvement_s: i ? +((markers[i - 1].time_s as number) - (m.time_s as number)).toFixed(3) : null,
+  }))
+  const stints = Object.keys(base.stints).length ? base.stints : Object.fromEntries(snap.tower
+    .filter(r => r.compound && r.lap_number != null && r.stint_laps != null)
+    .map(r => [String(r.driver_number), [{
+      stint_number: r.stint_number ?? 1, compound: r.compound, lap_start: (r.lap_number as number) - (r.stint_laps as number) + 1,
+      lap_end: null, tyre_age_at_start: r.tyre_age_at_start,
+    }]]))
+  return { ...base, weather, records, stints }
+}
+
 export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }: Props) {
   const now = useNow()
-  const dash = snapshot.dashboard && !snapshot.dashboard.error ? snapshot.dashboard : EMPTY_DASH
+  const dash = useMemo(() => withFallbacks(snapshot), [snapshot])
   const profile = snapshot.profile ?? 'race'
   const isRace = profile === 'race'
   const practiceRows = snapshot.practice_tower ?? []
@@ -140,6 +167,8 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
         </section>
       </>}
 
+      {tab === 'predict' && <Predictions snapshot={snapshot} />}
+
       {tab === 'control' && (
         <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
           <RaceControl dash={dash} />
@@ -182,11 +211,12 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
 
 // ── tabs ────────────────────────────────────────────────────────────────────
 
-type TabId = 'timing' | 'track' | 'strategy' | 'control' | 'charts' | 'engineer' | 'feed'
+type TabId = 'timing' | 'track' | 'strategy' | 'predict' | 'control' | 'charts' | 'engineer' | 'feed'
 const TABS: { id: TabId; label: string }[] = [
   { id: 'timing', label: 'Timing' },
   { id: 'track', label: 'Track & car' },
   { id: 'strategy', label: 'Strategy' },
+  { id: 'predict', label: 'Predictions' },
   { id: 'control', label: 'Race control & radio' },
   { id: 'charts', label: 'Lap charts' },
   { id: 'engineer', label: 'Engineer AI' },

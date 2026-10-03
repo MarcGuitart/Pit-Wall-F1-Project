@@ -214,6 +214,38 @@ export type LiveDashboard = {
   error?: string
 }
 
+export type LiveProjection = {
+  kind: 'race' | 'pole'
+  simulations: number
+  reason?: string
+  error?: string
+  confidence?: 'Low' | 'Medium' | 'High'
+  total_laps?: number | null
+  total_laps_source?: string
+  lap?: number
+  laps_left?: number
+  pit_loss_s?: number
+  pit_loss_source?: string
+  sc_probability?: number
+  drivers: {
+    driver_number: number
+    code: string
+    colour: string | null
+    position: number
+    win: number
+    podium?: number
+    projected_position?: number
+    range?: [number, number]
+    pace_s?: number
+    wear_s_per_lap?: number
+    stops_owed?: number
+    compound?: string | null
+    tyre_age?: number
+    best_s?: number
+    ideal_s?: number | null
+  }[]
+}
+
 export type LiveSnapshot = {
   session_key: number | null
   session_info?: {
@@ -225,6 +257,7 @@ export type LiveSnapshot = {
     year?: number | null
   }
   dashboard?: LiveDashboard
+  projection?: LiveProjection
   session_type?: string | null
   session_name?: string | null
   location?: string | null

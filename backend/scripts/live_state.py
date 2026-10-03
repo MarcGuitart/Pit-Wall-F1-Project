@@ -796,6 +796,14 @@ class RaceState:
                 snap["practice_tower"] = snap["analysis"].pop("practice_tower", [])
                 snap["pace"] = snap["analysis"].pop("pace", [])
                 snap["long_runs"] = snap["analysis"].pop("long_runs", [])
+            # The model — the only block that is not a reading of the feed.
+            try:
+                from live_projection import pole_projection, race_projection
+                with self.lock:
+                    snap["projection"] = (race_projection(self) if self.profile == "race"
+                                          else pole_projection(self, snap.get("practice_tower") or []))
+            except Exception as exc:
+                snap["projection"] = {"error": f"{type(exc).__name__}: {exc}"}
         return snap
 
 

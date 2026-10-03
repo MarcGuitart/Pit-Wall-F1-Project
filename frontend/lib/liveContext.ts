@@ -66,6 +66,16 @@ export function buildLiveDigest(snap: LiveSnapshot, focus: string | null): { con
     lines.push('', 'RECENT PIT STOPS ' + d.pit_stops.slice(0, 10).map(p => `${p.code} L${p.lap_number ?? '?'}${p.stop_duration ? ` ${p.stop_duration.toFixed(1)}s` : ''}`).join(' · '))
   }
 
+  const pr = snap.projection
+  if (pr?.drivers?.length) {
+    lines.push('', `PROJECTION (model, not a result; ${pr.confidence ?? '?'} confidence, ${pr.simulations} simulations${pr.total_laps ? `, ${pr.total_laps} laps (${pr.total_laps_source})` : ''})`)
+    for (const x of pr.drivers.slice(0, 10)) {
+      lines.push(pr.kind === 'race'
+        ? `${x.code} now P${x.position} win ${Math.round(x.win * 100)}% podium ${Math.round((x.podium ?? 0) * 100)}% projected P${x.projected_position} stops owed ${x.stops_owed}`
+        : `${x.code} now P${x.position} pole ${Math.round(x.win * 100)}% best ${formatLap(x.best_s)} ideal ${formatLap(x.ideal_s ?? undefined)}`)
+    }
+  }
+
   // Signals: race control, engineer notes and pit-window readings, citable by id.
   const signals: LiveSignal[] = []
   ;(d?.race_control ?? []).slice(0, 25).forEach((m, i) => {

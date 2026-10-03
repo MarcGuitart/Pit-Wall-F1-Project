@@ -165,6 +165,7 @@ services:
       paths:
         - backend/scripts/live_server.py
         - backend/scripts/live_state.py
+        - backend/scripts/live_projection.py
         - backend/scripts/live_view.html
         - backend/requirements-live.txt
         - backend/app/clients/openf1_auth.py
