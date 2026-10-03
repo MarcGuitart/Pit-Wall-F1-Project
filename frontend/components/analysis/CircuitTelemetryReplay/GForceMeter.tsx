@@ -114,7 +114,7 @@ export function GForceMeter({ driver, progress }: Props) {
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
 
           {/* ── Background ring ── */}
-          <circle cx={CX} cy={CY} r={R_ARC} fill="none" stroke="#1E2430" strokeWidth={STROKE + 2} />
+          <circle cx={CX} cy={CY} r={R_ARC} fill="none" stroke="rgb(var(--c-border-subtle))" strokeWidth={STROKE + 2} />
 
           {/* ── Throttle arc (green, bottom-left → bottom-right) ── */}
           {throttle > 1 && (
@@ -142,14 +142,14 @@ export function GForceMeter({ driver, progress }: Props) {
           {/* ── Brake fill bar (right side, fills proportionally — not used for binary but ready) ── */}
 
           {/* ── G-plane circle ── */}
-          <circle cx={CX} cy={CY} r={R_GPAD} fill="#0B0D12" stroke="#252D3A" strokeWidth={1} />
+          <circle cx={CX} cy={CY} r={R_GPAD} fill="rgb(var(--c-bg-secondary))" stroke="rgb(var(--c-border-default))" strokeWidth={1} />
 
           {/* ── Crosshair ── */}
-          <line x1={CX - R_GPAD} y1={CY} x2={CX + R_GPAD} y2={CY} stroke="#1E2430" strokeWidth={0.75} />
-          <line x1={CX} y1={CY - R_GPAD} x2={CX} y2={CY + R_GPAD} stroke="#1E2430" strokeWidth={0.75} />
+          <line x1={CX - R_GPAD} y1={CY} x2={CX + R_GPAD} y2={CY} stroke="rgb(var(--c-border-subtle))" strokeWidth={0.75} />
+          <line x1={CX} y1={CY - R_GPAD} x2={CX} y2={CY + R_GPAD} stroke="rgb(var(--c-border-subtle))" strokeWidth={0.75} />
 
           {/* ── Scale ring at 50% ── */}
-          <circle cx={CX} cy={CY} r={dotTravel * 0.5} fill="none" stroke="#1E2430" strokeWidth={0.5} strokeDasharray="3,4" opacity={0.6} />
+          <circle cx={CX} cy={CY} r={dotTravel * 0.5} fill="none" stroke="rgb(var(--c-border-subtle))" strokeWidth={0.5} strokeDasharray="3,4" opacity={0.6} />
 
           {/* ── Peak G ghost marker (where max G occurred this lap) ── */}
           {peakMag > 0.3 && (
@@ -178,12 +178,12 @@ export function GForceMeter({ driver, progress }: Props) {
 
           {/* ── Steering wheel (centre, rotates with lateral G) ── */}
           <g transform={`translate(${CX}, ${CY}) rotate(${steerAngle})`}>
-            <circle cx={0} cy={0} r={16} fill="none" stroke="#252D3A" strokeWidth={3} />
-            <line x1={0} y1={-16} x2={0} y2={-5} stroke="#1E2430" strokeWidth={2.5} strokeLinecap="round"/>
-            <line x1={-16} y1={0} x2={-6} y2={0} stroke="#1E2430" strokeWidth={2.5} strokeLinecap="round"/>
-            <line x1={16} y1={0} x2={6} y2={0} stroke="#1E2430" strokeWidth={2.5} strokeLinecap="round"/>
-            <circle cx={0} cy={0} r={4} fill="#1E2430" />
-            <circle cx={0} cy={-13} r={1.5} fill="#F0F2F5" opacity={0.5} />
+            <circle cx={0} cy={0} r={16} fill="none" stroke="rgb(var(--c-border-default))" strokeWidth={3} />
+            <line x1={0} y1={-16} x2={0} y2={-5} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
+            <line x1={-16} y1={0} x2={-6} y2={0} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
+            <line x1={16} y1={0} x2={6} y2={0} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
+            <circle cx={0} cy={0} r={4} fill="rgb(var(--c-border-subtle))" />
+            <circle cx={0} cy={-13} r={1.5} fill="rgb(var(--c-text-primary))" opacity={0.5} />
           </g>
 
           {/* ── Labels ── */}
@@ -226,7 +226,7 @@ export function GForceMeter({ driver, progress }: Props) {
             <div key={i} className={`flex flex-col items-center py-1.5 ${i < 3 ? 'border-r border-border-subtle' : ''}`}>
               <span className="font-display font-bold text-[7px] uppercase tracking-[0.8px] text-text-muted">{label}</span>
               <span className="font-mono text-[12px] font-bold tabular-nums leading-tight"
-                    style={{ color: color ?? '#F0F2F5' }}>
+                    style={{ color: color ?? 'rgb(var(--c-text-primary))' }}>
                 {value}<span className="text-[8px] text-text-muted ml-0.5">{unit}</span>
               </span>
             </div>

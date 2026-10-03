@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { RaceLapCharts } from '@/components/charts/LapCharts'
+import chartStyles from '@/components/charts/charts.module.css'
 import { fetchLapCharts, type LapChartsPayload } from '@/lib/api'
 import type { ChartDriver } from '@/lib/lapCharts'
 
@@ -36,7 +37,7 @@ export function LapChartsTab({ sessionKey }: { sessionKey: number }) {
     return <div className="bg-bg-panel border border-border-subtle px-4 py-8 font-mono text-[11px] text-text-muted">Loading lap data… the first visit to an older race builds it from OpenF1, which takes a few seconds.</div>
   }
   return (
-    <div className="border-2 border-border-subtle">
+    <div className={`border-2 border-border-subtle ${chartStyles.darkTokens}`}>
       <RaceLapCharts drivers={drivers} bands={data.bands} totalLaps={data.total_laps} winnerCode={data.winner} idPrefix="race" />
     </div>
   )

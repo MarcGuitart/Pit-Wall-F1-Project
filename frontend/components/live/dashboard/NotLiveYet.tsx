@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import s from './live.module.css'
 import { archivo } from '@/lib/fonts'
+import { usePwTheme } from '@/lib/pwTheme'
 import { NotifyButton } from '@/components/notify/NotifyButton'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
 
 /** The live page with nothing live: when the next session is, and a way to be told. */
 export function NotLiveYet() {
+  const [theme] = usePwTheme()
   const [next, setNext] = useState<NextLiveSessionInfo | null | undefined>(undefined)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { fetchNextLiveSession(new Date().getFullYear()).then(setNext).catch(() => setNext(null)) }, [])
@@ -23,7 +25,7 @@ export function NotLiveYet() {
     return `${d ? `${d}d ` : ''}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`
   }
   return (
-    <div className={`${s.root} ${archivo.className}`} style={{ minHeight: '70vh' }}>
+    <div className={`${s.root} ${archivo.className}`} data-theme={theme} style={{ minHeight: '70vh' }}>
       <header className={s.header}>
         <div style={{ minWidth: 0 }}>
           <div className={s.kicker}><span className={s.square} />Live timing · nothing on track right now</div>

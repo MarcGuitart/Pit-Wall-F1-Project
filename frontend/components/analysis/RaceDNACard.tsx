@@ -24,7 +24,7 @@ function colorFor(field: keyof RaceDNA, value: string): string {
     if (value === 'High') return '#FFB020'
   }
   if (field === 'strategy_type') return '#A66CFF'
-  return '#F0F2F5'
+  return 'rgb(var(--c-text-primary))'
 }
 
 export function RaceDNACard({ dna }: Props) {
@@ -50,7 +50,7 @@ export function RaceDNACard({ dna }: Props) {
           </div>
           <div
             className="font-display font-bold text-[13px] leading-tight truncate"
-            style={{ color: cell.color ?? '#F0F2F5' }}
+            style={{ color: cell.color ?? 'rgb(var(--c-text-primary))' }}
           >
             {cell.value}
           </div>

@@ -110,7 +110,7 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
   const getLiveColor = (id: string): string => {
     if (id === 'brake') return liveValues.brake ? '#E8001D' : '#4A5568'
     if (id === 'drs')   return isDrsOpen(liveValues.drs) ? '#23D18B' : '#4A5568'
-    return '#F0F2F5'
+    return 'rgb(var(--c-text-primary))'
   }
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGElement>) => {
@@ -303,7 +303,7 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
                       strokeWidth={2}
                       strokeLinejoin="round"
                     />
-                    <circle cx={liveX} cy={liveY} r={2.4} fill={c} stroke="#0B0D12" strokeWidth={1} />
+                    <circle cx={liveX} cy={liveY} r={2.4} fill={c} stroke="rgb(var(--c-bg-secondary))" strokeWidth={1} />
                   </g>
                 )
               })}
@@ -328,7 +328,7 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
                         x={x + 3}
                         y={10}
                         fontSize={7}
-                        fill="#4A5568"
+                        fill="rgb(var(--c-text-muted))"
                         fontFamily="var(--font-jetbrains-mono), monospace"
                       >
                         S{i + 2}

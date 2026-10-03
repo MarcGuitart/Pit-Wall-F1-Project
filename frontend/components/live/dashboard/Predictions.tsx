@@ -59,7 +59,7 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
                 <div className={s.td}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span className={s.teamBar} style={{ height: 24, background: colourOf(d.colour) }} /><b style={{ fontSize: 16 }}>{d.code}</b></div></div>
                 <div className={s.td}><span style={{ fontWeight: 600 }}>P{d.position}</span></div>
                 <div className={s.td}><b style={{ fontSize: 18, color: d.win === max && d.win > 0 ? 'var(--pw-accent-text)' : undefined }}>{pct(d.win)}</b></div>
-                <div className={s.td}><div style={{ height: 10, background: 'var(--pw-surface)' }}><div style={{ height: '100%', width: `${(d.win / max) * 100}%`, background: d.win === max ? 'var(--pw-accent)' : 'rgba(240,242,245,0.45)' }} /></div></div>
+                <div className={s.td}><div style={{ height: 10, background: 'var(--pw-surface)' }}><div style={{ height: '100%', width: `${(d.win / max) * 100}%`, background: d.win === max ? 'var(--pw-accent)' : 'color-mix(in srgb, var(--pw-text) 45%, transparent)' }} /></div></div>
                 {race ? <>
                   <div className={s.td}>{pct(d.podium)}</div>
                   <div className={s.td}><span style={{ fontWeight: 800 }}>P{d.projected_position}</span>{d.range && <span className={s.sub} style={{ fontSize: 11 }}>P{d.range[0]}–P{d.range[1]}</span>}</div>

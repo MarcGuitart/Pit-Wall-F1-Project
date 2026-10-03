@@ -149,7 +149,7 @@ function PhaseSegment({
             position: 'absolute',
             bottom: 'calc(100% + 8px)',
             ...(nearRight ? { right: 0 } : { left: '50%', transform: 'translateX(-50%)' }),
-            background: '#0B0D12',
+            background: 'rgb(var(--c-bg-secondary))',
             border: `1px solid ${PHASE_BORDER[token] ?? '#252D3A'}`,
             borderLeft: `3px solid ${PHASE_TEXT[token] ?? '#8A94A6'}`,
             borderRadius: '3px',
@@ -169,7 +169,7 @@ function PhaseSegment({
               fontSize: '9px',
               letterSpacing: '1px',
               textTransform: 'uppercase',
-              color: PHASE_TEXT[token] ?? '#F0F2F5',
+              color: PHASE_TEXT[token] ?? 'rgb(var(--c-text-primary))',
               marginBottom: '3px',
             }}
           >
@@ -179,7 +179,7 @@ function PhaseSegment({
             style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize: '8px',
-              color: '#8A94A6',
+              color: 'rgb(var(--c-text-secondary))',
               lineHeight: 1.5,
             }}
           >
@@ -229,7 +229,7 @@ export function RacePhaseTimeline({ phases, totalLaps, onPhaseHover }: Props) {
             {/* Base track */}
             <div
               className="absolute inset-0 rounded-[2px]"
-              style={{ background: '#111419' }}
+              style={{ background: 'rgb(var(--c-bg-panel))' }}
             />
 
             {/* Phase segments */}

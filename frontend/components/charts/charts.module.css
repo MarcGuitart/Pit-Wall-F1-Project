@@ -13,7 +13,7 @@
   align-items: flex-start;
   gap: 14px;
   padding: 16px 20px;
-  border-bottom: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border-bottom: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
   flex-wrap: wrap;
 }
 
@@ -35,7 +35,7 @@
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
   max-width: 820px;
 }
 
@@ -49,7 +49,7 @@
 }
 .badgeHigh { color: oklch(0.72 0.15 150); }
 .badgeMedium { color: oklch(0.85 0.16 90); }
-.badgeLow { color: var(--pw-muted, rgba(240, 242, 245, 0.6)); }
+.badgeLow { color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent)); }
 
 .actions {
   margin-left: auto;
@@ -65,7 +65,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 5px 10px;
-  border: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
   background: transparent;
   color: var(--pw-text, #f0f2f5);
   cursor: pointer;
@@ -76,7 +76,7 @@
 
 .seg {
   display: inline-flex;
-  border: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
 }
 .seg label {
   font-size: 11px;
@@ -86,7 +86,7 @@
   padding: 5px 10px;
   cursor: pointer;
 }
-.seg label + label { border-left: 1px solid var(--pw-divider, rgba(240, 242, 245, 0.16)); }
+.seg label + label { border-left: 1px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent)); }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg label:has(input:checked) { background: var(--pw-accent, #ec3013); color: #fff; }
 
@@ -98,13 +98,13 @@
   letter-spacing: 0.06em;
   background: var(--pw-surface, #0b0d12);
   color: var(--pw-text, #f0f2f5);
-  border: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
   padding: 4px 8px;
   border-radius: 0;
 }
 
 .how {
-  border-bottom: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border-bottom: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
 }
 .how summary {
   cursor: pointer;
@@ -123,7 +123,7 @@
   padding: 0 20px 14px;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
   max-width: 900px;
 }
 
@@ -151,7 +151,7 @@
   padding: 3px 6px;
   border: 2px solid transparent;
   background: transparent;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
@@ -162,41 +162,41 @@
 }
 .pillOn {
   color: var(--pw-text, #f0f2f5);
-  border-color: var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border-color: var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
 }
 .pill span:last-child { font-weight: 600; opacity: 0.85; }
 
 .hint {
   padding: 0 20px 14px;
   font-size: 11px;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
 }
 
 .empty {
   padding: 28px 20px;
   font-size: 12px;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 2px;
-  background: var(--pw-divider, rgba(240, 242, 245, 0.16));
-  border-bottom: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  background: var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
+  border-bottom: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
 }
 .stat { background: var(--pw-bg, #05060a); padding: 14px 20px; }
 .statLabel {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .statValue { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
-.statSub { font-size: 12px; color: var(--pw-muted, rgba(240, 242, 245, 0.6)); }
+.statSub { font-size: 12px; color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent)); }
 
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {
@@ -205,8 +205,21 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--pw-muted, rgba(240, 242, 245, 0.6));
+  color: var(--pw-muted, color-mix(in srgb, var(--pw-text) 60%, transparent));
   padding: 8px 12px;
-  border-bottom: 2px solid var(--pw-divider, rgba(240, 242, 245, 0.16));
+  border-bottom: 2px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent));
 }
-.table td { padding: 8px 12px; border-bottom: 1px solid var(--pw-divider, rgba(240, 242, 245, 0.16)); }
+.table td { padding: 8px 12px; border-bottom: 1px solid var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent)); }
+
+/* Outside the live/preview root (the classic race page) the charts bring
+   their own dark tokens, so the fallbacks above never have to resolve. */
+.darkTokens {
+  --pw-bg: #05060a;
+  --pw-surface: #0b0d12;
+  --pw-text: #f0f2f5;
+  --pw-muted: color-mix(in srgb, #f0f2f5 58%, transparent);
+  --pw-divider: color-mix(in srgb, #f0f2f5 16%, transparent);
+  --pw-accent: #ec3013;
+  background: var(--pw-bg);
+  color: var(--pw-text);
+}

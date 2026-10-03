@@ -22,7 +22,11 @@ import { TelemetryTab } from './tabs/TelemetryTab'
 import { RaceControlTab } from './tabs/RaceControlTab'
 import { LapChartsTab } from './tabs/LapChartsTab'
 
-type Props = { analysis: FullRaceAnalysis }
+type Props = {
+  analysis: FullRaceAnalysis
+  /** The /preview redesign draws its own race header above this page. */
+  hideHeader?: boolean
+}
 
 function inferTotalLaps(analysis: FullRaceAnalysis): number {
   if (analysis.tyre_degradation.length)
@@ -32,7 +36,7 @@ function inferTotalLaps(analysis: FullRaceAnalysis): number {
   return 70
 }
 
-export function AnalysisPage({ analysis }: Props) {
+export function AnalysisPage({ analysis, hideHeader = false }: Props) {
   const {
     radioOpen, setRadioOpen,
     analysisMode, setAnalysisMode,
@@ -73,7 +77,7 @@ export function AnalysisPage({ analysis }: Props) {
   return (
     <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
       {/* Race header */}
-      <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+      {!hideHeader && <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">
             {analysis.race.meeting_name}
@@ -103,7 +107,7 @@ export function AnalysisPage({ analysis }: Props) {
             {analysis.chaos.level} Chaos
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Phase timeline — always visible above tabs */}
       {sessionType === 'Race' && analysis.modules?.race_phases?.status === 'failed' && (

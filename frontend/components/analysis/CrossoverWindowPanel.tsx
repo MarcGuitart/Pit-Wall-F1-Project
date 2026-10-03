@@ -27,7 +27,7 @@ const CONFIDENCE_STYLE: Record<string, string> = {
 }
 
 function ConditionBadge({ condition }: { condition: string }) {
-  const style = CONDITION_STYLE[condition] ?? { color: '#8A94A6', bg: 'rgba(138,148,166,0.12)' }
+  const style = CONDITION_STYLE[condition] ?? { color: 'rgb(var(--c-text-secondary))', bg: 'rgba(138,148,166,0.12)' }
   return (
     <span
       className="px-1.5 py-0.5 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.8px]"

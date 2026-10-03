@@ -6,6 +6,8 @@ import s from '@/components/live/dashboard/live.module.css'
 import p from '@/components/preview/preview.module.css'
 import { PreviewShell } from '@/components/preview/PreviewShell'
 import { NotifyButton } from '@/components/notify/NotifyButton'
+import { RaceSelector } from '@/components/landing/RaceSelector'
+import { ProSection } from '@/components/access/ProSection'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { findRaceSession } from '@/lib/nextSession'
 import { isFreeSeason } from '@/lib/access'
@@ -88,6 +90,22 @@ export default function PreviewHome() {
         </div>
       </header>
 
+      <section className={`${s.cells} ${s.ruled}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+        {([['50K+', 'Data points per session', 'positions · intervals · car data · weather'], ['12', 'Analysis modules', 'pace · tyres · pits · chaos · DRS · DNA'],
+          ['40+', 'Strategic signals', 'engineer notes · decisions · phases'], ['Live', 'During every session', 'timing · telemetry · predictions · AI engineer']] as const).map(([v, l, sub]) => (
+          <div key={l} className={s.cell}><div className={s.label}>{l}</div><div className={s.big}>{v}</div><div className={s.sub}>{sub}</div></div>
+        ))}
+      </section>
+
+      <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+        {([['01', 'Select a session', 'Season, race and session type'], ['02', 'Decode the strategy', 'Pace, tyres, pit cycles, chaos'], ['03', 'Ask the race engineer', 'Grounded answers from session data']] as const).map(([n, t, sub]) => (
+          <div key={n} className={s.cell} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--pw-accent)', lineHeight: 1 }}>{n}</span>
+            <div><div style={{ fontSize: 16, fontWeight: 800 }}>{t}</div><div className={s.sub}>{sub}</div></div>
+          </div>
+        ))}
+      </section>
+
       <section className={s.section} style={{ borderTop: '2px solid var(--pw-divider)' }}>
         <div className={`${s.secHead} ${s.secHeadWide}`}>
           <h6 className={s.h6}>{season} season</h6>
@@ -112,6 +130,13 @@ export default function PreviewHome() {
           </div>
         )}
       </section>
+
+      <section className={s.section}>
+        <div className={`${s.secHead} ${s.secHeadWide}`}><h6 className={s.h6}>Any session</h6><span className={s.sub}>Practice, qualifying, sprint and race — with the featured races and the next race on the calendar</span></div>
+        <div style={{ padding: '24px 32px' }}><RaceSelector basePath="/preview/race" /></div>
+      </section>
+
+      <ProSection />
     </PreviewShell>
   )
 }

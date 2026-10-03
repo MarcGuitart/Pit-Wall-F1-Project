@@ -151,31 +151,31 @@ export function GGDiagram({ driver }: Props) {
               {/* Vertical (lat) */}
               <line
                 x1={gx(g)} y1={PAD} x2={gx(g)} y2={H - PAD}
-                stroke="#1E2430" strokeWidth={g === 0 ? 0 : 0.5}
+                stroke="rgb(var(--c-border-subtle))" strokeWidth={g === 0 ? 0 : 0.5}
               />
               {/* Horizontal (lon) */}
               <line
                 x1={PAD} y1={gy(g)} x2={W - PAD} y2={gy(g)}
-                stroke="#1E2430" strokeWidth={g === 0 ? 0 : 0.5}
+                stroke="rgb(var(--c-border-subtle))" strokeWidth={g === 0 ? 0 : 0.5}
               />
             </g>
           ))}
 
           {/* Zero axes — more visible */}
-          <line x1={gx(0)} y1={PAD} x2={gx(0)} y2={H - PAD} stroke="#252D3A" strokeWidth={1} />
-          <line x1={PAD} y1={gy(0)} x2={W - PAD} y2={gy(0)} stroke="#252D3A" strokeWidth={1} />
+          <line x1={gx(0)} y1={PAD} x2={gx(0)} y2={H - PAD} stroke="rgb(var(--c-border-default))" strokeWidth={1} />
+          <line x1={PAD} y1={gy(0)} x2={W - PAD} y2={gy(0)} stroke="rgb(var(--c-border-default))" strokeWidth={1} />
 
           {/* Axis tick labels */}
           {ticks.map((g) => (
             <g key={`lbl-${g}`}>
               {/* Lat G (bottom axis) */}
               <text x={gx(g)} y={H - PAD + 14} textAnchor="middle"
-                fill="#4A5568" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="JetBrains Mono, monospace">
                 {g > 0 ? `+${g}` : g}
               </text>
               {/* Lon G (left axis) */}
               <text x={PAD - 6} y={gy(g) + 3} textAnchor="end"
-                fill="#4A5568" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="JetBrains Mono, monospace">
                 {g > 0 ? `+${g}` : g}
               </text>
             </g>
@@ -183,11 +183,11 @@ export function GGDiagram({ driver }: Props) {
 
           {/* Axis unit labels */}
           <text x={CX} y={H - 2} textAnchor="middle"
-            fill="#4A5568" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700">
+            fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700">
             LATERAL G →
           </text>
           <text x={10} y={CY} textAnchor="middle"
-            fill="#4A5568" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700"
+            fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700"
             transform={`rotate(-90, 10, ${CY})`}>
             LONGITUDINAL G ↑
           </text>

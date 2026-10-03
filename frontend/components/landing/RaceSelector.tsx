@@ -46,7 +46,8 @@ function yearOptions(pro: boolean) {
   }))
 }
 
-export function RaceSelector() {
+/** basePath: where a chosen session opens — the /preview redesign passes its own. */
+export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {}) {
   const router = useRouter()
   // Read after mount only: localStorage does not exist during the server render,
   // and assuming "not PRO" there keeps the first paint identical on both sides.
@@ -140,7 +141,7 @@ export function RaceSelector() {
   }, [selectedMeetingKey])
 
   const handleAnalyze = useCallback(() => {
-    if (selectedSessionKey) router.push(`/race/${selectedSessionKey}`)
+    if (selectedSessionKey) router.push(`${basePath}/${selectedSessionKey}`)
   }, [selectedSessionKey, router])
 
   const canAnalyze = selectedMeetingKey !== null && selectedSessionKey !== null
@@ -288,7 +289,7 @@ export function RaceSelector() {
             return (
               <button
                 key={race.session_key}
-                onClick={() => router.push(`/race/${race.session_key}`)}
+                onClick={() => router.push(`${basePath}/${race.session_key}`)}
                 className="bg-bg-panel border border-border-subtle rounded-[4px] p-4 text-left hover:border-border-default hover:bg-bg-elevated transition-all group"
               >
                 <div className="flex items-start justify-between mb-2">

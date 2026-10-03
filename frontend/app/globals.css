@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The palette as RGB channels — tailwind.config.ts reads these. */
+:root {
+  --c-bg-primary: 5 6 10;
+  --c-bg-secondary: 11 13 18;
+  --c-bg-panel: 17 20 25;
+  --c-bg-elevated: 24 28 35;
+  --c-border-subtle: 30 36 48;
+  --c-border-default: 37 45 58;
+  --c-text-primary: 240 242 245;
+  --c-text-secondary: 138 148 166;
+  --c-text-muted: 74 85 104;
+  --c-signal-green: 35 209 139;
+  --c-signal-amber: 255 176 32;
+  --c-signal-red: 232 0 29;
+  --c-signal-blue: 77 163 255;
+  --c-signal-purple: 166 108 255;
+}
+
+/* ── The redesign (/preview) ─────────────────────────────────────────────
+   Every existing component, re-skinned in place: the Modernist palette, no
+   rounded corners, Archivo for every face. The classic site never sets this
+   class, so it is untouched. data-theme="light" is the paper ground. */
+.pw-modern {
+  --c-bg-primary: 5 6 10;
+  --c-bg-secondary: 5 6 10;
+  --c-bg-panel: 5 6 10;
+  --c-bg-elevated: 17 20 25;
+  --c-border-subtle: 52 54 60;
+  --c-border-default: 72 75 82;
+  --c-text-primary: 240 242 245;
+  --c-text-secondary: 168 172 180;
+  --c-text-muted: 120 124 132;
+  --c-signal-red: 236 48 19;
+}
+.pw-modern[data-theme='light'] {
+  --c-bg-primary: 243 242 242;
+  --c-bg-secondary: 243 242 242;
+  --c-bg-panel: 243 242 242;
+  --c-bg-elevated: 234 233 233;
+  --c-border-subtle: 186 182 182;
+  --c-border-default: 155 151 151;
+  --c-text-primary: 32 30 29;
+  --c-text-secondary: 96 93 93;
+  --c-text-muted: 125 121 121;
+  --c-signal-green: 22 140 80;
+  --c-signal-amber: 186 120 0;
+  --c-signal-red: 236 48 19;
+  --c-signal-blue: 30 110 210;
+  --c-signal-purple: 120 60 210;
+}
+.pw-modern *, .pw-modern *::before, .pw-modern *::after { border-radius: 0 !important; }
+.pw-modern .font-display, .pw-modern .font-mono, .pw-modern .font-body {
+  font-family: var(--font-archivo), system-ui, sans-serif !important;
+}
+.pw-modern .font-mono { font-variant-numeric: tabular-nums; }
+.pw-modern .border, .pw-modern .border-b, .pw-modern .border-t { border-width: 0; }
+.pw-modern .border { border-width: 2px; }
+.pw-modern .border-b { border-bottom-width: 2px; }
+.pw-modern .border-t { border-top-width: 2px; }
+
+
 :root {
   --background: #05060A;
   --foreground: #F0F2F5;

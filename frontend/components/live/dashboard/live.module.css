@@ -22,6 +22,32 @@
   min-height: 100vh;
 }
 
+/* The light ground — Claude Design's Modernist palette as drawn: warm paper,
+   near-black ink, strong rules, the same red. Same variables, so every panel
+   follows without a light-specific rule of its own. */
+.root[data-theme='light'] {
+  --pw-bg: #f3f2f2;
+  --pw-surface: #eae9e9;
+  --pw-surface-2: #e2e0e0;
+  --pw-text: #201e1d;
+  --pw-muted: color-mix(in srgb, #201e1d 62%, transparent);
+  --pw-divider: color-mix(in srgb, #201e1d 32%, transparent);
+  --pw-accent-text: #ae1800;
+  --pw-accent-tint: #fff2ef;
+  --pw-purple: oklch(0.5 0.2 305);
+  --pw-green: oklch(0.52 0.14 150);
+  --pw-yellow: oklch(0.8 0.16 90);
+}
+
+.themeToggle {
+  font: inherit; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  display: inline-flex; border: 2px solid currentColor; background: transparent; color: inherit; padding: 0; cursor: pointer;
+}
+.themeToggle span { padding: 3px 9px; }
+.themeToggle span[data-on='true'] { background: currentColor; }
+.themeToggle span[data-on='true'] > i { color: var(--pw-bg); font-style: normal; }
+.themeToggle span[data-on='false'] > i { font-style: normal; }
+
 @keyframes blink { 50% { opacity: 0.2; } }
 
 /* ── status strip ── */

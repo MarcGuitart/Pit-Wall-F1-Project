@@ -8,28 +8,31 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Colours are CSS variables (RGB channels) so a subtree can re-theme
+      // every existing component at once — the /preview redesign does, via
+      // .pw-modern in globals.css. :root holds today's palette, unchanged.
       colors: {
         bg: {
-          primary:   '#05060A',
-          secondary: '#0B0D12',
-          panel:     '#111419',
-          elevated:  '#181C23',
+          primary:   'rgb(var(--c-bg-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--c-bg-secondary) / <alpha-value>)',
+          panel:     'rgb(var(--c-bg-panel) / <alpha-value>)',
+          elevated:  'rgb(var(--c-bg-elevated) / <alpha-value>)',
         },
         border: {
-          subtle:  '#1E2430',
-          default: '#252D3A',
+          subtle:  'rgb(var(--c-border-subtle) / <alpha-value>)',
+          default: 'rgb(var(--c-border-default) / <alpha-value>)',
         },
         text: {
-          primary:   '#F0F2F5',
-          secondary: '#8A94A6',
-          muted:     '#4A5568',
+          primary:   'rgb(var(--c-text-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--c-text-secondary) / <alpha-value>)',
+          muted:     'rgb(var(--c-text-muted) / <alpha-value>)',
         },
         signal: {
-          green:  '#23D18B',
-          amber:  '#FFB020',
-          red:    '#E8001D',
-          blue:   '#4DA3FF',
-          purple: '#A66CFF',
+          green:  'rgb(var(--c-signal-green) / <alpha-value>)',
+          amber:  'rgb(var(--c-signal-amber) / <alpha-value>)',
+          red:    'rgb(var(--c-signal-red) / <alpha-value>)',
+          blue:   'rgb(var(--c-signal-blue) / <alpha-value>)',
+          purple: 'rgb(var(--c-signal-purple) / <alpha-value>)',
         },
       },
       fontFamily: {

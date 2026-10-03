@@ -173,7 +173,7 @@ export function TrackReplayMap({
         <path
           d={outlinePath}
           fill="none"
-          stroke="#252D3A"
+          stroke="rgb(var(--c-border-default))"
           strokeWidth={10}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -215,7 +215,7 @@ export function TrackReplayMap({
             fontSize={9}
             fontFamily="var(--font-barlow-condensed), sans-serif"
             fontWeight="700"
-            fill="#8A94A6"
+            fill="rgb(var(--c-text-secondary))"
             textAnchor="start"
           >
             {sl.label}

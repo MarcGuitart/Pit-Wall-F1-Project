@@ -83,7 +83,7 @@ function TooltipCard({ type, lap, color, label, detail, alignRight }: TooltipCar
         position: 'absolute',
         bottom: 'calc(100% + 10px)',
         ...(alignRight ? { right: 0 } : { left: '50%', transform: 'translateX(-50%)' }),
-        background: '#0B0D12',
+        background: 'rgb(var(--c-bg-secondary))',
         border: `1px solid ${color}55`,
         borderLeft: `3px solid ${color}`,
         borderRadius: '3px',
@@ -127,7 +127,7 @@ function TooltipCard({ type, lap, color, label, detail, alignRight }: TooltipCar
             fontWeight: 900,
             fontSize: '22px',
             lineHeight: 1,
-            color: '#F0F2F5',
+            color: 'rgb(var(--c-text-primary))',
             letterSpacing: '-0.5px',
           }}
         >
@@ -142,7 +142,7 @@ function TooltipCard({ type, lap, color, label, detail, alignRight }: TooltipCar
             style={{
               fontFamily: 'JetBrains Mono, monospace',
               fontSize: '9px',
-              color: '#8A94A6',
+              color: 'rgb(var(--c-text-secondary))',
               lineHeight: 1.5,
               display: 'block',
               wordBreak: 'break-word',
@@ -320,7 +320,7 @@ export function SessionTimelineBar({
             {/* Background track */}
             <div
               className="absolute inset-0 rounded-[2px]"
-              style={{ background: '#111419' }}
+              style={{ background: 'rgb(var(--c-bg-panel))' }}
             />
 
             {/* Segment fills */}
@@ -366,7 +366,7 @@ export function SessionTimelineBar({
                   <TooltipCard
                     type="pit"
                     lap={m.lap}
-                    color="#8A94A6"
+                    color="rgb(var(--c-text-secondary))"
                     label={`${m.driverCode} pit stop`}
                     detail={m.laneDuration ? `Lane: ${m.laneDuration.toFixed(1)}s` : undefined}
                     alignRight={m.pct > 85}

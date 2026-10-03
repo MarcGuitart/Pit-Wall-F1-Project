@@ -5,6 +5,8 @@ import { archivo } from '@/lib/fonts'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
 import { LiveEngineer } from './LiveEngineer'
+import { ThemeToggle } from './ThemeToggle'
+import { usePwTheme } from '@/lib/pwTheme'
 import { Predictions } from './Predictions'
 import { bandsFromLaps, driversFromLive, formatLap, median, type NeutralBand } from '@/lib/lapCharts'
 import type { LiveConnection as ConnectionState } from '@/hooks/useLiveSession'
@@ -46,7 +48,7 @@ const hms = (sec: number) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60
   return `${h ? `${h}:` : ''}${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`
 }
-const segColour = (code: number) => (code === 2051 ? PUR : code === 2049 ? GRN : code === 2048 ? YEL : code === 2064 ? '#4da3ff' : 'rgba(240,242,245,0.18)')
+const segColour = (code: number) => (code === 2051 ? PUR : code === 2049 ? GRN : code === 2048 ? YEL : code === 2064 ? '#4da3ff' : 'color-mix(in srgb, var(--pw-text) 18%, transparent)')
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now())
@@ -121,6 +123,7 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
   }), [dash.lap_times, dash.stints, tower, order]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const bad = connection !== 'open' || snapshot.feed.stale || !snapshot.feed.connected
+  const [theme, setTheme] = usePwTheme()
   const [tab, setTabState] = useState<TabId>('timing')
   useEffect(() => {
     const h = window.location.hash.slice(1) as TabId
@@ -132,8 +135,9 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
   }
 
   return (
-    <div className={`${s.root} ${archivo.className}`}>
-      <StatusStrip snapshot={snapshot} bad={bad} connection={connection} frameAge={frameAge} error={error} onRetry={onRetry} />
+    <div className={`${s.root} ${archivo.className}`} data-theme={theme}>
+      <StatusStrip snapshot={snapshot} bad={bad} connection={connection} frameAge={frameAge} error={error} onRetry={onRetry}
+        themeToggle={<ThemeToggle theme={theme} onChange={setTheme} />} />
       <Header snapshot={snapshot} now={now} profile={profile} />
       <KpiRow snapshot={snapshot} dash={dash} profile={profile} />
       <TabBar tab={tab} onTab={setTab} isRace={isRace} />
@@ -201,8 +205,9 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
       {tab === 'feed' && <FeedCoverage snapshot={snapshot} isRace={isRace} />}
 
       <footer className={s.footer}>
-        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Read-only: nothing on this page is a
-        prediction. Team radio clips are linked from Formula 1&apos;s archive and are not stored here.
+        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed
+        except the Predictions tab, which is a model and says so. Team radio clips are linked from Formula 1&apos;s
+        archive and are not stored here.
       </footer>
     </div>
   )
@@ -281,8 +286,8 @@ function MiniOrder({ snapshot, order, isRace }: { snapshot: LiveSnapshot; order:
 
 // ── strip & header ──────────────────────────────────────────────────────────
 
-function StatusStrip({ snapshot, bad, connection, frameAge, error, onRetry }: {
-  snapshot: LiveSnapshot; bad: boolean; connection: ConnectionState; frameAge: number; error: string | null; onRetry: () => void
+function StatusStrip({ snapshot, bad, connection, frameAge, error, onRetry, themeToggle }: {
+  snapshot: LiveSnapshot; bad: boolean; connection: ConnectionState; frameAge: number; error: string | null; onRetry: () => void; themeToggle?: ReactNode
 }) {
   const f = snapshot.feed
   const streamLabel = connection === 'open' ? 'Stream connected' : connection === 'connecting' ? 'Connecting' : 'Connection lost — retrying'
@@ -294,7 +299,8 @@ function StatusStrip({ snapshot, bad, connection, frameAge, error, onRetry }: {
       {f.stale && <span>Feed stale · no timing for {f.stale_after_s}s+</span>}
       {connection !== 'open' && <span>Last frame {frameAge}s ago{error ? ` · ${error}` : ''}</span>}
       {connection !== 'open' && <button className={s.stripBtn} onClick={onRetry}>Retry</button>}
-      <span className={s.stripRight}>Read-only · No predictions{f.mode === 'replay' ? ' · Capture replay' : ''}</span>
+      <span className={s.stripRight}>Read-only{f.mode === 'replay' ? ' · Capture replay' : ''}</span>
+      {themeToggle}
     </div>
   )
 }
@@ -547,8 +553,8 @@ function TrackMap({ dash, order, selected, onSelect }: { dash: Dash; order: Orde
         <div className={s.map}>
           {d && (
             <svg viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden>
-              <path d={d} fill="none" stroke="rgba(240,242,245,0.16)" strokeWidth="12" strokeLinejoin="round" />
-              <path d={d} fill="none" stroke="rgba(240,242,245,0.75)" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d={d} fill="none" stroke="color-mix(in srgb, var(--pw-text) 16%, transparent)" strokeWidth="12" strokeLinejoin="round" />
+              <path d={d} fill="none" stroke="color-mix(in srgb, var(--pw-text) 75%, transparent)" strokeWidth="1.5" strokeLinejoin="round" />
             </svg>
           )}
           {sf && <div style={{ position: 'absolute', left: `${sf[0] / W * 100}%`, top: `${sf[1] / H * 100}%`, transform: 'translate(-50%,-50%)', fontSize: 10, fontWeight: 800, background: 'var(--pw-text)', color: 'var(--pw-bg)', padding: '1px 5px', letterSpacing: '0.06em' }}>S/F</div>}
@@ -611,9 +617,9 @@ function CarData({ dash, order, selected }: { dash: Dash; order: OrderRow[]; sel
           </div>
           <div style={{ padding: '14px 20px 8px' }}>
             <svg viewBox="0 0 300 90" preserveAspectRatio="none" style={{ width: '100%', height: 96, display: 'block', background: 'var(--pw-surface)' }} aria-hidden>
-              <polyline points={pts(h => (h[2] ?? 0) > 0 ? 6 : 88)} fill="none" stroke="rgba(240,242,245,0.35)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+              <polyline points={pts(h => (h[2] ?? 0) > 0 ? 6 : 88)} fill="none" stroke="color-mix(in srgb, var(--pw-text) 35%, transparent)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
               <polyline points={pts(h => 88 - (h[1] ?? 0) / 100 * 84)} fill="none" stroke="#ec3013" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-              <polyline points={pts(h => 88 - (h[0] ?? 0) / 360 * 84)} fill="none" stroke="#f0f2f5" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+              <polyline points={pts(h => 88 - (h[0] ?? 0) / 360 * 84)} fill="none" stroke="var(--pw-text)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
             </svg>
             <div style={{ display: 'flex', gap: 16, fontSize: 11, marginTop: 6, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
               <span>▬ Speed</span><span style={{ color: 'var(--pw-accent-text)' }}>▬ Throttle</span><span className={s.sub}>▬ Brake</span>
@@ -649,7 +655,7 @@ function RaceControl({ dash }: { dash: Dash }) {
         {rows.map((r, i) => (
           <div key={`${r.date}-${i}`} style={{ display: 'grid', gridTemplateColumns: '64px 14px 1fr', gap: 12, padding: '12px 20px' }}>
             <span style={{ fontSize: 12, fontWeight: 600 }}>{clock(r.date)}</span>
-            <span className={s.flagSq} style={{ background: FLAG_COLOUR[(r.flag ?? '').toUpperCase()] ?? 'rgba(240,242,245,0.3)' }} />
+            <span className={s.flagSq} style={{ background: FLAG_COLOUR[(r.flag ?? '').toUpperCase()] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)' }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>{r.message}</div>
               <div className={s.label} style={{ marginTop: 3 }}>
@@ -688,7 +694,7 @@ function Records({ dash, isRace }: { dash: Dash; isRace: boolean }) {
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{r.code} · L{r.lap_number}</div>
                   <div className={s.sub} style={{ fontSize: 11 }}>{r.improvement_s == null ? 'First record' : `−${r.improvement_s.toFixed(3)}`}</div>
                 </div>
-                <div style={{ height: `${14 + ((r.time_s - min) / (max - min || 1)) * 52}%`, background: last ? 'var(--pw-accent)' : 'rgba(240,242,245,0.22)' }} />
+                <div style={{ height: `${14 + ((r.time_s - min) / (max - min || 1)) * 52}%`, background: last ? 'var(--pw-accent)' : 'color-mix(in srgb, var(--pw-text) 22%, transparent)' }} />
               </div>
             )
           })}
@@ -734,7 +740,7 @@ function Weather({ dash, trend, rainPeriods }: { dash: Dash; trend: string | nul
             <span>Rainfall: {(w.rainfall ?? 0) > 0 ? 'yes' : 'none'} · {rainPeriods} period{rainPeriods === 1 ? '' : 's'}</span>
           </div>
           {h.length > 1
-            ? <svg viewBox="0 0 120 32" preserveAspectRatio="none" style={{ width: '100%', height: 44, display: 'block', marginTop: 6 }} aria-hidden><polyline points={spark} fill="none" stroke="#f0f2f5" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
+            ? <svg viewBox="0 0 120 32" preserveAspectRatio="none" style={{ width: '100%', height: 44, display: 'block', marginTop: 6 }} aria-hidden><polyline points={spark} fill="none" stroke="var(--pw-text)" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
             : <div className={s.sub} style={{ marginTop: 6 }}>Needs two weather samples.</div>}
         </div>
       </div>
@@ -749,7 +755,7 @@ const CONF_DOTS = { Low: 1, Medium: 2, High: 3 } as const
 function ConfDots({ c }: { c: 'Low' | 'Medium' | 'High' }) {
   return (
     <span style={{ display: 'flex', gap: 2 }}>
-      {[1, 2, 3].map(i => <span key={i} style={{ width: 8, height: 8, background: i <= CONF_DOTS[c] ? 'var(--pw-text)' : 'rgba(240,242,245,0.2)' }} />)}
+      {[1, 2, 3].map(i => <span key={i} style={{ width: 8, height: 8, background: i <= CONF_DOTS[c] ? 'var(--pw-text)' : 'color-mix(in srgb, var(--pw-text) 20%, transparent)' }} />)}
     </span>
   )
 }
@@ -822,7 +828,7 @@ function EngineerNotes({ snapshot }: { snapshot: LiveSnapshot }) {
       <div className={`${s.list} ${s.scroll}`}>
         {snapshot.notes.slice(0, 10).map(n => (
           <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '6px 1fr', gap: 12, padding: '12px 20px' }}>
-            <span style={{ background: n.severity === 'High' ? 'var(--pw-accent)' : n.severity === 'Medium' ? YEL : 'rgba(240,242,245,0.25)' }} />
+            <span style={{ background: n.severity === 'High' ? 'var(--pw-accent)' : n.severity === 'Medium' ? YEL : 'color-mix(in srgb, var(--pw-text) 25%, transparent)' }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 800 }}>{n.title}{n.lap_number ? <span className={s.sub} style={{ fontWeight: 400 }}> · L{n.lap_number}</span> : null}</div>
               <div className={s.sub} style={{ fontSize: 12, lineHeight: 1.5, marginTop: 2 }}>{n.message}</div>
@@ -894,7 +900,7 @@ function TyreStrategy({ dash, order, currentLap }: { dash: Dash; order: OrderRow
                   return (
                     <div key={st.stint_number} title={`${c} · laps ${from}–${to}${st.tyre_age_at_start ? ` · ${st.tyre_age_at_start} laps old at fitting` : ''}`}
                       style={{ position: 'absolute', top: 0, bottom: 0, left: `${(from - 1) / max * 100}%`, width: `${Math.max(1, to - from + 1) / max * 100}%`,
-                        background: COMPOUND[c] ?? 'rgba(240,242,245,0.3)', border: '2px solid var(--pw-bg)', fontSize: 10, fontWeight: 800,
+                        background: COMPOUND[c] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)', border: '2px solid var(--pw-bg)', fontSize: 10, fontWeight: 800,
                         color: light ? '#05060a' : '#fff', display: 'flex', alignItems: 'center', paddingLeft: 5, whiteSpace: 'nowrap', overflow: 'hidden', boxSizing: 'border-box' }}>
                       {c[0]} {to - from + 1}
                     </div>

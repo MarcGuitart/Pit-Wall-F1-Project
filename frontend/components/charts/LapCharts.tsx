@@ -153,8 +153,8 @@ function Swatch({ colour, dashed }: { colour: string; dashed: boolean }) {
 // ── a line chart over laps ──────────────────────────────────────────────────
 
 const PAD = { top: 26, right: 16, bottom: 40, left: 72 }
-const GRID = 'rgba(240,242,245,0.09)'
-const AXIS = 'rgba(240,242,245,0.55)'
+const GRID = 'color-mix(in srgb, var(--pw-text) 9%, transparent)'
+const AXIS = 'color-mix(in srgb, var(--pw-text) 55%, transparent)'
 const BAND = { SC: 'rgba(255,176,32,0.12)', VSC: 'rgba(255,176,32,0.07)', RED: 'rgba(236,48,19,0.16)' } as const
 
 function niceTicks(min: number, max: number, count = 5): number[] {
@@ -249,11 +249,11 @@ function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, hei
                 {dots
                   ? s.points.map(([lap, v]) => (
                       <rect key={lap} x={x(lap) - (on ? 4.5 : 3)} y={y(v) - (on ? 4.5 : 3)} width={on ? 9 : 6} height={on ? 9 : 6}
-                        fill={s.dashed ? '#05060a' : s.colour} stroke={s.colour} strokeWidth="2" />
+                        fill={s.dashed ? 'var(--pw-bg)' : s.colour} stroke={s.colour} strokeWidth="2" />
                     ))
                   : <path d={path(s.points)} fill="none" stroke={s.colour} strokeWidth={on ? 2.4 : 1.1}
                       strokeDasharray={s.dashed ? '6 4' : undefined} strokeLinejoin="round" />}
-                {on && s.markers?.map(([lap, v]) => <circle key={lap} cx={x(lap)} cy={y(v)} r="3.5" fill={s.colour} stroke="#05060a" strokeWidth="1.5" />)}
+                {on && s.markers?.map(([lap, v]) => <circle key={lap} cx={x(lap)} cy={y(v)} r="3.5" fill={s.colour} stroke="var(--pw-bg)" strokeWidth="1.5" />)}
               </g>
             )
           })}
@@ -263,7 +263,7 @@ function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, hei
       {hoverLap != null && readout.length > 0 && (
         <div style={{
           position: 'absolute', top: 18, left: Math.min(x(hoverLap) + 32, width - 170), pointerEvents: 'none',
-          background: '#0b0d12', border: '2px solid rgba(240,242,245,0.16)', padding: '6px 10px', fontSize: 12, minWidth: 140,
+          background: 'var(--pw-surface)', border: '2px solid color-mix(in srgb, var(--pw-text) 16%, transparent)', padding: '6px 10px', fontSize: 12, minWidth: 140,
         }}>
           <div style={{ fontWeight: 800, letterSpacing: '0.06em', marginBottom: 4 }}>LAP {hoverLap}</div>
           {readout.map(({ s, p }) => (
@@ -465,7 +465,7 @@ export function TyreDegradationChart({ drivers, bands, totalLaps, idPrefix = 'ch
                 <tr key={d.code}>
                   <td style={{ fontWeight: 800 }}>{d.code}</td>
                   <td style={{ fontWeight: 800 }}>{d.slope >= 0 ? '+' : ''}{(d.slope * 1000).toFixed(0)} ms/lap</td>
-                  <td style={{ width: '40%' }}><div style={{ height: 8, background: 'rgba(240,242,245,0.08)' }}><div style={{ height: '100%', width: `${Math.abs(d.slope) / max * 100}%`, background: d.slope > 0 ? d.colour : 'rgba(240,242,245,0.4)' }} /></div></td>
+                  <td style={{ width: '40%' }}><div style={{ height: 8, background: 'color-mix(in srgb, var(--pw-text) 8%, transparent)' }}><div style={{ height: '100%', width: `${Math.abs(d.slope) / max * 100}%`, background: d.slope > 0 ? d.colour : 'color-mix(in srgb, var(--pw-text) 40%, transparent)' }} /></div></td>
                   <td>{d.stints}</td><td>{d.laps}</td><td>{d.cliff ? 'Yes' : '—'}</td>
                 </tr>
               )
@@ -528,7 +528,7 @@ export function RaceLapCharts({ drivers, bands, totalLaps, winnerCode, idPrefix 
   idPrefix?: string
 }) {
   return (
-    <div style={{ display: 'grid', gap: 2, background: 'var(--pw-divider, rgba(240,242,245,0.16))' }}>
+    <div style={{ display: 'grid', gap: 2, background: 'var(--pw-divider, color-mix(in srgb, var(--pw-text) 16%, transparent))' }}>
       <LapTimeEvolutionChart drivers={drivers} bands={bands} idPrefix={idPrefix} />
       <GapToReferenceChart drivers={drivers} bands={bands} winnerCode={winnerCode} idPrefix={idPrefix} />
       <TyreDegradationChart drivers={drivers} bands={bands} totalLaps={totalLaps} idPrefix={idPrefix} />
