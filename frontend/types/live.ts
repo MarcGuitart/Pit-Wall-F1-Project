@@ -128,6 +128,7 @@ export type FeedHealth = {
   messages_total: number
   messages: Record<string, number>
   documents: Record<string, number>
+  last_update?: Record<string, string>
   gaps_observed: { from: string; to: string; seconds: number; at_lap: number }[]
   gaps_observed_total: number
   token_expires_in_s: number | null
@@ -135,8 +136,95 @@ export type FeedHealth = {
   browsers: number
 }
 
+export type DashboardCar = {
+  driver_number: number
+  code: string
+  colour: string | null
+  speed: number | null
+  rpm: number | null
+  gear: number | null
+  throttle: number | null
+  brake: number | null
+  drs: number | null
+  x: number | null
+  y: number | null
+}
+
+export type RaceControlMessage = {
+  date: string | null
+  category: string | null
+  flag: string | null
+  message: string | null
+  scope: string | null
+  sector: number | null
+  lap_number: number | null
+  driver_number: number | null
+}
+
+export type StintRecord = {
+  stint_number: number
+  compound: string | null
+  lap_start: number | null
+  lap_end: number | null
+  tyre_age_at_start: number | null
+}
+
+export type LapDetail = {
+  best_lap: number
+  best_s: number
+  last_lap: number
+  last_s: number
+  last: { sector1: number | null; sector2: number | null; sector3: number | null; i1_speed: number | null; i2_speed: number | null; st_speed: number | null }
+  best_sectors: { sector1: number | null; sector2: number | null; sector3: number | null }
+}
+
+export type LiveDashboard = {
+  cars: DashboardCar[]
+  /** driver_number -> [speed, throttle, brake][], oldest first, ~13 s */
+  car_history: Record<string, [number | null, number | null, number | null][]>
+  track: { outline: [number, number][] | null; bounds: [number, number, number, number] | null }
+  race_control: RaceControlMessage[]
+  weather: {
+    air_temperature: number | null
+    track_temperature: number | null
+    humidity: number | null
+    pressure: number | null
+    rainfall: number | null
+    wind_speed: number | null
+    wind_direction: number | null
+    date: string | null
+    track_history: [string, number][]
+  }
+  stints: Record<string, StintRecord[]>
+  pit_stops: {
+    driver_number: number | null
+    code: string
+    lap_number: number | null
+    date: string | null
+    pit_duration: number | null
+    lane_duration: number | null
+    stop_duration: number | null
+  }[]
+  pit_stops_total: number
+  records: { driver_number: number; code: string; lap_number: number; time_s: number; at: string | null; improvement_s: number | null }[]
+  overtakes: { date: string | null; overtaking: number | null; overtaken: number | null; position: number | null; lap_number: number | null; overtaking_code: string | null; overtaken_code: string | null }[]
+  /** driver_number -> [lap, seconds, is_pit_out_lap][] */
+  lap_times: Record<string, [number, number, boolean][]>
+  laps_detail: Record<string, LapDetail>
+  error?: string
+}
+
 export type LiveSnapshot = {
   session_key: number | null
+  session_info?: {
+    date_start?: string | null
+    date_end?: string | null
+    gmt_offset?: string | null
+    circuit_short_name?: string | null
+    country_name?: string | null
+    year?: number | null
+  }
+  dashboard?: LiveDashboard
   session_type?: string | null
   session_name?: string | null
   location?: string | null

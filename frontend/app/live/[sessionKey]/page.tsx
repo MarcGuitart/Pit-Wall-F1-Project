@@ -1,20 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Component, useEffect, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { useLiveSession } from '@/hooks/useLiveSession'
 import { ConnectionBanner } from '@/components/live/ConnectionBanner'
-import { TrackStatusBanner } from '@/components/live/TrackStatusBanner'
-import { PositionTower } from '@/components/live/PositionTower'
-import { ChaosDensityMeter } from '@/components/live/ChaosDensityMeter'
-import { PitWindowWatch } from '@/components/live/PitWindowWatch'
-import { PitCyclesLive } from '@/components/live/PitCyclesLive'
-import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
-import { RadioFeed } from '@/components/live/RadioFeed'
 import { ProWall } from '@/components/access/ProWall'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { LiveDashboard } from '@/components/live/dashboard/LiveDashboard'
 import { PracticePitWall } from '@/components/live/PracticePitWall'
+import { PositionTower } from '@/components/live/PositionTower'
+import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
+import type { LiveSnapshot } from '@/types/live'
 
 /**
  * The pit wall during the race.
@@ -39,10 +36,15 @@ export default function LiveSessionPage() {
   const router = useRouter()
   const sessionKey = Number(params.sessionKey)
 
-  const { snapshot, connection, frameAge, error, proRequired, reconnect } = useLiveSession(
+  const { snapshot, connection, frameAge, error, proRequired, followingSession, reconnect } = useLiveSession(
     Number.isNaN(sessionKey) ? null : sessionKey,
   )
-  const [focusedDriver, setFocusedDriver] = useState<string | null>(null)
+
+  // An old link (yesterday's practice) while the server follows today's
+  // session: go to what is actually live rather than showing a refusal.
+  useEffect(() => {
+    if (followingSession != null && followingSession !== sessionKey) router.replace(`/live/${followingSession}`)
+  }, [followingSession, sessionKey, router])
 
   useEffect(() => {
     document.title = `Live · session ${sessionKey} · ${PRODUCT_NAME}`
@@ -70,90 +72,22 @@ export default function LiveSessionPage() {
   }
 
   const breadcrumb = [{ label: 'Live', href: '/' }, { label: `Session ${sessionKey}` }]
-  const pit = snapshot?.analysis?.pit
 
   return (
     <AppShell breadcrumb={breadcrumb}>
-      <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
-        <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-          <div className="min-w-0">
-            <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">
-              {snapshot?.location ?? 'Live timing'}
-            </div>
-            <div className="font-mono text-[10px] text-text-secondary mt-0.5">
-              LIVE · {snapshot?.session_name ?? snapshot?.session_type ?? 'Session'} · {snapshot?.session_key ?? sessionKey}
-              {snapshot?.feed.mode === 'replay' && ' · capture replay'}
-            </div>
+      {!snapshot ? (
+        <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
+          <div className="bg-bg-panel border border-border-subtle px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+            <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">Live timing</div>
+            <ConnectionBanner connection={connection} feed={null} frameAge={frameAge} generatedAt={null} error={error} onRetry={reconnect} />
           </div>
-          <ConnectionBanner
-            connection={connection}
-            feed={snapshot?.feed ?? null}
-            frameAge={frameAge}
-            generatedAt={snapshot?.generated_at ?? null}
-            error={error}
-            onRetry={reconnect}
-          />
-        </div>
-
-        {!snapshot ? (
           <WaitingForFeed error={error} />
-        ) : (
-          <>
-            {snapshot.profile === 'practice' || snapshot.profile === 'qualifying' ? (
-              <PracticePitWall snapshot={snapshot} focusedDriver={focusedDriver} onFocus={setFocusedDriver} />
-            ) : <>
-            <TrackStatusBanner
-              status={snapshot.track_status}
-              currentLap={snapshot.current_lap}
-              raceDistance={snapshot.race_distance}
-              raceDistanceSource={snapshot.race_distance_source}
-              chequered={snapshot.chequered}
-            />
-
-            {focusedDriver && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-panel border border-border-subtle rounded-[3px]">
-                <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-                  Focused
-                </span>
-                <span className="font-display font-bold text-[12px] text-text-primary">
-                  {focusedDriver}
-                </span>
-                <button
-                  onClick={() => setFocusedDriver(null)}
-                  className="ml-auto font-mono text-[10px] text-text-secondary hover:text-text-primary"
-                >
-                  clear
-                </button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4 items-start">
-              <div className="space-y-4">
-                <PositionTower
-                  rows={snapshot.tower}
-                  focusedDriver={focusedDriver}
-                  onFocus={setFocusedDriver}
-                />
-                <PitCyclesLive
-                  cycles={pit?.cycles ?? []}
-                  settleLaps={pit?.settle_laps ?? 2}
-                  currentLap={snapshot.current_lap}
-                />
-                <RadioFeed clips={snapshot.radio} focusedDriver={focusedDriver} />
-              </div>
-
-              <div className="space-y-4">
-                <LiveEngineerNotes notes={snapshot.notes} />
-                <PitWindowWatch signals={snapshot.pit_watch} focusedDriver={focusedDriver} />
-                <ChaosDensityMeter chaos={snapshot.chaos} />
-              </div>
-            </div>
-
-            </>}
-            {snapshot.profile === 'race' && <FeedFooter snapshot={snapshot} />}
-          </>
-        )}
-      </div>
+        </div>
+      ) : (
+        <DashboardBoundary fallback={<ClassicView snapshot={snapshot} />}>
+          <LiveDashboard snapshot={snapshot} connection={connection} frameAge={frameAge} error={error} onRetry={reconnect} />
+        </DashboardBoundary>
+      )}
     </AppShell>
   )
 }
@@ -172,29 +106,34 @@ function WaitingForFeed({ error }: { error: string | null }) {
   )
 }
 
-function FeedFooter({ snapshot }: { snapshot: NonNullable<ReturnType<typeof useLiveSession>['snapshot']> }) {
-  const gaps = snapshot.feed.gaps_observed
+/**
+ * If the dashboard throws on a payload nobody has seen yet, the session must
+ * still be watchable: fall back to the previous, simpler view rather than a
+ * blank page in the middle of a race. The next frame retries the dashboard.
+ */
+class DashboardBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failedAt: number | null }> {
+  state = { failedAt: null as number | null }
+  static getDerivedStateFromError() {
+    return { failedAt: Date.now() }
+  }
+  componentDidCatch(err: unknown) {
+    console.error('[live] dashboard failed, showing the classic view', err)
+    setTimeout(() => this.setState({ failedAt: null }), 30_000)
+  }
+  render() {
+    return this.state.failedAt != null ? this.props.fallback : this.props.children
+  }
+}
+
+function ClassicView({ snapshot }: { snapshot: LiveSnapshot }) {
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-3 py-2.5">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-          Feed
-        </span>
-        <span className="font-mono text-[10px] text-text-muted">
-          {snapshot.feed.messages_total.toLocaleString()} messages ·{' '}
-          {Object.entries(snapshot.feed.documents)
-            .filter(([, n]) => n > 0)
-            .map(([topic, n]) => `${topic} ${n}`)
-            .join(' · ')}
-        </span>
-      </div>
-      {gaps.length > 0 && (
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed mt-1.5">
-          Gaps in the feed this session:{' '}
-          {gaps.map((g) => `${g.seconds}s at L${g.at_lap}`).join(', ')}. Laps spanning a gap are
-          missing intervals; the order is carried forward from the last message.
-        </p>
-      )}
+    <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
+      {snapshot.profile === 'practice' || snapshot.profile === 'qualifying'
+        ? <PracticePitWall snapshot={snapshot} focusedDriver={null} onFocus={() => undefined} />
+        : <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PositionTower rows={snapshot.tower} focusedDriver={null} onFocus={() => undefined} />
+            <LiveEngineerNotes notes={snapshot.notes} />
+          </div>}
     </div>
   )
 }

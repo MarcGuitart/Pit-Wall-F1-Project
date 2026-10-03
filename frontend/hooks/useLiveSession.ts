@@ -58,6 +58,8 @@ export type UseLiveSession = {
   error: string | null
   /** True when the refusal was PRO_REQUIRED — the page shows the unlock path. */
   proRequired: boolean
+  /** The session the server is actually following, when it is not this one. */
+  followingSession: number | null
   reconnect: () => void
 }
 
@@ -66,6 +68,7 @@ export function useLiveSession(sessionKey: number | null): UseLiveSession {
   const [connection, setConnection] = useState<LiveConnection>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [proRequired, setProRequired] = useState(false)
+  const [followingSession, setFollowingSession] = useState<number | null>(null)
   const [frameAge, setFrameAge] = useState(0)
   const [nonce, setNonce] = useState(0)
   const lastFrame = useRef<number>(Date.now())
@@ -112,6 +115,7 @@ export function useLiveSession(sessionKey: number | null): UseLiveSession {
       }
       if (res.status === 409) {
         const body = await res.json().catch(() => null)
+        if (!cancelled && typeof body?.session_key === 'number') setFollowingSession(body.session_key)
         fail(body?.message ?? 'This live server is following another session.')
         return 'stop'
       }
@@ -158,7 +162,9 @@ export function useLiveSession(sessionKey: number | null): UseLiveSession {
         } catch (err) {
           if (cancelled || (err as Error)?.name === 'AbortError') return
           fail(
-            `No live server at ${LIVE_URL}. Start it with: python scripts/live_server.py`,
+            process.env.NODE_ENV === 'production'
+              ? 'The live server is not reachable right now. Retrying automatically.'
+              : `No live server at ${LIVE_URL}. Start it with: python scripts/live_server.py`,
           )
         }
         if (cancelled || outcome === 'stop') return
@@ -188,7 +194,7 @@ export function useLiveSession(sessionKey: number | null): UseLiveSession {
     return () => clearInterval(id)
   }, [])
 
-  return { snapshot, connection, frameAge, error, proRequired, reconnect }
+  return { snapshot, connection, frameAge, error, proRequired, followingSession, reconnect }
 }
 
 export { LIVE_URL }

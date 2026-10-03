@@ -205,3 +205,30 @@ qualifying, because deciding when to be connected is the thing that cannot be
 retried — a scheduler that fails on a Sunday morning costs a race with no second
 chance. A disk holding a season of everything is $1.25/month. The schedule is
 not worth the risk it would add.
+
+---
+
+## Running live mode locally
+
+The production page reads `https://pit-wall-f1-project-live.onrender.com`. The
+same server runs on a laptop, which is the fallback if the Free instance runs
+short of memory now that it also carries `car_data` and `location` (~80
+messages a second for a full field).
+
+```bash
+# backend — the paid OpenF1 account and the same PRO secret as the API
+cd backend
+export OPENF1_USERNAME=... OPENF1_PASSWORD=... PRO_TOKEN_SECRET=... PRO_ACCESS_CODES=...
+python scripts/live_server.py                 # http://localhost:8099, follows whatever session is live
+
+# or, with no session running, a recorded race at 60× speed
+python scripts/live_server.py --replay-capture live/2026-09-26_race_11377 --speed 60
+
+# frontend
+cd frontend
+NEXT_PUBLIC_LIVE_URL=http://localhost:8099 npm run dev
+open http://localhost:3000            # the Live button lights up once /health reports a session
+```
+
+The server rolls over by itself when a new `session_key` arrives, so one
+process can stay up for a whole weekend.
