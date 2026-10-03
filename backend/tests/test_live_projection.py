@@ -54,3 +54,18 @@ def test_pole_odds_favour_the_room_on_the_ideal_lap():
     out = pole_projection(s, rows)
     odds = {d["code"]: d["win"] for d in out["drivers"]}
     assert odds["B"] > odds["A"] and odds["C"] == 0
+
+
+def test_a_q1_chequered_flag_does_not_end_qualifying():
+    s = RaceState()
+    s.set_session_meta("Qualifying", "Qualifying", "X")
+    s.ingest("v1/race_control", {"_key": "a", "message": "CHEQUERED FLAG", "flag": "CHEQUERED", "date": "2026-10-03T08:18:00"})
+    rows = [{"driver_number": n, "code": f"D{n}", "position": n, "best_lap_s": 90.0 + n / 10, "ideal_lap": None}
+            for n in range(1, 21)]
+    out = pole_projection(s, rows)
+    assert not out.get("final")
+    # after Q1 only the top fifteen can still take pole
+    assert all(d["win"] == 0 for d in out["drivers"] if d["position"] > 15)
+    for k in "bc":
+        s.ingest("v1/race_control", {"_key": k, "message": "CHEQUERED FLAG", "flag": "CHEQUERED", "date": "2026-10-03T08:40:00"})
+    assert pole_projection(s, rows)["final"] is True

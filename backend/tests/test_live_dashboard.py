@@ -59,13 +59,37 @@ def test_outline_is_one_complete_clean_lap():
     assert dashboard(s)["track"]["bounds"] == pytest.approx([-1000, -600, 1000, 600], abs=20)
 
 
-def test_no_outline_from_a_lap_under_safety_car():
+def test_an_unclosed_trace_is_not_an_outline():
     s = RaceState()
-    drive_a_lap(s, 1, 2)
-    s.flag = FLAG_SC
+    lap(s, 1, 2, t=0.0)
+    for i in range(200):                      # half a circle: peels off, never comes back
+        a = math.pi * i / 200
+        s.ingest("v1/location", {"session_key": 1, "driver_number": 1,
+                                 "x": 1000 * math.cos(a), "y": 600 * math.sin(a)}, recv=i * 0.27)
     lap(s, 1, 3, t=100.0)
     s.ingest("v1/location", {"session_key": 1, "driver_number": 1, "x": 5, "y": 5}, recv=100.1)
     assert s.track_outline is None
+
+
+def test_backfill_rebuilds_a_session_and_dedupes_against_mqtt():
+    from live_state import backfill, mqtt_key
+    rows = {
+        "drivers": [{"driver_number": 44, "name_acronym": "HAM", "team_colour": "E8002D"}],
+        "laps": [{"driver_number": 44, "lap_number": n, "date_start": f"2026-10-03T08:0{n}:00", "lap_duration": 96.0 + n}
+                 for n in range(1, 4)],
+        "stints": [{"driver_number": 44, "stint_number": 1, "compound": "SOFT", "lap_start": 1}],
+        "position": [{"driver_number": 44, "position": 1, "date": "2026-10-03T08:01:00"}],
+        "weather": [{"air_temperature": 33.0, "track_temperature": 55.9, "date": "2026-10-03T08:00:30"}],
+    }
+    s = RaceState(session_key=11730)
+    backfill(s, 11730, rows)
+    assert s.drivers[44]["code"] == "HAM" and s.lap_times[44] == {1: 97.0, 2: 98.0, 3: 99.0}
+    assert s.position == {44: 1} and s.gaps == [] and s.last_message_at is None
+    # the same lap arriving over MQTT upserts the backfilled one
+    s.ingest("v1/laps", {"_key": mqtt_key("laps", 11730, rows["laps"][2]), "session_key": 11730,
+                         "driver_number": 44, "lap_number": 3, "lap_duration": 95.5})
+    assert len(s.store["v1/laps"]) == 3 and s.lap_times[44][3] == 95.5
+    assert dashboard(s)["weather"]["track_temperature"] == 55.9
 
 
 def test_zero_zero_is_no_fix():

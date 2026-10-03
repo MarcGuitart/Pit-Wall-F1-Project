@@ -216,6 +216,8 @@ export type LiveDashboard = {
 
 export type LiveProjection = {
   kind: 'race' | 'pole'
+  final?: boolean
+  segment?: number | null
   simulations: number
   reason?: string
   error?: string

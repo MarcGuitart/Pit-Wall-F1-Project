@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import statistics
 import sys
@@ -408,12 +409,14 @@ class RaceState:
         current = self.loc_trace_lap.get(dn)
         if current is None or current[0] != ln:
             trace = self.loc_trace.get(dn) or []
-            if (current is not None and ln == current[0] + 1 and not current[1]
-                    and len(trace) >= 150 and self.flag == FLAG_GREEN):
-                step = max(1, len(trace) // OUTLINE_POINTS)
-                self.track_outline = [[round(px, 1), round(py, 1)] for px, py in trace[::step]]
-                self.loc_trace.clear()
-                return
+            if current is not None and ln == current[0] + 1 and not current[1] and len(trace) >= 150:
+                # closed (ends where it started) or it is not a lap: an in-lap
+                # that peels off into the pit lane is rejected here
+                outline = outline_from_points(trace)
+                if outline:
+                    self.track_outline = outline
+                    self.loc_trace.clear()
+                    return
             self.loc_trace[dn] = []
             self.loc_trace_lap[dn] = (ln, bool(lap.get("is_pit_out_lap")))
         trace = self.loc_trace[dn]
@@ -1905,6 +1908,99 @@ def replay(session_key: int, state: RaceState, until_lap: int | None = None,
     return {"events_available": len(events) + len(raw.get("v1/drivers", [])),
             "events_fed": fed, "reached_lap": state.current_lap,
             "topics_found": sorted(k.replace("v1/", "") for k in raw)}
+
+
+BACKFILL_TOPICS = ("drivers", "laps", "stints", "pit", "race_control", "weather", "team_radio", "position")
+
+
+def _ms(date: str | None) -> int | None:
+    t = parse_utc(date) if isinstance(date, str) else None
+    return int(t.timestamp() * 1000) if t else None
+
+
+def mqtt_key(topic: str, session_key: int, rec: dict) -> str | None:
+    """The _key MQTT gives the same document, so a backfilled one is upserted
+    by the live stream rather than counted twice."""
+    dn = rec.get("driver_number")
+    if topic == "laps":
+        return f"{session_key}_{rec.get('lap_number')}_{dn}"
+    if topic == "stints":
+        return f"{session_key}_{rec.get('stint_number')}_{dn}"
+    if topic == "pit":
+        return f"{session_key}_{rec.get('lap_number')}_{dn}"
+    ms = _ms(rec.get("date"))
+    if ms is None:
+        return None
+    if topic in ("position", "team_radio"):
+        return f"{ms}_{dn}"
+    if topic == "weather":
+        return f"{ms}"
+    if topic == "race_control":
+        rest = "_".join(str(rec.get(k)) for k in ("driver_number", "lap_number", "category", "flag", "scope", "sector"))
+        return f"{ms}_{rest}"
+    return None
+
+
+def backfill(state: RaceState, session_key: int, rows: dict[str, list[dict]]) -> int:
+    """
+    Load a session's history from REST into a state that joined late — a
+    restart, a deploy, or a server that came up mid-session. Render's free
+    plan restarts when it likes, and without this a restart mid-race throws
+    away every lap before it: no gaps, no stints, no pace, no projection.
+
+    Events are fed in time order with their own timestamps as the receive
+    time, so session bests are dated when they were set. The staleness clock
+    is cleared afterwards: the jump from the last backfilled message to the
+    first live one is a restart, not a hole in the feed.
+    """
+    lap_start: dict[int, str] = {}
+    for r in rows.get("laps", []):
+        ln, ds = r.get("lap_number"), r.get("date_start")
+        if isinstance(ln, int) and ds and (ln not in lap_start or ds < lap_start[ln]):
+            lap_start[ln] = ds
+
+    def when(topic: str, r: dict) -> float | None:
+        if topic == "laps":
+            t = parse_utc(r.get("date_start")) if r.get("date_start") else None
+            dur = r.get("lap_duration")
+            return t.timestamp() + (dur if isinstance(dur, (int, float)) else 0) if t else None
+        if topic == "stints":
+            t = parse_utc(lap_start.get(r.get("lap_start"))) if lap_start.get(r.get("lap_start")) else None
+            return t.timestamp() if t else None
+        t = parse_utc(r.get("date")) if isinstance(r.get("date"), str) else None
+        return t.timestamp() if t else None
+
+    fed = 0
+    for r in rows.get("drivers", []):
+        state.ingest("v1/drivers", {**r, "session_key": session_key,
+                                     "_key": f"{session_key}_rest_{r.get('driver_number')}"})
+        fed += 1
+    events = []
+    for topic in BACKFILL_TOPICS[1:]:
+        for r in rows.get(topic, []):
+            at = when(topic, r)
+            if at is not None:
+                events.append((at, topic, r))
+    events.sort(key=lambda e: e[0])
+    for at, topic, r in events:
+        key = mqtt_key(topic, session_key, r)
+        state.ingest(f"v1/{topic}", {**r, "session_key": session_key, **({"_key": key} if key else {})}, recv=at)
+        fed += 1
+    with state.lock:
+        state.gaps.clear()
+        state.last_message_at = None
+    return fed
+
+
+def outline_from_points(points: list[tuple[float, float]]) -> list[list[float]] | None:
+    """One lap of location points → the drawn circuit, if it is a closed lap."""
+    pts = [(x, y) for x, y in points if not (x == 0 and y == 0)]
+    if len(pts) < 100:
+        return None
+    if math.dist(pts[0], pts[-1]) > 600:      # 60 m: not a closed lap
+        return None
+    step = max(1, len(pts) // OUTLINE_POINTS)
+    return [[round(x, 1), round(y, 1)] for x, y in pts[::step]]
 
 
 def main() -> int:

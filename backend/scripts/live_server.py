@@ -96,7 +96,9 @@ from app.core.access import decode_token  # the API's verifier, not a copy  # no
 from app.core.config import settings  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
-from live_state import DASHBOARD_TOPICS, TOPICS, RaceState, replay, replay_capture  # noqa: E402
+from live_state import (  # noqa: E402
+    BACKFILL_TOPICS, DASHBOARD_TOPICS, TOPICS, RaceState, backfill, outline_from_points, replay, replay_capture,
+)
 
 BROKER_HOST, BROKER_PORT, QOS = "mqtt.openf1.org", 8883, 1
 
@@ -598,6 +600,57 @@ def resolve_profile_once(state: RaceState) -> None:
             state.ingest("v1/drivers", {**row, "_key": f"rest-{row.get('driver_number')}"})
         log("DRIVERS", f"session {key}: {len(rows)} drivers loaded over REST")
 
+    def load_history(key: int) -> None:
+        """Everything the session has published before this process joined it."""
+        rows: dict[str, list] = {}
+        for topic in BACKFILL_TOPICS:
+            try:
+                rows[topic] = asyncio.run(fetch_json(topic, session_key=key))
+            except Exception as exc:
+                log("HISTORY", f"{topic} for {key} not loaded: {exc}")
+        if state.session_key != key:
+            return
+        n = backfill(state, key, rows)
+        log("HISTORY", f"session {key}: {n} documents backfilled over REST "
+                       f"({', '.join(f'{t} {len(r)}' for t, r in rows.items())})")
+
+    def load_outline(key: int) -> None:
+        """
+        The circuit, drawn from the location of the session's fastest lap so
+        far — exact, clean, and available after a restart, which the
+        self-traced outline is not.
+        """
+        with state.lock:
+            if state.track_outline is not None:
+                return
+            best = None
+            for m in state.store["v1/laps"].values():
+                dur, ds = m.get("lap_duration"), m.get("date_start")
+                if isinstance(dur, (int, float)) and dur > 0 and ds and not m.get("is_pit_out_lap"):
+                    if best is None or dur < best[0]:
+                        best = (dur, ds, m.get("driver_number"))
+        if best is None:
+            return
+        from datetime import timedelta
+        from app.utils.time import parse_utc
+        t0 = parse_utc(best[1])
+        try:
+            loc = asyncio.run(fetch_json("location", **{
+                "session_key": key, "driver_number": best[2],
+                "date>": t0.isoformat(), "date<": (t0 + timedelta(seconds=best[0])).isoformat()}))
+        except Exception as exc:
+            log("OUTLINE", f"could not load the outline lap: {exc}")
+            return
+        outline = outline_from_points([(p.get("x") or 0, p.get("y") or 0) for p in loc])
+        if outline and state.session_key == key:
+            with state.lock:
+                state.track_outline = outline
+                xs, ys = [p[0] for p in outline], [p[1] for p in outline]
+                b = state.loc_bounds
+                state.loc_bounds = [min(xs + ([b[0]] if b else [])), min(ys + ([b[1]] if b else [])),
+                                    max(xs + ([b[2]] if b else [])), max(ys + ([b[3]] if b else []))]
+            log("OUTLINE", f"session {key}: drawn from car {best[2]}'s {best[0]:.3f}s lap ({len(outline)} points)")
+
     def run():
         # Not once: this process stays subscribed for the whole weekend, and
         # every new session_key resets the state (RaceState._reset), which
@@ -609,6 +662,8 @@ def resolve_profile_once(state: RaceState) -> None:
             if key is not None and key != resolved and resolve(key):
                 resolved = key
                 load_drivers(key)
+                load_history(key)
+                load_outline(key)
                 drivers_checked = time.time()
             elif key is not None and time.time() - drivers_checked > 60:
                 drivers_checked = time.time()
@@ -616,6 +671,8 @@ def resolve_profile_once(state: RaceState) -> None:
                     unknown = set(state.position) - set(state.drivers)
                 if unknown:
                     load_drivers(key)
+                if state.track_outline is None:
+                    load_outline(key)        # the first timed lap of a session has now run
             time.sleep(5.0 if key != resolved else 15.0)
 
     threading.Thread(target=run, daemon=True).start()

@@ -16,7 +16,8 @@ const colourOf = (c: string | null | undefined) => (c ? `#${c.replace('#', '')}`
 export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
   const p = snapshot.projection
   const race = (snapshot.profile ?? 'race') === 'race'
-  const title = race ? 'Who wins from here' : 'Who takes pole'
+  const final = !!(p as { final?: boolean } | undefined)?.final
+  const title = race ? 'Who wins from here' : final ? 'Pole position — result' : 'Who takes pole'
   if (!p) {
     return (
       <section className={s.section}>
@@ -30,7 +31,7 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
     <section className={s.section}>
       <div className={`${s.secHead} ${s.secHeadWide}`} style={{ alignItems: 'center' }}>
         <h6 className={s.h6}>{title}</h6>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', border: '2px solid var(--pw-accent)', color: 'var(--pw-accent-text)' }}>PROJECTION · NOT A RESULT</span>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', border: '2px solid var(--pw-accent)', color: 'var(--pw-accent-text)' }}>{final ? 'SESSION OVER · RESULT' : 'PROJECTION · NOT A RESULT'}</span>
         {p.confidence && <span className={s.sub}>{p.confidence} confidence</span>}
         <span className={s.secAside}>{p.simulations} simulations · re-run every frame</span>
       </div>
