@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRaceStore } from '@/stores/raceStore'
 import { useAccessStore } from '@/stores/accessStore'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
+import { NotifyButton } from '@/components/notify/NotifyButton'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
@@ -100,7 +101,11 @@ export function TopBar({ breadcrumb }: TopBarProps) {
               server, never the clock alone), the real next session when PRO but
               nothing is live, or an invitation to Settings without PRO. Status
               shared with the landing page's Live bay via useLiveStatus. */}
-          <div className="relative">
+          <div
+            className="relative"
+            onMouseEnter={() => pro && liveSessionKey === null && setShowLiveTip(true)}
+            onMouseLeave={() => setShowLiveTip(false)}
+          >
             {pro && liveSessionKey !== null ? (
               <Link
                 href={`/live/${liveSessionKey}`}
@@ -138,8 +143,8 @@ export function TopBar({ breadcrumb }: TopBarProps) {
               </Link>
             )}
             {showLiveTip && (
-              <div className="absolute top-full right-0 mt-2 z-50 pointer-events-none">
-                <div className="bg-bg-elevated border border-border-default rounded-[4px] px-3 py-2 shadow-xl w-[220px]">
+              <div className={`absolute top-full right-0 pt-2 z-50 ${pro ? '' : 'pointer-events-none'}`}>
+                <div className="bg-bg-elevated border border-border-default rounded-[4px] px-3 py-2 shadow-xl w-[240px]">
                   {pro ? (
                     <>
                       <div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary mb-1">
@@ -154,6 +159,14 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                           <>Checking…</>
                         )}
                       </div>
+                      {liveChecked && nextLive && (
+                        <div className="mt-2 pt-2 border-t border-border-subtle">
+                          <NotifyButton
+                            watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.meetingName} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
+                            className="font-display font-bold text-[10px] uppercase tracking-[1px] text-signal-green hover:text-text-primary"
+                          />
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>

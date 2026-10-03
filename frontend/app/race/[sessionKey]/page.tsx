@@ -77,6 +77,7 @@ export default function RacePage() {
               unlockAtUtc={error.unlockAtUtc}
               retryAfterMinutes={error.retryAfterMinutes}
               onRetry={() => retry()}
+              sessionKey={sessionKey}
             />
           </div>
         </AppShell>

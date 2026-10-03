@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+import { NotifyWatcher } from '@/components/notify/NotifyWatcher'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
 // import { RaceStartLoader } from '@/components/layout/RaceStartLoader'
 
@@ -55,6 +56,7 @@ export default function RootLayout({
       >
         {/* <RaceStartLoader /> */}
         <AccessBootstrap />
+        <NotifyWatcher />
         {children}
       </body>
     </html>

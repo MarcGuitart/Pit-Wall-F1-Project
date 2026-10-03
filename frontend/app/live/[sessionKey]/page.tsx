@@ -8,6 +8,7 @@ import { ConnectionBanner } from '@/components/live/ConnectionBanner'
 import { ProWall } from '@/components/access/ProWall'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { LiveDashboard } from '@/components/live/dashboard/LiveDashboard'
+import { NotLiveYet } from '@/components/live/dashboard/NotLiveYet'
 import { PracticePitWall } from '@/components/live/PracticePitWall'
 import { PositionTower } from '@/components/live/PositionTower'
 import { LiveEngineerNotes } from '@/components/live/LiveEngineerNotes'
@@ -83,6 +84,8 @@ export default function LiveSessionPage() {
           </div>
           <WaitingForFeed error={error} />
         </div>
+      ) : snapshot.session_key == null ? (
+        <NotLiveYet />
       ) : (
         <DashboardBoundary fallback={<ClassicView snapshot={snapshot} />}>
           <LiveDashboard snapshot={snapshot} connection={connection} frameAge={frameAge} error={error} onRetry={reconnect} />

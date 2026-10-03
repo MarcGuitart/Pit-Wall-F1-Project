@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import type { ErrorCode } from '@/lib/errors'
+import { NotifyButton } from '@/components/notify/NotifyButton'
+import { fetchLiveServerStatus } from '@/lib/liveStatus'
 
 type SessionUnavailableStateProps = {
   code: ErrorCode
@@ -9,6 +12,8 @@ type SessionUnavailableStateProps = {
   unlockAtUtc?: string
   retryAfterMinutes?: number
   onRetry: () => void
+  /** Set by the race page: lets the live-window state offer the live pit wall and a notification. */
+  sessionKey?: number
 }
 
 const CONFIG: Record<
@@ -53,7 +58,15 @@ export function SessionUnavailableState({
   unlockAtUtc,
   retryAfterMinutes,
   onRetry,
+  sessionKey,
 }: SessionUnavailableStateProps) {
+  // A session in OpenF1's live window may be the one running right now:
+  // if the live server is following it, the useful answer is "watch it live".
+  const [liveHere, setLiveHere] = useState(false)
+  useEffect(() => {
+    if (code !== 'SESSION_NOT_HISTORICAL_YET' || sessionKey == null) return
+    fetchLiveServerStatus().then(st => setLiveHere(st.reachable && st.sessionKey === sessionKey)).catch(() => undefined)
+  }, [code, sessionKey])
   const cfg = CONFIG[code] ?? CONFIG.UNKNOWN
   const [countdown, setCountdown] = useState<number>(
     retryAfterMinutes && retryAfterMinutes > 0 ? 30 : 0,
@@ -117,6 +130,25 @@ export function SessionUnavailableState({
           <p className="font-mono text-[11px] text-text-muted mb-4">
             Auto-retry in {countdown}s
           </p>
+        )}
+
+        {code === 'SESSION_NOT_HISTORICAL_YET' && sessionKey != null && (
+          <div className="mb-5 space-y-4">
+            {liveHere && (
+              <Link
+                href={`/live/${sessionKey}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-signal-red text-white font-display font-bold text-[11px] uppercase tracking-[1px] rounded-[3px] hover:bg-red-600"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
+                It is live now — open the pit wall
+              </Link>
+            )}
+            <NotifyButton
+              label="Notify me when the analysis is ready"
+              watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `Session ${sessionKey}`, sessionKey, readyAt: unlockAtUtc ?? null }}
+              className="px-4 py-2 bg-bg-elevated border border-signal-amber/40 text-signal-amber font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:border-signal-amber"
+            />
+          </div>
         )}
 
         {/* Button */}
