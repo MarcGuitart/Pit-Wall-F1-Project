@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 _ANALYSIS_FILENAME = "_analysis.json"
 _SESSION_META_FILENAME = "_session_meta.json"
 _TELEMETRY_FILENAME = "telemetry.json"
+_LAP_CHARTS_FILENAME = "_lap_charts.json"
 
 
 def _path(session_key: int, endpoint: str) -> Path:
@@ -121,6 +122,26 @@ def set_telemetry(session_key: int, data: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
     logger.info("[CACHE SAVED] telemetry for %s", session_key)
+
+
+# ── Lap chart data (published next to the analysis) ───────────────────────
+
+def get_lap_charts(session_key: int) -> dict | None:
+    p = settings.cache_path / str(session_key) / _LAP_CHARTS_FILENAME
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        logger.warning("[CACHE CORRUPT] lap charts for %s — ignoring", session_key)
+        return None
+
+
+def set_lap_charts(session_key: int, data: dict) -> None:
+    p = settings.cache_path / str(session_key) / _LAP_CHARTS_FILENAME
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    logger.info("[CACHE SAVED] _lap_charts.json for %s", session_key)
 
 
 # ── Backward-compat aliases ────────────────────────────────────────────────

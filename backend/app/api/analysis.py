@@ -27,6 +27,7 @@ from app.services.race_phase_service import classify_race_phases
 from app.services.crossover_service import detect_crossover_windows, compute_weather_winners_losers
 from app.services.clean_air_service import estimate_clean_air_value
 from app.services.classification_service import compute_race_classification
+from app.services.lap_charts_service import build_lap_charts
 from app.core.access import require_season_access
 from app.utils.time import is_session_historical
 
@@ -535,6 +536,16 @@ async def get_analysis(
 
             # 7. Persist to disk
             analysis_cache.set_full_analysis(session_key, result.model_dump())
+            # The lap-by-lap chart input, from the same loaded data. Its own
+            # file and its own failure: a chart that cannot be built must not
+            # cost the race its analysis.
+            try:
+                analysis_cache.set_lap_charts(session_key, build_lap_charts(
+                    session_key, laps, stints, pit, race_control, drivers,
+                    classification=[r.model_dump() for r in race_classification] if race_classification else None,
+                ))
+            except Exception:  # noqa: BLE001
+                logger.exception("[COMPUTING] lap charts for %s failed — analysis kept", session_key)
             logger.info("[COMPUTING] Analysis for %s — complete", session_key)
 
             return result

@@ -3,7 +3,7 @@ import type { FullRaceAnalysis } from '@/types'
 
 type AppMode = 'historical' | 'live'
 type AnalysisMode = 'strategy' | 'data'
-export type ActiveTab = 'strategy' | 'management' | 'weather' | 'telemetry' | 'control'
+export type ActiveTab = 'strategy' | 'management' | 'laps' | 'weather' | 'telemetry' | 'control'
 
 type FocusedDriver = {
   code: string

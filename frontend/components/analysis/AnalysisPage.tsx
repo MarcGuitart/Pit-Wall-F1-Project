@@ -20,6 +20,7 @@ import { ManagementTab } from './tabs/ManagementTab'
 import { WeatherTab } from './tabs/WeatherTab'
 import { TelemetryTab } from './tabs/TelemetryTab'
 import { RaceControlTab } from './tabs/RaceControlTab'
+import { LapChartsTab } from './tabs/LapChartsTab'
 
 type Props = { analysis: FullRaceAnalysis }
 
@@ -173,6 +174,9 @@ export function AnalysisPage({ analysis }: Props) {
               onDriverClick={handleDriverFocus}
               onSwitchToData={() => setAnalysisMode('data')}
             />
+          )}
+          {activeTab === 'laps' && (
+            <LapChartsTab sessionKey={analysis.race.session_key} />
           )}
           {activeTab === 'weather' && (
             <WeatherTab

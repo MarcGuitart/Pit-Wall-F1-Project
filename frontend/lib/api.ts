@@ -210,6 +210,28 @@ export async function fetchAnalysis(sessionKey: number): Promise<FullRaceAnalysi
   return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`)
 }
 
+export type LapChartsPayload = {
+  version: number
+  session_key: number
+  total_laps: number
+  winner: string | null
+  bands: { kind: 'SC' | 'VSC' | 'RED'; from: number; to: number }[]
+  drivers: {
+    number: number
+    code: string
+    colour: string
+    team: string | null
+    position: number
+    /** [lap, seconds, is_pit_out_lap, is_pit_in_lap] */
+    laps: [number, number, boolean, boolean][]
+    stints: { stint_number: number; compound: string | null; lap_start: number | null; lap_end: number | null; tyre_age_at_start: number | null }[]
+  }[]
+}
+
+export async function fetchLapCharts(sessionKey: number): Promise<LapChartsPayload> {
+  return apiFetch<LapChartsPayload>(`/laps/${sessionKey}`)
+}
+
 export async function fetchAnalysisForceRefresh(sessionKey: number): Promise<FullRaceAnalysis> {
   return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}?force_refresh=true`)
 }

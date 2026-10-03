@@ -155,6 +155,8 @@ jobs:
           " > published_keys.txt
           while read -r key; do
             git add "cache/$key/_analysis.json" "cache/$key/_session_meta.json"
+            # written by the same /analysis run; absent only if building it failed
+            if [ -f "cache/$key/_lap_charts.json" ]; then git add "cache/$key/_lap_charts.json"; fi
           done < published_keys.txt
           rm -f published_keys.txt
           if git diff --staged --quiet; then

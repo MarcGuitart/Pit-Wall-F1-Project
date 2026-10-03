@@ -61,6 +61,12 @@ const TABS: Tab[] = [
     getBadge: (a) => a.pit_impact.length || undefined,
   },
   {
+    id: 'laps',
+    label: 'Lap charts',
+    icon: '∿',
+    sessionTypes: ['Race'],
+  },
+  {
     id: 'weather',
     label: 'Weather',
     icon: null,
