@@ -105,8 +105,12 @@ BROKER_HOST, BROKER_PORT, QOS = "mqtt.openf1.org", 8883, 1
 # between a browser and credentials it must never hold. Any local dev origin is
 # allowed on top, whatever port `next dev` happened to pick; the regex is passed
 # to CORSMiddleware in build_app().
-ALLOWED_ORIGINS = tuple(
-    o.strip() for o in (os.environ.get("LIVE_ALLOWED_ORIGINS") or "").split(",") if o.strip()
+# The production site is always allowed: forgetting the variable on a fresh
+# service must not turn into a CORS failure that looks like a dead server.
+PRODUCTION_ORIGINS = ("https://pitwallengineer.com", "https://www.pitwallengineer.com")
+ALLOWED_ORIGINS = PRODUCTION_ORIGINS + tuple(
+    o.strip() for o in (os.environ.get("LIVE_ALLOWED_ORIGINS") or "").split(",")
+    if o.strip() and o.strip() not in PRODUCTION_ORIGINS
 )
 LOCAL_ORIGIN_RE = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
