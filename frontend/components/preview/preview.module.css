@@ -1,0 +1,46 @@
+/* The redesign preview's chrome — same tokens as the live dashboard (live.module.css). */
+
+.previewBar {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center;
+  padding: 8px 32px; background: var(--pw-accent); color: #fff; font-size: 12px; letter-spacing: 0.02em;
+}
+.previewLink { margin-left: auto; color: #fff; font-weight: 800; text-decoration: none; }
+.previewLink:hover { text-decoration: underline; }
+
+.nav {
+  display: flex; align-items: stretch; gap: 32px; padding: 0 32px; height: 64px;
+  border-bottom: 2px solid var(--pw-divider); position: sticky; top: 0; z-index: 30; background: var(--pw-bg);
+}
+.brand { display: flex; align-items: center; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; color: var(--pw-text); text-decoration: none; }
+.brand span { color: var(--pw-accent-text); margin-left: 6px; }
+.navLinks { display: flex; align-items: stretch; gap: 28px; margin-left: 8px; }
+.navLink {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--pw-muted);
+  text-decoration: none; border-bottom: 4px solid transparent; margin-bottom: -2px;
+}
+.navLink:hover { color: var(--pw-text); }
+.navOn { color: var(--pw-text); font-weight: 800; border-bottom-color: var(--pw-accent); }
+.navOff { opacity: 0.5; cursor: default; }
+.liveDot { width: 8px; height: 8px; background: var(--pw-accent); display: inline-block; animation: pvBlink 1.4s infinite; }
+@keyframes pvBlink { 50% { opacity: 0.2; } }
+.pro { font-size: 10px; letter-spacing: 0.08em; background: var(--pw-text); color: var(--pw-bg); padding: 2px 6px; font-weight: 800; }
+
+.raceGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px; background: var(--pw-divider); }
+.raceCell {
+  background: var(--pw-bg); padding: 20px; text-align: left; font: inherit; color: var(--pw-text);
+  border: 0; cursor: pointer; display: flex; flex-direction: column; gap: 6px; min-height: 150px; position: relative;
+}
+.raceCell:hover { background: var(--pw-accent-tint); }
+.raceCell:hover .arrow { color: var(--pw-accent-text); }
+.raceCell:disabled { cursor: default; opacity: 0.45; }
+.raceCell:disabled:hover { background: var(--pw-bg); }
+.raceCell:focus-visible { outline: 2px solid var(--pw-accent); outline-offset: -2px; }
+.round { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pw-muted); }
+.raceName { font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.arrow { margin-top: auto; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-muted); }
+
+@media (max-width: 640px) {
+  .nav { padding: 0 16px; gap: 16px; overflow-x: auto; }
+  .navLinks { gap: 16px; }
+  .previewBar { padding: 8px 16px; }
+}

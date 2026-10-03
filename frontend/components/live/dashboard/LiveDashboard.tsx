@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Archivo } from 'next/font/google'
+import { archivo } from '@/lib/fonts'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
 import { LiveEngineer } from './LiveEngineer'
@@ -10,7 +10,6 @@ import { bandsFromLaps, driversFromLive, formatLap, median, type NeutralBand } f
 import type { LiveConnection as ConnectionState } from '@/hooks/useLiveSession'
 import type { LiveDashboard as Dash, LiveSnapshot, PracticeTowerRow, TowerRow } from '@/types/live'
 
-const archivo = Archivo({ subsets: ['latin'], weight: ['400', '600', '700', '800'], display: 'swap' })
 
 /**
  * The live pit wall — Claude Design's "Live Mode" layout on the site's dark
