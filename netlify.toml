@@ -4,7 +4,7 @@
   publish = ".next"
 
 [build.environment]
-  NEXT_PUBLIC_LIVE_URL = "https://pit-wall-live.onrender.com"
+  NEXT_PUBLIC_LIVE_URL = "https://pit-wall-f1-project-live.onrender.com"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

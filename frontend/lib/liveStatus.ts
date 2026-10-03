@@ -23,7 +23,7 @@ import { candidateMeetings } from '@/lib/nextSession'
 import type { RaceListItem, SessionInfo } from '@/types'
 
 const LIVE_URL = process.env.NEXT_PUBLIC_LIVE_URL ?? (process.env.NODE_ENV === 'production'
-  ? 'https://pit-wall-live.onrender.com'
+  ? 'https://pit-wall-f1-project-live.onrender.com'
   : 'http://localhost:8099')
 const HEALTH_TIMEOUT_MS = 4000
 

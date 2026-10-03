@@ -40,7 +40,7 @@ import type { LiveSnapshot } from '@/types/live'
  */
 
 const LIVE_URL = process.env.NEXT_PUBLIC_LIVE_URL ?? (process.env.NODE_ENV === 'production'
-  ? 'https://pit-wall-live.onrender.com'
+  ? 'https://pit-wall-f1-project-live.onrender.com'
   : 'http://localhost:8099')
 
 // Bounded so a live server that is down does not become a retry storm, and low

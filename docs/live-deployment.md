@@ -96,7 +96,7 @@ ever set.
 
 | Variable | Value |
 |---|---|
-| `NEXT_PUBLIC_LIVE_URL` | `https://pit-wall-live.onrender.com` |
+| `NEXT_PUBLIC_LIVE_URL` | `https://pit-wall-f1-project-live.onrender.com` |
 
 No trailing slash. It is read at build time, so changing it needs a rebuild.
 
@@ -121,8 +121,8 @@ exists to create.
    matters most.** A process that is alive and subscribed to nothing looks
    identical from outside to one recording a quiet session; this endpoint is the
    only thing that tells them apart.
-4. `curl https://pit-wall-live.onrender.com/health` → `"ok": true`.
-5. `curl https://pit-wall-live.onrender.com/live/11727/snapshot` → **402
+4. `curl https://pit-wall-f1-project-live.onrender.com/health` → `"ok": true`.
+5. `curl https://pit-wall-f1-project-live.onrender.com/live/11727/snapshot` → **402
    PRO_REQUIRED**. If it returns 200, the gate is open and the deploy is wrong.
 6. Redeem a code in the browser, open `/live/11727`. Expect the empty-but-honest
    page: no tower, no chaos, "waiting for the first snapshot". An empty page here
