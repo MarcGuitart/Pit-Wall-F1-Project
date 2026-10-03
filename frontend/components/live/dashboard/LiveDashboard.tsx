@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Archivo } from 'next/font/google'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
+import { LiveEngineer } from './LiveEngineer'
 import { bandsFromLaps, driversFromLive, formatLap, median, type NeutralBand } from '@/lib/lapCharts'
 import type { LiveConnection as ConnectionState } from '@/hooks/useLiveSession'
 import type { LiveDashboard as Dash, LiveSnapshot, PracticeTowerRow, TowerRow } from '@/types/live'
@@ -94,58 +95,157 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
   }), [dash.lap_times, dash.stints, tower, order]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const bad = connection !== 'open' || snapshot.feed.stale || !snapshot.feed.connected
+  const [tab, setTabState] = useState<TabId>('timing')
+  useEffect(() => {
+    const h = window.location.hash.slice(1) as TabId
+    if (TABS.some(t => t.id === h)) setTabState(h)
+  }, [])
+  const setTab = (t: TabId) => {
+    setTabState(t)
+    try { window.history.replaceState(null, '', `#${t}`) } catch { /* ignore */ }
+  }
 
   return (
     <div className={`${s.root} ${archivo.className}`}>
       <StatusStrip snapshot={snapshot} bad={bad} connection={connection} frameAge={frameAge} error={error} onRetry={onRetry} />
       <Header snapshot={snapshot} now={now} profile={profile} />
       <KpiRow snapshot={snapshot} dash={dash} profile={profile} />
-      <TimingTable snapshot={snapshot} dash={dash} isRace={isRace} selected={sel} onSelect={setSelected} />
+      <TabBar tab={tab} onTab={setTab} isRace={isRace} />
 
-      <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
-        <TrackMap dash={dash} order={order} selected={sel} onSelect={setSelected} />
-        <CarData dash={dash} order={order} selected={sel} />
-        <RaceControl dash={dash} />
-      </section>
+      {tab === 'timing' && <>
+        <TimingTable snapshot={snapshot} dash={dash} isRace={isRace} selected={sel} onSelect={setSelected} />
+        <section className={`${s.cells} ${s.section} ${s.three}`} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
+          <Records dash={dash} isRace={isRace} />
+          <Weather dash={dash} trend={snapshot.analysis.weather?.track_temperature_trend ?? null} rainPeriods={snapshot.analysis.weather?.rain_periods ?? 0} />
+        </section>
+      </>}
 
-      <section className={`${s.cells} ${s.section} ${s.three}`} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
-        <Records dash={dash} isRace={isRace} />
-        <Weather dash={dash} trend={snapshot.analysis.weather?.track_temperature_trend ?? null} rainPeriods={snapshot.analysis.weather?.rain_periods ?? 0} />
-      </section>
+      {tab === 'track' && (
+        <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
+          <TrackMap dash={dash} order={order} selected={sel} onSelect={setSelected} />
+          <CarData dash={dash} order={order} selected={sel} />
+          <DriverPicker order={order} selected={sel} onSelect={setSelected} />
+        </section>
+      )}
 
-      <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
-        <CleanPace snapshot={snapshot} isRace={isRace} chartDrivers={chartDrivers} bands={bands} />
-        {isRace ? <EngineerNotes snapshot={snapshot} /> : <LongRuns snapshot={snapshot} />}
-        <PitLane dash={dash} />
-      </section>
+      {tab === 'strategy' && <>
+        <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
+          <CleanPace snapshot={snapshot} isRace={isRace} chartDrivers={chartDrivers} bands={bands} />
+          {isRace ? <PitWatch snapshot={snapshot} isRace={isRace} /> : <LongRuns snapshot={snapshot} />}
+          <PitLane dash={dash} />
+        </section>
+        <section className={`${s.cells} ${s.section} ${s.three}`} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
+          <TyreStrategy dash={dash} order={order} currentLap={snapshot.current_lap} />
+          <Overtakes dash={dash} isRace={isRace} />
+        </section>
+      </>}
 
-      <section className={`${s.cells} ${s.section} ${s.three}`} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
-        <TyreStrategy dash={dash} order={order} currentLap={snapshot.current_lap} />
-        <TeamRadio snapshot={snapshot} />
-      </section>
+      {tab === 'control' && (
+        <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
+          <RaceControl dash={dash} />
+          <TeamRadio snapshot={snapshot} />
+          <EngineerNotes snapshot={snapshot} />
+          <AfterFlag snapshot={snapshot} isRace={isRace} />
+        </section>
+      )}
 
-      <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
-        <Overtakes dash={dash} isRace={isRace} />
-        <PitWatch snapshot={snapshot} isRace={isRace} />
-        <AfterFlag snapshot={snapshot} isRace={isRace} />
-      </section>
+      {tab === 'charts' && (
+        <section className={s.section}>
+          <div className={`${s.secHead} ${s.secHeadWide}`}>
+            <h6 className={s.h6}>Lap by lap</h6>
+            <span className={s.sub}>{isRace ? 'Lap times, gaps, tyre degradation and fuel — from completed laps only' : 'Every completed lap of the session'}</span>
+          </div>
+          {isRace
+            ? <RaceLapCharts drivers={chartDrivers} bands={bands} totalLaps={snapshot.race_distance ?? Math.max(snapshot.current_lap, 1)} idPrefix="live" />
+            : <LapTimeEvolutionChart drivers={chartDrivers} bands={bands} idPrefix="live" />}
+        </section>
+      )}
 
-      <section className={s.section}>
-        <div className={`${s.secHead} ${s.secHeadWide}`}>
-          <h6 className={s.h6}>Lap by lap</h6>
-          <span className={s.sub}>{isRace ? 'Lap times, gaps, tyre degradation and fuel — from completed laps only' : 'Every completed lap of the session'}</span>
-        </div>
-        {isRace
-          ? <RaceLapCharts drivers={chartDrivers} bands={bands} totalLaps={snapshot.race_distance ?? Math.max(snapshot.current_lap, 1)} idPrefix="live" />
-          : <LapTimeEvolutionChart drivers={chartDrivers} bands={bands} idPrefix="live" />}
-      </section>
+      {tab === 'engineer' && (
+        <section className={`${s.cells} ${s.section} ${s.three}`} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
+          <div className={s.span2} style={{ display: 'grid' }}>
+            <LiveEngineer snapshot={snapshot} drivers={order.map(o => o.code)} selected={order.find(o => o.number === sel)?.code ?? null} />
+          </div>
+          <MiniOrder snapshot={snapshot} order={order} isRace={isRace} />
+        </section>
+      )}
 
-      <FeedCoverage snapshot={snapshot} isRace={isRace} />
+      {tab === 'feed' && <FeedCoverage snapshot={snapshot} isRace={isRace} />}
 
       <footer className={s.footer}>
         Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Read-only: nothing on this page is a
         prediction. Team radio clips are linked from Formula 1&apos;s archive and are not stored here.
       </footer>
+    </div>
+  )
+}
+
+// ── tabs ────────────────────────────────────────────────────────────────────
+
+type TabId = 'timing' | 'track' | 'strategy' | 'control' | 'charts' | 'engineer' | 'feed'
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'timing', label: 'Timing' },
+  { id: 'track', label: 'Track & car' },
+  { id: 'strategy', label: 'Strategy' },
+  { id: 'control', label: 'Race control & radio' },
+  { id: 'charts', label: 'Lap charts' },
+  { id: 'engineer', label: 'Engineer AI' },
+  { id: 'feed', label: 'Feed' },
+]
+
+function TabBar({ tab, onTab }: { tab: TabId; onTab: (t: TabId) => void; isRace: boolean }) {
+  return (
+    <nav className={s.tabs} aria-label="Live views">
+      {TABS.map(t => (
+        <button key={t.id} className={`${s.tab} ${tab === t.id ? s.tabOn : ''}`} onClick={() => onTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
+          {t.label}{t.id === 'engineer' && <span className={s.tabNew}>AI</span>}
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+function DriverPicker({ order, selected, onSelect }: { order: OrderRow[]; selected: number | null; onSelect: (n: number) => void }) {
+  return (
+    <div className={s.panel}>
+      <div className={s.secHead}><h6 className={s.h6}>Follow a car</h6><span className={s.sub}>Map and telemetry follow your pick</span></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))', gap: 2, background: 'var(--pw-divider)' }}>
+        {order.map(o => (
+          <button key={o.number} onClick={() => onSelect(o.number)} aria-pressed={o.number === selected}
+            style={{ font: 'inherit', textAlign: 'left', border: 0, cursor: 'pointer', padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'center',
+              background: o.number === selected ? 'var(--pw-accent)' : 'var(--pw-bg)', color: o.number === selected ? '#fff' : 'var(--pw-text)' }}>
+            <span style={{ width: 4, height: 22, background: colourOf(o.colour) }} />
+            <span><b style={{ fontSize: 15 }}>{o.code}</b><br /><span style={{ fontSize: 11, opacity: 0.7 }}>P{o.position}</span></span>
+          </button>
+        ))}
+        {!order.length && <div className={s.empty} style={{ background: 'var(--pw-bg)' }}>No drivers ranked yet.</div>}
+      </div>
+    </div>
+  )
+}
+
+function MiniOrder({ snapshot, order, isRace }: { snapshot: LiveSnapshot; order: OrderRow[]; isRace: boolean }) {
+  const practice = new Map((snapshot.practice_tower ?? []).map(r => [r.driver_number, r]))
+  const race = new Map(snapshot.tower.map(r => [r.driver_number, r]))
+  return (
+    <div className={s.panel}>
+      <div className={s.secHead}><h6 className={s.h6}>{isRace ? 'Running order' : 'Fastest laps'}</h6><span className={s.sub}>What the engineer sees</span></div>
+      <div className={`${s.list} ${s.scroll}`} style={{ maxHeight: 640 }}>
+        {order.map(o => {
+          const r = race.get(o.number), p = practice.get(o.number)
+          const val = isRace
+            ? (o.position === 1 ? 'Leader' : r?.gap_to_leader == null ? '—' : typeof r.gap_to_leader === 'number' ? `+${r.gap_to_leader.toFixed(1)}` : r.gap_to_leader)
+            : formatLap(p?.best_lap_s)
+          return (
+            <div key={o.number} style={{ display: 'grid', gridTemplateColumns: '32px 4px 1fr auto', gap: 10, alignItems: 'center', padding: '7px 20px', fontSize: 14 }}>
+              <span className={s.sub}>{String(o.position).padStart(2, '0')}</span>
+              <span style={{ height: 18, background: colourOf(o.colour) }} />
+              <b>{o.code}</b>
+              <span style={{ fontWeight: 600 }}>{val}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

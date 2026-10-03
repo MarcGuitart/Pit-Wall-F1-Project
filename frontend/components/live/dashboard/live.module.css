@@ -159,3 +159,20 @@
 .span2 { grid-column: span 2; }
 @media (max-width: 1000px) { .span2 { grid-column: auto; } .three { grid-template-columns: 1fr !important; } }
 @media (max-width: 640px) { .strip, .secHeadWide { padding-left: 16px; padding-right: 16px; } }
+
+/* ── tabs ── */
+.tabs {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; gap: 0; overflow-x: auto; background: var(--pw-bg);
+  border-bottom: 2px solid var(--pw-divider); padding: 0 32px; scrollbar-width: none;
+}
+.tab {
+  font: inherit; font-size: 14px; font-weight: 700; padding: 16px 18px 13px; background: transparent;
+  color: var(--pw-muted); border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px;
+  cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px; text-align: left;
+}
+.tab:hover { color: var(--pw-text); }
+.tabOn { color: var(--pw-text); font-weight: 800; border-bottom-color: var(--pw-accent); }
+.tab:focus-visible { outline: 2px solid var(--pw-accent); outline-offset: -2px; }
+.tabNew { font-size: 10px; letter-spacing: 0.08em; background: var(--pw-accent); color: #fff; padding: 1px 5px; }
+@media (max-width: 640px) { .tabs { padding: 0 8px; } }

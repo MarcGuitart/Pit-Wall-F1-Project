@@ -282,6 +282,28 @@ export async function sendToEngineer(payload: {
 /**
  * Legacy alias — kept for backward compat during migration.
  */
+export type EngineerAnswer = {
+  answer: string
+  cited_signals?: { id: string; lap_number: number | null; title: string }[]
+  confidence?: string | null
+  declared_confidence?: string | null
+  provider?: string
+  model?: string | null
+}
+
+/** The live engineer — answers from the digest the live page builds (lib/liveContext.ts). */
+export async function liveEngineerChat(payload: {
+  session_key: number
+  question: string
+  mode: 'engineer' | 'radio'
+  driver: string | null
+  session_name: string | null
+  context: string
+  signals: { id: string; title: string; lap_number: number | null }[]
+}): Promise<EngineerAnswer> {
+  return apiFetch(`/chat/live`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
 export async function engineerChat(payload: {
   question: string
   session_key: number
