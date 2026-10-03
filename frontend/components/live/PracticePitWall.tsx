@@ -26,10 +26,9 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
   const weather = snapshot.analysis.weather
   const timeline = snapshot.analysis.session_timeline
   const active = status?.flag ?? snapshot.track_status.flag
-  const eventful = active === 'RED' || active === 'SC' || active === 'VSC'
 
   return <div className="space-y-4">
-    <section className={`rounded-[4px] border overflow-hidden ${flagTone[active] ?? flagTone.GREEN} ${eventful ? 'track-alert' : ''}`} aria-live="polite">
+    <section className={`rounded-[4px] border overflow-hidden ${flagTone[active] ?? flagTone.GREEN}`} aria-live="polite">
       <div className="flex items-stretch">
         <div className={`w-1.5 shrink-0 ${active === 'RED' ? 'bg-signal-red' : active === 'GREEN' ? 'bg-signal-green' : 'bg-signal-amber'}`} />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 flex-1">
