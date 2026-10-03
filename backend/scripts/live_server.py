@@ -567,6 +567,8 @@ def resolve_profile_once(state: RaceState) -> None:
         if state.session_key != key:
             return False               # the feed moved on while we were asking
         state.set_session_meta(meta.get("session_type"), meta.get("session_name"), meta.get("location"))
+        state.session_info = {k: meta.get(k) for k in (
+            "date_start", "date_end", "gmt_offset", "circuit_short_name", "country_name", "year")}
         log("PROFILE", f"session {key} is {meta.get('session_type')!r} "
                        f"({meta.get('session_name')}, {meta.get('location')}) -> profile={state.profile}")
         return True

@@ -191,6 +191,9 @@ class RaceState:
         self.session_name: str | None = None
         self.location: str | None = None       # the GP's host city/circuit — see
         # set_session_meta()'s own note on why this is not country_name.
+        # Scheduled window and circuit, from the same REST lookup — what the
+        # page needs for a session clock. Never inferred from the feed.
+        self.session_info: dict = {}
 
         # derived view
         self.drivers: dict[int, dict] = {}
@@ -757,6 +760,7 @@ class RaceState:
                 "session_type": self.session_type,
                 "session_name": self.session_name,
                 "location": self.location,     # the GP's host city — never country_name
+                "session_info": dict(self.session_info),
                 "profile": self.profile,
                 "generated_at": iso(now),
                 "uptime_s": round(now - self.started, 1),
@@ -1575,6 +1579,33 @@ def dashboard(state: RaceState) -> dict:
                                 "improvement_s": round(best - t, 3) if best is not None else None})
                 best = t
 
+        # Every completed lap per driver, with the out-lap flag the charts need
+        # to leave pit laps out, plus each driver's best and last lap detail.
+        lap_times: dict[str, list] = {}
+        laps_detail: dict[str, dict] = {}
+        out_laps = {
+            (m.get("driver_number"), m.get("lap_number"))
+            for m in state.store["v1/laps"].values() if m.get("is_pit_out_lap")
+        }
+        for dn, laps in state.lap_times.items():
+            if not laps:
+                continue
+            lap_times[str(dn)] = [[ln, round(t, 3), (dn, ln) in out_laps] for ln, t in sorted(laps.items())]
+            best_ln = min(laps, key=laps.get)
+            last_ln = max(laps)
+            detail = state.lap_detail.get(dn, {})
+            laps_detail[str(dn)] = {
+                "best_lap": best_ln, "best_s": round(laps[best_ln], 3),
+                "last_lap": last_ln, "last_s": round(laps[last_ln], 3),
+                "last": {k: detail.get(last_ln, {}).get(k) for k in (
+                    "sector1", "sector2", "sector3", "i1_speed", "i2_speed", "st_speed")},
+                "best_sectors": {
+                    k: min((d[k] for d in detail.values() if isinstance(d.get(k), (int, float)) and d[k] > 0),
+                           default=None)
+                    for k in ("sector1", "sector2", "sector3")
+                },
+            }
+
         overtakes = []
         for o in list(state.overtakes)[:20]:
             a, b = o.get("overtaking"), o.get("overtaken")
@@ -1592,6 +1623,8 @@ def dashboard(state: RaceState) -> dict:
             "pit_stops_total": len(pits),
             "records": records[-12:],
             "overtakes": overtakes,
+            "lap_times": lap_times,
+            "laps_detail": laps_detail,
         }
 
 

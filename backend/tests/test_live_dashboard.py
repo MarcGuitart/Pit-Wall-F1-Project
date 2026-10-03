@@ -110,3 +110,20 @@ def test_dashboard_on_a_real_race_serialises():
     assert d["weather"]["air_temperature"] is not None
     snap = s.snapshot(include_analysis=True)
     assert "error" not in snap["dashboard"]
+
+
+def test_lap_times_carry_the_out_lap_flag_and_best_sectors():
+    s = RaceState()
+    s.ingest("v1/laps", {"_key": "a", "session_key": 1, "driver_number": 7, "lap_number": 1,
+                         "lap_duration": 99.0, "is_pit_out_lap": True,
+                         "duration_sector_1": 30.0, "duration_sector_2": 35.0, "duration_sector_3": 34.0}, recv=1)
+    s.ingest("v1/laps", {"_key": "b", "session_key": 1, "driver_number": 7, "lap_number": 2,
+                         "lap_duration": 92.0, "is_pit_out_lap": False,
+                         "duration_sector_1": 29.0, "duration_sector_2": 33.0, "duration_sector_3": 30.0,
+                         "st_speed": 312}, recv=2)
+    d = dashboard(s)
+    assert d["lap_times"]["7"] == [[1, 99.0, True], [2, 92.0, False]]
+    det = d["laps_detail"]["7"]
+    assert det["best_lap"] == 2 and det["last"]["st_speed"] == 312
+    assert det["best_sectors"] == {"sector1": 29.0, "sector2": 33.0, "sector3": 30.0}
+    assert s.snapshot(include_analysis=False)["session_info"] == {}
