@@ -39,7 +39,9 @@ import type { LiveSnapshot } from '@/types/live'
  *                 outage looked like from a browser.
  */
 
-const LIVE_URL = process.env.NEXT_PUBLIC_LIVE_URL ?? 'http://localhost:8099'
+const LIVE_URL = process.env.NEXT_PUBLIC_LIVE_URL ?? (process.env.NODE_ENV === 'production'
+  ? 'https://pit-wall-live.onrender.com'
+  : 'http://localhost:8099')
 
 // Bounded so a live server that is down does not become a retry storm, and low
 // enough at the start that a redeploy is invisible during a session.

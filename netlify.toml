@@ -3,5 +3,8 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  NEXT_PUBLIC_LIVE_URL = "https://pit-wall-live.onrender.com"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
