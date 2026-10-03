@@ -153,6 +153,7 @@ export type LiveSnapshot = {
   drivers_known: number
   tower: TowerRow[]
   practice_tower?: PracticeTowerRow[]
+  pace?: LivePaceRow[]
   long_runs?: LongRunRow[]
   session_status?: {
     flag: Flag
@@ -219,5 +220,14 @@ export type LongRunRow = {
   laps: number
   median_s: number
   compound: string | null
+  confidence: 'Low' | 'Medium' | 'High'
+}
+
+export type LivePaceRow = {
+  driver_number: number
+  code: string
+  median_clean_lap_s: number
+  fastest_clean_lap_s: number
+  sample_size: number
   confidence: 'Low' | 'Medium' | 'High'
 }

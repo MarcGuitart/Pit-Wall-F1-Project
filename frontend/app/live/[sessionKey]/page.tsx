@@ -74,16 +74,16 @@ export default function LiveSessionPage() {
 
   return (
     <AppShell breadcrumb={breadcrumb}>
-      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="font-display font-black text-[22px] uppercase tracking-[1px] text-text-primary leading-none">
-              {snapshot?.profile === 'practice' ? 'Practice pit wall' : snapshot?.profile === 'qualifying' ? 'Qualifying pit wall' : 'Live pit wall'}
-            </h1>
-            <p className="font-mono text-[10px] text-text-muted mt-1">
-              {[snapshot?.session_name, snapshot?.location, `Session ${sessionKey}`].filter(Boolean).join(' · ')}
-              {snapshot?.feed.mode === 'replay' && ' · replaying a recorded capture'}
-            </p>
+      <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
+        <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="min-w-0">
+            <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">
+              {snapshot?.location ?? 'Live timing'}
+            </div>
+            <div className="font-mono text-[10px] text-text-secondary mt-0.5">
+              LIVE · {snapshot?.session_name ?? snapshot?.session_type ?? 'Session'} · {snapshot?.session_key ?? sessionKey}
+              {snapshot?.feed.mode === 'replay' && ' · capture replay'}
+            </div>
           </div>
           <ConnectionBanner
             connection={connection}
@@ -150,7 +150,7 @@ export default function LiveSessionPage() {
             </div>
 
             </>}
-            <FeedFooter snapshot={snapshot} />
+            {snapshot.profile === 'race' && <FeedFooter snapshot={snapshot} />}
           </>
         )}
       </div>
