@@ -316,7 +316,15 @@ async def answer_engineer_question(
         context=context,
         focused_driver_note=focused_driver_note,
     )
+    return await answer_with_system(system, question)
 
+
+async def answer_with_system(system: str, question: str) -> EngineerReply:
+    """
+    One question against a ready-made system prompt, through the same provider
+    order and failure handling as the race engineer — Ollama, then Groq, then
+    an offline reply that says why. The live engineer uses it with its own prompt.
+    """
     # 1. Try Ollama (local)
     model = await _resolve_model()
     if model is not None:

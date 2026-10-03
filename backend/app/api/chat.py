@@ -27,6 +27,7 @@ from app.clients.ollama_client import (
     LLMRateLimited,
     active_model,
     answer_engineer_question,
+    answer_with_system,
     groq_model_ids,
 )
 
@@ -283,6 +284,127 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             "[CHAT] model cited %d id(s), %d valid", len(reply.cited_signal_ids), len(cited)
         )
 
+    return ChatResponse(
+        answer=reply.answer,
+        cited_signals=cited,
+        confidence=structural_confidence(reply.confidence, len(cited)),
+        declared_confidence=reply.confidence,
+        provider=reply.provider,
+        model=reply.model,
+    )
+
+
+# ── live engineer ──────────────────────────────────────────────────────────
+#
+# The live page has no published analysis to read: the session is still
+# running and its state lives in the live server, not here. So the browser
+# sends the digest it is already showing — built from the SSE snapshot by
+# frontend/lib/liveContext.ts — and the model answers from that alone. A
+# client could send anything as context; the only person that misleads is
+# the client, and the size cap keeps it from costing more than a question.
+
+LIVE_CONTEXT_MAX = 14_000
+
+LIVE_ENGINEER_PROMPT = """You are a race engineer on the pit wall during the live {session} session.
+The live timing digest below is everything known right now. The session is still running: nothing in it is final.
+
+Rules:
+- Answer from the digest only. Cite driver codes, lap numbers, times and gaps exactly as given.
+- If something is not in the digest, say so in one short clause, then give your best read of what is there.
+- Never predict a result, a stop lap or a winner as fact. You may describe what the data suggests, hedged ("on current pace...", "if this holds...").
+- Never connect two numbers with causal words ("because", "due to") unless the digest states the cause.
+- 2-4 sentences. Direct, pit wall tone. No markdown, no bullet points.
+
+Reply as a single JSON object with exactly these keys:
+- "answer": the reply text.
+- "cited_signal_ids": the ids from the SIGNALS section you actually used. Empty list if none.
+- "confidence": "Low", "Medium" or "High" — how well the digest supports the answer.
+
+{focus}
+
+Live digest:
+{context}"""
+
+LIVE_RADIO_PROMPT = """You are role-playing {driver}, driving in the live {session} session, answering your race engineer over team radio.
+This is a clearly-labelled simulation for a fan application: you are not the real driver and must never claim to be.
+
+Rules:
+- Stay in character: short, breathless radio replies, 1-3 sentences, first person.
+- Ground every factual claim in the live digest below — your position, gaps, tyre, tyre age, lap times, pit stops. Use the numbers as given.
+- Never invent incidents, car problems, team orders or feelings about real people. If the engineer asks about something not in the digest, answer as a driver who cannot see that from the cockpit.
+- No profanity, no markdown.
+
+Reply as a single JSON object with exactly these keys:
+- "answer": the radio reply.
+- "cited_signal_ids": ids from the SIGNALS section you used. Empty list if none.
+- "confidence": "Low", "Medium" or "High" — how well the digest supports what you said.
+
+Live digest:
+{context}"""
+
+
+class LiveSignal(BaseModel):
+    id: str
+    title: str
+    lap_number: int | None = None
+
+
+class LiveChatRequest(BaseModel):
+    session_key: int
+    question: str
+    mode: str = "engineer"            # "engineer" | "radio"
+    driver: str | None = None         # the focused driver, or the one on the radio
+    session_name: str | None = None
+    context: str
+    signals: list[LiveSignal] = []
+
+
+@router.post("/chat/live", response_model=ChatResponse)
+async def chat_live(req: LiveChatRequest, request: Request) -> ChatResponse:
+    enforce_chat_rate_limit(request)
+    # Live is PRO whatever the season: there is no free live mode.
+    from datetime import datetime, timezone
+    require_season_access(request, datetime.now(timezone.utc).year, req.session_key)
+
+    question = req.question.strip()[:500]
+    if not question:
+        raise AppError("EMPTY_QUESTION", "Ask the engineer something.", status=400)
+    if req.mode == "radio" and not req.driver:
+        raise AppError("DRIVER_REQUIRED", "Pick a driver to talk to on the radio.", status=400)
+
+    signals = {s.id: s for s in req.signals[:80]}
+    context = req.context[:LIVE_CONTEXT_MAX]
+    if signals:
+        context += "\n\nSIGNALS\n" + "\n".join(
+            f"[{s.id}]{f' L{s.lap_number}' if s.lap_number else ''} {s.title}" for s in signals.values())
+    session = (req.session_name or f"session {req.session_key}")[:80]
+    driver = (req.driver or "")[:4].upper()
+    if req.mode == "radio":
+        system = LIVE_RADIO_PROMPT.format(driver=driver, session=session, context=context)
+        prompt_q = f"Engineer: {question}"
+    else:
+        focus = f"The user is following {driver}. Prioritise that driver." if driver else ""
+        system = LIVE_ENGINEER_PROMPT.format(session=session, context=context, focus=focus)
+        prompt_q = question
+
+    try:
+        reply = await answer_with_system(system, prompt_q)
+    except LLMRateLimited as exc:
+        raise AppError(
+            "LLM_RATE_LIMITED",
+            f"The engineer's model ({exc.model}) is at its provider rate limit. Try again in {exc.retry_after_s} s.",
+            status=503,
+            details={"provider": exc.provider, "model": exc.model, "retry_after_seconds": exc.retry_after_s},
+        ) from exc
+
+    seen: set[str] = set()
+    cited: list[CitedSignal] = []
+    for sid in reply.cited_signal_ids:
+        sig = signals.get(sid)
+        if sig is None or sid in seen:
+            continue
+        seen.add(sid)
+        cited.append(CitedSignal(id=sid, lap_number=sig.lap_number, title=sig.title))
     return ChatResponse(
         answer=reply.answer,
         cited_signals=cited,

@@ -114,6 +114,7 @@ ALLOWED_ORIGINS = PRODUCTION_ORIGINS + tuple(
 )
 LOCAL_ORIGIN_RE = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
+STARTED_AT = time.time()
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
 RENEW_BEFORE_S = 420.0
 HERE = Path(__file__).resolve().parent
@@ -456,6 +457,12 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
             "mode": "mqtt" if feed else "replay",
             "viewers": hub.count,
             "frames_dropped": hub.dropped,
+            # What is deployed and what is arriving — no session content, so it
+            # stays as public as the rest of this route.
+            "commit": (os.environ.get("RENDER_GIT_COMMIT") or "")[:7] or None,
+            "uptime_s": round(time.time() - STARTED_AT),
+            "messages": {t.replace("v1/", ""): n for t, n in state.counts.items()},
+            "drivers_known": len(state.drivers),
         })
 
     async def index(request: Request) -> Response:
@@ -573,15 +580,42 @@ def resolve_profile_once(state: RaceState) -> None:
                        f"({meta.get('session_name')}, {meta.get('location')}) -> profile={state.profile}")
         return True
 
+    def load_drivers(key: int) -> None:
+        """
+        OpenF1 publishes v1/drivers once, before the session — a server that
+        subscribes after that (a restart, a deploy, the rollover into the next
+        session) never sees it, and every car reads "D31". The REST endpoint
+        has the same documents, so they are fed through the same handler.
+        """
+        try:
+            rows = asyncio.run(fetch_json("drivers", session_key=key))
+        except Exception as exc:
+            log("DRIVERS", f"could not load drivers for {key}: {exc}")
+            return
+        if state.session_key != key:
+            return
+        for row in rows:
+            state.ingest("v1/drivers", {**row, "_key": f"rest-{row.get('driver_number')}"})
+        log("DRIVERS", f"session {key}: {len(rows)} drivers loaded over REST")
+
     def run():
         # Not once: this process stays subscribed for the whole weekend, and
         # every new session_key resets the state (RaceState._reset), which
         # drops the profile back to unknown until it is resolved again.
         resolved: int | None = None
+        drivers_checked = 0.0
         while True:
             key = state.session_key
             if key is not None and key != resolved and resolve(key):
                 resolved = key
+                load_drivers(key)
+                drivers_checked = time.time()
+            elif key is not None and time.time() - drivers_checked > 60:
+                drivers_checked = time.time()
+                with state.lock:
+                    unknown = set(state.position) - set(state.drivers)
+                if unknown:
+                    load_drivers(key)
             time.sleep(5.0 if key != resolved else 15.0)
 
     threading.Thread(target=run, daemon=True).start()
