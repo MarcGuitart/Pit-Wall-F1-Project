@@ -59,6 +59,21 @@ TOPICS = [
     "v1/weather", "v1/stints", "v1/drivers", "v1/team_radio", "v1/session_result",
 ]
 
+# Subscribed by the live server only — never by the recorder, which has its own
+# list. car_data and location tick at ~3.7 Hz per car (≈80 messages a second
+# for a full field), so they are never put in the per-topic store: the
+# dashboard needs the latest sample, a few seconds of history and one lap of
+# outline, and keeping 40 000 of them would be the instance's whole memory.
+# overtakes is race-only and low rate, but has no service downstream either.
+DASHBOARD_TOPICS = ["v1/car_data", "v1/location", "v1/overtakes"]
+
+# 48 samples at ~3.7 Hz is the last ~13 s of a car's telemetry.
+CAR_HISTORY = 48
+# A lap of location points is ~330 at 3.7 Hz; anything far beyond that is a car
+# sitting in the garage with the trace still open.
+TRACE_MAX = 1500
+OUTLINE_POINTS = 360
+
 # Documents kept per topic, most recent wins. Keyed by ``_key``, so a lap that
 # is republished with its duration replaces the empty one instead of being
 # counted twice.
@@ -140,7 +155,6 @@ class RaceState:
     """One session's live snapshot. One writer, many readers."""
 
     def __init__(self, session_key: int | None = None) -> None:
-        self.session_key = session_key
         self.lock = RLock()
 
         # "Now", from the snapshot's point of view. Live this is the wall clock.
@@ -148,6 +162,18 @@ class RaceState:
         # recording, so a feed that went quiet for 28 s in September reads as
         # 28 s of silence now, and the staleness warning fires when it did.
         self.clock: Callable[[], float] = time.time
+        self._reset(session_key)
+
+    def _reset(self, session_key: int | None) -> None:
+        """
+        Everything that belongs to one session. Called again, in place, when
+        the feed moves on to the next session: the live server holds a single
+        RaceState for weeks, and without this a race would be computed on top
+        of the qualifying that ran the day before. In place rather than a new
+        object because the server, the MQTT thread and the routes all share
+        this one reference.
+        """
+        self.session_key = session_key
         self.started = self.clock()
 
         # topic -> _key -> document. Ordered: insertion order is arrival order,
@@ -185,6 +211,16 @@ class RaceState:
         self.stints: dict[int, dict[int, dict]] = defaultdict(dict)       # dn -> stint_number -> rec
         self.pit_laps: dict[int, list[int]] = defaultdict(list)
         self.radio: deque = deque(maxlen=60)
+
+        # dashboard-only, high rate — see DASHBOARD_TOPICS
+        self.car: dict[int, dict] = {}
+        self.car_history: dict[int, deque] = defaultdict(lambda: deque(maxlen=CAR_HISTORY))
+        self.loc: dict[int, dict] = {}
+        self.loc_bounds: list[float] | None = None          # [min_x, min_y, max_x, max_y]
+        self.loc_trace: dict[int, list] = defaultdict(list)
+        self.loc_trace_lap: dict[int, tuple[int, bool]] = {}  # dn -> (lap, started as pit-out)
+        self.track_outline: list[list[float]] | None = None
+        self.overtakes: deque = deque(maxlen=40)
 
         self.flag: str = FLAG_GREEN
         self.flag_since: float | None = None
@@ -255,6 +291,17 @@ class RaceState:
 
     def ingest(self, topic: str, msg: dict, recv: float | None = None) -> dict | None:
         """Apply one message. Returns a small description of what changed."""
+        sk = msg.get("session_key") if isinstance(msg, dict) else None
+        if isinstance(sk, int) and self.session_key is not None and sk > self.session_key:
+            # Keys only ever increase, so a smaller one is a straggler from the
+            # session that just ended, never a reason to go back.
+            with self.lock:
+                if sk > self.session_key:
+                    self._reset(sk)
+        elif isinstance(sk, int) and self.session_key is not None and sk < self.session_key:
+            return None
+        if topic in DASHBOARD_TOPICS and isinstance(msg, dict):
+            return self._ingest_dashboard(topic, msg, recv if recv is not None else self.clock())
         if topic not in self.store or not isinstance(msg, dict):
             return None
         recv = recv if recv is not None else self.clock()
@@ -301,6 +348,74 @@ class RaceState:
                 except Exception as exc:      # one bad message must not stop ingestion
                     changed["error"] = f"{type(exc).__name__}: {exc}"
             return changed
+
+    def _ingest_dashboard(self, topic: str, msg: dict, recv: float) -> dict | None:
+        """
+        car_data / location / overtakes. Counted like any topic, so feed
+        coverage reports them, but kept out of the store and out of the
+        staleness clock: they are not what the order and the gaps come from.
+        """
+        dn = msg.get("driver_number")
+        with self.lock:
+            self.counts[topic] += 1
+            self.last_update[topic] = recv
+            if topic == "v1/overtakes":
+                self.overtakes.appendleft({
+                    "date": msg.get("date"),
+                    "overtaking": msg.get("overtaking_driver_number"),
+                    "overtaken": msg.get("overtaken_driver_number"),
+                    "position": msg.get("position"),
+                    "lap_number": self.last_lap.get(msg.get("overtaking_driver_number"), {}).get("lap_number")
+                    or self.current_lap or None,
+                })
+                return {"topic": topic}
+            if not isinstance(dn, int):
+                return None
+            if topic == "v1/car_data":
+                sample = {
+                    "speed": msg.get("speed"), "rpm": msg.get("rpm"), "gear": msg.get("n_gear"),
+                    "throttle": msg.get("throttle"), "brake": msg.get("brake"), "drs": msg.get("drs"),
+                    "at": recv,
+                }
+                self.car[dn] = sample
+                self.car_history[dn].append((sample["speed"], sample["throttle"], sample["brake"]))
+                return {"topic": topic, "driver": dn}
+            x, y = msg.get("x"), msg.get("y")
+            if not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or (x == 0 and y == 0):
+                return None              # (0, 0) is "no fix", not the origin
+            self.loc[dn] = {"x": x, "y": y, "at": recv}
+            b = self.loc_bounds
+            self.loc_bounds = [x, y, x, y] if b is None else [min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)]
+            self._trace_location(dn, x, y)
+            return {"topic": topic, "driver": dn}
+
+    def _trace_location(self, dn: int, x: float, y: float) -> None:
+        """
+        The circuit outline is one real lap of one car, recorded point by
+        point — the first clean, complete flying lap anyone runs. No circuit
+        database: it is drawn from the session itself, so it is right for
+        whatever layout is in use.
+        """
+        if self.track_outline is not None:
+            return
+        lap = self.last_lap.get(dn, {})
+        ln = lap.get("lap_number")
+        if not isinstance(ln, int):
+            return
+        current = self.loc_trace_lap.get(dn)
+        if current is None or current[0] != ln:
+            trace = self.loc_trace.get(dn) or []
+            if (current is not None and ln == current[0] + 1 and not current[1]
+                    and len(trace) >= 150 and self.flag == FLAG_GREEN):
+                step = max(1, len(trace) // OUTLINE_POINTS)
+                self.track_outline = [[round(px, 1), round(py, 1)] for px, py in trace[::step]]
+                self.loc_trace.clear()
+                return
+            self.loc_trace[dn] = []
+            self.loc_trace_lap[dn] = (ln, bool(lap.get("is_pit_out_lap")))
+        trace = self.loc_trace[dn]
+        if len(trace) < TRACE_MAX:
+            trace.append((x, y))
 
     # ── per-topic handlers ───────────────────────────────────────────────────
 
@@ -664,6 +779,10 @@ class RaceState:
                 "recent_key_updates": list(self.update_log)[-10:],
             }
         if include_analysis:
+            try:
+                snap["dashboard"] = dashboard(self)
+            except Exception as exc:     # a panel failing must not take the stream down
+                snap["dashboard"] = {"error": f"{type(exc).__name__}: {exc}"}
             snap["analysis"] = live_analysis(self)
             snap["notes"] = snap["analysis"].pop("notes", [])
             snap["pit_watch"] = snap["analysis"].pop("pit_watch", [])
@@ -1384,6 +1503,96 @@ def _weather_panel(state: RaceState, lists: dict, laps: list[dict]) -> dict:
                 "arrived — weather updates roughly once a minute, so this panel runs "
                 "about 3 minutes behind the rain actually starting on the ground",
     }
+
+
+def _num(v: Any) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def dashboard(state: RaceState) -> dict:
+    """
+    The raw, per-panel views the live dashboard draws directly: car telemetry,
+    positions on the map, race control, weather detail, stints, stops, record
+    progression and overtakes. Nothing here is analysis — each field is a
+    reading of what OpenF1 sent, so it is never "not yet meaningful" the way
+    chaos is; an empty list means nothing of that kind has happened.
+    """
+    with state.lock:
+        code = lambda dn: state.drivers.get(dn, {}).get("code", f"D{dn}")  # noqa: E731
+        cars = []
+        for dn in sorted(set(state.car) | set(state.loc)):
+            c, p = state.car.get(dn, {}), state.loc.get(dn, {})
+            cars.append({
+                "driver_number": dn, "code": code(dn), "colour": state.drivers.get(dn, {}).get("colour"),
+                "speed": c.get("speed"), "rpm": c.get("rpm"), "gear": c.get("gear"),
+                "throttle": c.get("throttle"), "brake": c.get("brake"), "drs": c.get("drs"),
+                "x": p.get("x"), "y": p.get("y"),
+            })
+        history = {str(dn): [list(s) for s in h] for dn, h in state.car_history.items()}
+
+        rc = []
+        for m in list(state.store["v1/race_control"].values())[-40:][::-1]:
+            rc.append({k: m.get(k) for k in (
+                "date", "category", "flag", "message", "scope", "sector", "lap_number", "driver_number")})
+
+        weather = list(state.store["v1/weather"].values())
+        latest = weather[-1] if weather else {}
+        weather_now = {k: latest.get(k) for k in (
+            "air_temperature", "track_temperature", "humidity", "pressure", "rainfall",
+            "wind_speed", "wind_direction", "date")}
+        weather_now["track_history"] = [
+            [w.get("date"), w.get("track_temperature")] for w in weather[-30:]
+            if isinstance(w.get("track_temperature"), (int, float))
+        ]
+
+        stints = {
+            str(dn): [by_n[n] for n in sorted(by_n)]
+            for dn, by_n in state.stints.items() if by_n
+        }
+
+        pits = list(state.store["v1/pit"].values())
+        pit_rows = []
+        for m in pits[-12:][::-1]:
+            dn = m.get("driver_number")
+            pit_rows.append({
+                "driver_number": dn, "code": code(dn) if isinstance(dn, int) else "?",
+                "lap_number": m.get("lap_number"), "date": m.get("date"),
+                "pit_duration": _num(m.get("pit_duration")),
+                "lane_duration": _num(m.get("lane_duration")),
+                "stop_duration": _num(m.get("stop_duration")),
+            })
+
+        # Session-best progression, in the order the laps were completed.
+        completed = sorted(
+            (state.lap_completed_at.get(dn, {}).get(ln, 0.0), dn, ln, t)
+            for dn, laps in state.lap_times.items() for ln, t in laps.items()
+        )
+        records, best = [], None
+        for at, dn, ln, t in completed:
+            if best is None or t < best:
+                records.append({"driver_number": dn, "code": code(dn), "lap_number": ln,
+                                "time_s": round(t, 3), "at": iso(at) if at else None,
+                                "improvement_s": round(best - t, 3) if best is not None else None})
+                best = t
+
+        overtakes = []
+        for o in list(state.overtakes)[:20]:
+            a, b = o.get("overtaking"), o.get("overtaken")
+            overtakes.append({**o, "overtaking_code": code(a) if isinstance(a, int) else None,
+                              "overtaken_code": code(b) if isinstance(b, int) else None})
+
+        return {
+            "cars": cars,
+            "car_history": history,
+            "track": {"outline": state.track_outline, "bounds": state.loc_bounds},
+            "race_control": rc,
+            "weather": weather_now,
+            "stints": stints,
+            "pit_stops": pit_rows,
+            "pit_stops_total": len(pits),
+            "records": records[-12:],
+            "overtakes": overtakes,
+        }
 
 
 def live_analysis(state: RaceState) -> dict:

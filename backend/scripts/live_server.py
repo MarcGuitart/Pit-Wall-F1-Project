@@ -96,7 +96,7 @@ from app.core.access import decode_token  # the API's verifier, not a copy  # no
 from app.core.config import settings  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
-from live_state import TOPICS, RaceState, replay, replay_capture  # noqa: E402
+from live_state import DASHBOARD_TOPICS, TOPICS, RaceState, replay, replay_capture  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, QOS = "mqtt.openf1.org", 8883, 1
 
@@ -228,7 +228,7 @@ class LiveFeed:
         self.connected = rc == 0
         log("CONNECT" if rc == 0 else "CONNECT!", f"rc={rc} ({reason_code})")
         if rc == 0:
-            client.subscribe([(t, QOS) for t in TOPICS])
+            client.subscribe([(t, QOS) for t in TOPICS + DASHBOARD_TOPICS])
 
     @guard
     def on_subscribe(self, client, userdata, mid, reason_codes, properties=None):
@@ -546,35 +546,41 @@ def resolve_profile_once(state: RaceState) -> None:
     Run in its own thread so it never blocks uvicorn's startup or the MQTT
     feed thread; it is read-only (the same fetch_json every other read-only
     script in this project uses) and writes nothing but state.session_type/
-    session_name/location, exactly once.
+    session_name/location — once per session_key the feed moves to.
 
     Polls state.session_key rather than being handed it directly, because for
     the live MQTT path it is not known until the first message arrives —
     sometimes seconds after this process starts, sometimes not until the
     session itself goes live.
     """
-    def run():
-        for _ in range(600):           # up to 10 minutes waiting for a session_key
-            if state.session_key is not None:
-                break
-            time.sleep(1.0)
-        else:
-            log("PROFILE", "no session_key arrived in 10 minutes — giving up, staying on the race profile")
-            return
-
+    def resolve(key: int) -> bool:
         async def fetch():
-            rows = await fetch_json("sessions", session_key=state.session_key)
+            rows = await fetch_json("sessions", session_key=key)
             return rows[0] if rows else {}
 
         try:
             meta = asyncio.run(fetch())
         except Exception as exc:
-            log("PROFILE", f"could not resolve session_type for {state.session_key}: {exc} "
-                           f"— staying on the race profile")
-            return
+            log("PROFILE", f"could not resolve session_type for {key}: {exc} "
+                           f"— on the race profile until the next attempt")
+            return False
+        if state.session_key != key:
+            return False               # the feed moved on while we were asking
         state.set_session_meta(meta.get("session_type"), meta.get("session_name"), meta.get("location"))
-        log("PROFILE", f"session {state.session_key} is {meta.get('session_type')!r} "
+        log("PROFILE", f"session {key} is {meta.get('session_type')!r} "
                        f"({meta.get('session_name')}, {meta.get('location')}) -> profile={state.profile}")
+        return True
+
+    def run():
+        # Not once: this process stays subscribed for the whole weekend, and
+        # every new session_key resets the state (RaceState._reset), which
+        # drops the profile back to unknown until it is resolved again.
+        resolved: int | None = None
+        while True:
+            key = state.session_key
+            if key is not None and key != resolved and resolve(key):
+                resolved = key
+            time.sleep(5.0 if key != resolved else 15.0)
 
     threading.Thread(target=run, daemon=True).start()
 
