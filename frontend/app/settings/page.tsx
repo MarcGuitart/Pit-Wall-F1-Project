@@ -120,8 +120,9 @@ export default function SettingsPage() {
               }`}
             >
               <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  toggleOn ? 'translate-x-[18px]' : 'translate-x-0.5'
+                aria-hidden="true"
+                className={`absolute left-0 top-[2px] w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  toggleOn ? 'translate-x-[18px]' : 'translate-x-[2px]'
                 }`}
               />
             </button>

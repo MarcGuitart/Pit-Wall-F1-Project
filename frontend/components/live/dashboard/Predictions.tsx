@@ -45,6 +45,8 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
         </div>
       )}
 
+      {!p.error && p.drivers.length > 0 && <Favourites drivers={p.drivers} race={race} final={final} />}
+
       {p.error ? <div className={s.empty}>The model failed on this frame ({p.error}); the next frame retries.</div>
         : !p.drivers.length ? <div className={s.empty}>No projection yet — {p.reason ?? 'waiting for data'}.</div> : (
         <div className={s.timingScroll}>
@@ -93,4 +95,47 @@ const GRID_POLE = 'minmax(120px,1fr) 64px 70px minmax(160px,2fr) 110px 110px 90p
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>{label}</div><div className={s.mid}>{value}</div><div className={s.sub}>{sub}</div></div>
+}
+
+type PDriver = NonNullable<LiveSnapshot['projection']>['drivers'][number]
+
+function Favourites({ drivers, race, final }: { drivers: PDriver[]; race: boolean; final: boolean }) {
+  const top = drivers.slice(0, 3)
+  const contenders = drivers.filter(d => d.win >= 0.005).slice(0, 10)
+  const max = Math.max(0.01, ...contenders.map(d => d.win))
+  return (
+    <>
+      <div className={s.cells} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', borderBottom: '2px solid var(--pw-divider)' }}>
+        {top.map((d, i) => (
+          <div key={d.driver_number} className={s.cell} style={{ padding: '22px 24px', position: 'relative', overflow: 'hidden', background: i === 0 ? 'var(--pw-accent-tint)' : undefined }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, background: colourOf(d.colour) }} />
+            <div className={s.label}>{final ? `P${d.position}` : i === 0 ? 'Favourite' : `Contender ${i + 1}`} · now P{d.position}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 6 }}>
+              <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{d.code}</span>
+              {!final && <span style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: i === 0 ? 'var(--pw-accent-text)' : undefined }}>{pct(d.win)}</span>}
+            </div>
+            <div className={s.sub} style={{ marginTop: 8 }}>
+              {race
+                ? `Podium ${pct(d.podium)} · projected P${d.projected_position}${d.range ? ` (P${d.range[0]}–P${d.range[1]})` : ''}`
+                : `Best ${formatLap(d.best_s)}${d.ideal_s ? ` · ideal ${formatLap(d.ideal_s)}` : ''}`}
+            </div>
+          </div>
+        ))}
+      </div>
+      {!final && contenders.length > 1 && (
+        <div style={{ padding: '18px 32px 22px', borderBottom: '2px solid var(--pw-divider)', display: 'grid', gap: 8 }}>
+          <div className={s.label} style={{ marginBottom: 4 }}>{race ? 'Win probability' : 'Pole probability'}</div>
+          {contenders.map(d => (
+            <div key={d.driver_number} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 60px', gap: 12, alignItems: 'center' }}>
+              <b style={{ fontSize: 14 }}>{d.code}</b>
+              <div style={{ height: 18, background: 'var(--pw-surface)' }}>
+                <div style={{ height: '100%', width: `${Math.max(1.5, (d.win / max) * 100)}%`, background: colourOf(d.colour), transition: 'width 1.5s ease' }} />
+              </div>
+              <span style={{ fontWeight: 800, textAlign: 'right' }}>{pct(d.win)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
 }

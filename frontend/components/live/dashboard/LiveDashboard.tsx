@@ -186,7 +186,7 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
           </div>
           {isRace
             ? <RaceLapCharts drivers={chartDrivers} bands={bands} totalLaps={snapshot.race_distance ?? Math.max(snapshot.current_lap, 1)} idPrefix="live" />
-            : <LapTimeEvolutionChart drivers={chartDrivers} bands={bands} idPrefix="live" />}
+            : <LapTimeEvolutionChart drivers={chartDrivers} bands={bands} idPrefix="live" session="single-lap" />}
         </section>
       )}
 

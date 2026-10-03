@@ -167,7 +167,7 @@ function niceTicks(min: number, max: number, count = 5): number[] {
   return out
 }
 
-function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, height = 380, zeroLabel }: {
+function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, height = 380, zeroLabel, dots = false }: {
   series: Series[]
   sel: Selection
   xMax: number
@@ -178,6 +178,8 @@ function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, hei
   bands: NeutralBand[]
   height?: number
   zeroLabel?: string
+  /** points instead of lines — for sessions where consecutive laps are not comparable */
+  dots?: boolean
 }) {
   const [wrap, width] = useWidth<HTMLDivElement>()
   const clip = useId().replace(/:/g, '')
@@ -244,8 +246,13 @@ function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, hei
             const on = sel.strong(s.code)
             return (
               <g key={s.code} opacity={on ? 1 : 0.22}>
-                <path d={path(s.points)} fill="none" stroke={s.colour} strokeWidth={on ? 2.4 : 1.1}
-                  strokeDasharray={s.dashed ? '6 4' : undefined} strokeLinejoin="round" />
+                {dots
+                  ? s.points.map(([lap, v]) => (
+                      <rect key={lap} x={x(lap) - (on ? 4.5 : 3)} y={y(v) - (on ? 4.5 : 3)} width={on ? 9 : 6} height={on ? 9 : 6}
+                        fill={s.dashed ? '#05060a' : s.colour} stroke={s.colour} strokeWidth="2" />
+                    ))
+                  : <path d={path(s.points)} fill="none" stroke={s.colour} strokeWidth={on ? 2.4 : 1.1}
+                      strokeDasharray={s.dashed ? '6 4' : undefined} strokeLinejoin="round" />}
                 {on && s.markers?.map(([lap, v]) => <circle key={lap} cx={x(lap)} cy={y(v)} r="3.5" fill={s.colour} stroke="#05060a" strokeWidth="1.5" />)}
               </g>
             )
@@ -272,10 +279,38 @@ function LapLineChart({ series, sel, xMax, yDomain, invertY, yFormat, bands, hei
 
 // ── the four charts ─────────────────────────────────────────────────────────
 
+/** Qualifying / practice: every push lap as a point; the best of each driver is the value. */
+function PushLapChart({ data, drivers, idPrefix }: { data: ReturnType<typeof lapTimeEvolution>; drivers: ChartDriver[]; idPrefix: string }) {
+  const ordered = [...data.series].sort((a, b) => Math.min(...a.points.map(p => p[1]), Infinity) - Math.min(...b.points.map(p => p[1]), Infinity))
+  const sel = useSelection(ordered.map(s => s.code), 6)
+  const xMax = Math.max(2, ...drivers.flatMap(d => d.laps.map(l => l.lap)))
+  const pts = ordered.flatMap(s => s.points.map(p => p[1]))
+  return (
+    <ChartPanel
+      id={`${idPrefix}-push-laps`}
+      title="Push laps"
+      description="Every flying lap of the session, as a point. Out-laps, cool-down laps and pit laps are left out — only laps within 7 % of the session's best. The value beside each driver is their best."
+      how="In qualifying and practice consecutive laps are not comparable: a push lap is followed by a cool-down lap and often a run back to the garage. So nothing is joined by a line, and only laps within 107 % of the session's fastest are drawn. Square = a lap; hollow squares are the second car of a team."
+    >
+      {pts.length ? (
+        <>
+          <LapLineChart series={ordered} sel={sel} xMax={xMax} yDomain={[Math.min(...pts) - 0.15, Math.max(...pts) + 0.15]} yFormat={formatLap} bands={[]} dots height={340} />
+          <Legend series={ordered} sel={sel} />
+        </>
+      ) : <div className={styles.empty}>No push lap yet.</div>}
+    </ChartPanel>
+  )
+}
+
 const DEFAULT_SELECTED = 6
 
-export function LapTimeEvolutionChart({ drivers, bands, idPrefix = 'chart' }: { drivers: ChartDriver[]; bands: NeutralBand[]; idPrefix?: string }) {
-  const data = useMemo(() => lapTimeEvolution(drivers), [drivers])
+export function LapTimeEvolutionChart({ drivers, bands, idPrefix = 'chart', session = 'race' }: {
+  drivers: ChartDriver[]; bands: NeutralBand[]; idPrefix?: string; session?: 'race' | 'single-lap'
+}) {
+  const data = useMemo(() => lapTimeEvolution(drivers, session), [drivers, session])
+  if (session === 'single-lap') {
+    return <PushLapChart data={data} drivers={drivers} idPrefix={idPrefix} />
+  }
   const sel = useSelection(data.series.map(s => s.code), DEFAULT_SELECTED)
   const xMax = Math.max(2, ...drivers.flatMap(d => d.laps.map(l => l.lap)))
   return (

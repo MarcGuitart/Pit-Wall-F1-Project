@@ -84,17 +84,25 @@ function neutralSet(bands: NeutralBand[]): Set<number> {
 
 export const SLOW_LAP_FACTOR = 1.08
 
-export function lapTimeEvolution(drivers: ChartDriver[]) {
+/** Qualifying and practice mix push laps with out-laps, cool-down laps and
+ *  garage time; only laps within this factor of the session best are pushes. */
+export const PUSH_LAP_FACTOR = 1.07
+
+export function lapTimeEvolution(drivers: ChartDriver[], session: 'race' | 'single-lap' = 'race') {
   const dashed = dashedSet(drivers)
-  const valid = (l: ChartLap) => l.lap > 1 && !l.pitOut && !l.pitIn && l.time > 0
+  const basic = (l: ChartLap) => l.lap > 1 && !l.pitOut && !l.pitIn && l.time > 0
+  const sessionBest = Math.min(...drivers.flatMap(d => d.laps.filter(l => l.time > 0).map(l => l.time)))
+  const valid = session === 'race' ? basic
+    : (l: ChartLap) => !l.pitOut && !l.pitIn && l.time > 0 && l.time <= sessionBest * PUSH_LAP_FACTOR
   const fieldMedian = median(drivers.flatMap(d => d.laps.filter(valid).map(l => l.time)))
-  const ceiling = fieldMedian == null ? null : fieldMedian * SLOW_LAP_FACTOR
+  const ceiling = session === 'single-lap' ? sessionBest * PUSH_LAP_FACTOR
+    : fieldMedian == null ? null : fieldMedian * SLOW_LAP_FACTOR
   const series: Series[] = drivers.map(d => {
     const pts = d.laps.filter(valid).map(l => [l.lap, l.time] as Point)
     const inFrame = ceiling == null ? pts : pts.filter(p => p[1] <= ceiling)
     return {
       code: d.code, colour: d.colour, dashed: dashed.has(d.code), points: pts,
-      value: formatLap(median(inFrame.map(p => p[1]))),
+      value: formatLap(session === 'race' ? median(inFrame.map(p => p[1])) : Math.min(...inFrame.map(p => p[1]))),
     }
   })
   const inFrameTimes = series.flatMap(s => s.points.map(p => p[1])).filter(t => ceiling == null || t <= ceiling)

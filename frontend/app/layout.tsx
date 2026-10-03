@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
-import { PageTransition } from '@/components/brand/PageTransition'
 // import { RaceStartLoader } from '@/components/layout/RaceStartLoader'
 
 const barlowCondensed = Barlow_Condensed({
@@ -56,7 +55,6 @@ export default function RootLayout({
       >
         {/* <RaceStartLoader /> */}
         <AccessBootstrap />
-        <PageTransition />
         {children}
       </body>
     </html>
