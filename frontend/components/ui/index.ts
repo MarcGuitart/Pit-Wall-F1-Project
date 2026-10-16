@@ -5,7 +5,7 @@
 export { PwRoot } from './Root'
 export { Panel, Cells, Empty } from './Panel'
 export { Metric } from './Metric'
-export { Badge, StatusBadge, ConfidenceBadge, type Tone, type ModuleState, type Confidence } from './Badge'
+export { Badge, StatusBadge, ConfidenceBadge, toneClass, type Tone, type ModuleState, type Confidence } from './Badge'
 export { Banner } from './Banner'
 export { DataTable, Row, Cell, type Column } from './Table'
 export { Skeleton } from './Skeleton'

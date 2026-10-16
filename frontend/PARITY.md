@@ -13,8 +13,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 0 Inventario y línea base | hecho | 12582a5 |
 | 1 Sistema de diseño (components/ui/) | hecho | 6fb9788 |
 | 2 Shell y transiciones | hecho | 96c6d52, f18393d, e91c08e |
-| 3 Pantalla de carga | hecho | (estos commits) |
-| 4 Landing, selector, popover | pendiente | |
+| 3 Pantalla de carga | hecho | f9d3ca6, 5754fc9 |
+| 4 Landing, selector, popover | hecho | (estos commits) |
 | 5 Análisis módulo a módulo | pendiente | |
 | 6 Telemetría | pendiente | |
 | 7 Race Engineer | pendiente | |
@@ -143,6 +143,25 @@ quedan uno antes del último; sin ✓ de "hecho"); la barra sigue `0,94·(1−e^
 completa; el reloj es real; el copy no da cifras (antes: "8 strategic modules"); se quita la
 espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio de contrato).
 
+## Fase 4 — landing y selector
+
+- La landing adopta la vista de temporada del `/preview` (cuadrícula de Grandes Premios) además
+  del selector clásico ("Any session": cualquier sesión, `.ics`, prefetch de telemetría) y las
+  tarjetas destacadas. Las celdas "Live now / Next session" del /preview no se añaden (serían
+  feature nueva; el popover del TopBar cubre lo mismo).
+- Años: `seasonYears()` (año actual → 2023), ya derivados del año actual en main. La cuadrícula
+  abre la última temporada libre sin PRO y la actual con PRO.
+- Tarea 3 del 26b (vista de temporada 2026):
+  - Ronda en orden cronológico ascendente, sin pretemporada: **hecho** (Round 01 = Melbourne).
+  - "N grands prix" sin los tests: **hecho** (2026: 25 en vez de 27; 2024: 24).
+  - Nombre: OpenF1 da `meeting_name` "Bahrain Grand Prix" y `country_name` "Bahrain" para Kuala
+    Lumpur. La celda usa `location ?? circuit_short_name` (hoy "Kuala Lumpur") y ya no muestra
+    ni el país ni el nombre del GP. **Dependencia**: `/races` no expone `location`.
+  - "Cancelled" sin enlace y ronda sin canceladas: **bloqueado** — `/races` no expone
+    `is_cancelled`. El código ya lo respeta si llega (`seasonGrid`, test incluido); hoy Sakhir y
+    Jeddah 2026 siguen como rondas 04 y 05 con "Analyse →". No se toca el backend.
+- First Load JS de `/`: 157 kB → 119 kB (sin framer-motion en la landing).
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
@@ -150,7 +169,7 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
 | TopBar: logo, PRO badge, breadcrumb, Historical/Live, Docs, botón Engineer | layout/TopBar | layout/TopBar + shell.module.css | S todas; U TopBar.test (12, sin cambios); 390 px sin desbordar | verificado |
-| Popover "próxima sesión" (hover hoy) con Notify | layout/TopBar | | S landing-pro/live-popover; I clic/tap/teclado/Escape/fuera; U | pendiente |
+| Popover "próxima sesión" (hover hoy) con Notify | layout/TopBar | layout/TopBar + ui/Popover, con "Add to calendar" (.ics) y Notify | U TopBar.test (5 nuevos: clic no hover, Escape+foco, fuera, .ics, sin promesas); navegador: Enter y tap abren, Escape devuelve el foco, en 390 px el panel se recoloca dentro (x=8) | verificado |
 | Footer (aviso legal, Docs, atribución LinkedIn/CV en home) | layout/SiteFooter | layout/SiteFooter (mismo texto y enlaces) | S landing, todas | verificado |
 | AppShell (estructura, main) | layout/AppShell | layout/AppShell sobre `PwRoot` | S todas; scrollWidth 390 en /, /docs, /settings, /race (base: 492-530) | verificado |
 | Animación de apertura (coche) | brand/IntroAnimation + brand/CarSilhouette | app/template.tsx (transición de entrada) | grep cero refs en app/components/lib/hooks/stores/public/docs; U template.test (8) | descartado: eliminada por el brief; sustituta verificada |
@@ -163,12 +182,14 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Hero, stats, tres pasos | app/page | | S landing; T | pendiente |
-| Selector temporada / GP / sesión, Analyze | landing/RaceSelector + ui/PitWallSelect | | S; T; I selector | pendiente |
-| Botón .ics en sesiones futuras del selector | ui/AddToCalendarButton | | I descarga .ics; U ics | pendiente |
-| Tarjetas destacadas (chaos, telemetría, tags) | landing/RaceSelector | | S; T | pendiente |
-| Sección PRO informativa, con .ics de la próxima carrera | access/ProSection | | S landing / landing-pro; T | pendiente |
-| Fondo (degradado; "video" no carga vídeo) | landing/LandingVideoBackground | | S | pendiente |
+| Hero, stats, tres pasos | app/page | app/page (PageHeader, Cells, Metric) | S landing; T landing: mismos textos (solo faltan glifos decorativos ⬤ ○ ◯ ●) | verificado |
+| Selector temporada / GP / sesión, Analyze | landing/RaceSelector + ui/PitWallSelect | landing/RaceSelector ("Any session") + PitWallSelect restilado (misma lógica: teclado, búsqueda > 8, clic fuera) | S; T; I selector en fase 9 | verificado (S, T) |
+| Botón .ics en sesiones futuras del selector | ui/AddToCalendarButton | ui/AddToCalendarButton restilado (misma descarga, mismas etiquetas) | U ics + TopBar .ics; I descarga en fase 9 | verificado (U) |
+| Tarjetas destacadas (chaos, telemetría, tags) | landing/RaceSelector | landing/RaceSelector (Badges, tono por nivel de chaos) | S; T | verificado |
+| Sección PRO informativa, con .ics de la próxima carrera | access/ProSection | access/ProSection restilado (mismos textos, bahías, .ics, enlace a Settings) | S landing / landing-pro; T | verificado |
+| Fondo (degradado; "video" no carga vídeo) | landing/LandingVideoBackground | — | era un degradado decorativo sin contenido | descartado: el fondo del sistema nuevo es liso (componente sin uso, se queda en el repo) |
+
+| Cuadrícula de temporada (nueva en la landing: la vista de temporada del /preview) | — | landing/SeasonGrid + lib/seasonGrid | U seasonGrid (6); S landing / landing-pro | verificado |
 
 ### Página de análisis `/race/[k]`
 

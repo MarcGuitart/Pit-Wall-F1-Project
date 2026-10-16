@@ -4,12 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOpenRace } from '@/lib/raceNav'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
-import { chaosLevel, CHAOS_LEVEL_TEXT_CLASS } from '@/lib/chaos'
+import { chaosLevel, CHAOS_LEVEL_TONE } from '@/lib/chaos'
 import { DEMO_RACES } from '@/lib/constants'
 import { seasonYears } from '@/lib/seasons'
 import { ACCESS_CHANGED_EVENT, hasToken, isProSeason } from '@/lib/access'
 import { PitWallSelect } from '@/components/ui/PitWallSelect'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
+import { Badge, Banner, buttonClass, toneClass, ui, type Tone } from '@/components/ui'
+import l from './landing.module.css'
 import type { RaceListItem, SessionInfo } from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -17,15 +19,15 @@ const TELEMETRY_PREFETCH_SESSIONS = new Set([9197, 9539, 9566, 9636, 9662])
 
 const CHAOS_LEVEL = (score: number) => {
   const level = chaosLevel(score)
-  return { label: `${level} Chaos`, color: CHAOS_LEVEL_TEXT_CLASS[level] }
+  return { label: `${level} Chaos`, tone: CHAOS_LEVEL_TONE[level] as Tone }
 }
 
 const TELEMETRY_SESSIONS = new Set([9197, 9539, 9566, 9636, 9662])
 
-const FEATURED_TAGS: Record<number, { tag: string; tagColor: string; reason: string }> = {
-  9636: { tag: 'CHAOS 73', tagColor: 'text-signal-red border-signal-red/40 bg-signal-red/10', reason: '3 safety cars · rain · VSC championship moment' },
-  9539: { tag: 'UNDERCUT', tagColor: 'text-signal-purple border-signal-purple/40 bg-signal-purple/10', reason: 'Clean strategic race · pit window showcase' },
-  9566: { tag: 'DEGRADATION', tagColor: 'text-signal-amber border-signal-amber/40 bg-signal-amber/10', reason: 'High tyre cliff · degradation-driven outcome' },
+const FEATURED_TAGS: Record<number, { tag: string; tone: Tone; reason: string }> = {
+  9636: { tag: 'CHAOS 73', tone: 'accent', reason: '3 safety cars · rain · VSC championship moment' },
+  9539: { tag: 'UNDERCUT', tone: 'purple', reason: 'Clean strategic race · pit window showcase' },
+  9566: { tag: 'DEGRADATION', tone: 'warn', reason: 'High tyre cliff · degradation-driven outcome' },
 }
 
 const SESSION_TYPE_ORDER = ['Race', 'Sprint', 'Qualifying', 'Practice 3', 'Practice 2', 'Practice 1']
@@ -159,23 +161,19 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
   ]
 
   return (
-    <div className="w-full">
+    <div>
+      {backendError && <Banner tone="warn">{backendError}</Banner>}
+
       {/* Selector bar */}
-      <div className="bg-bg-panel border border-border-subtle rounded-[4px] p-4 mb-8">
-        {backendError && (
-          <div className="mb-3 px-3 py-2 bg-signal-amber/10 border border-signal-amber/30 rounded-[3px] flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-signal-amber" />
-            <span className="font-mono text-[10px] text-signal-amber">{backendError}</span>
-          </div>
-        )}
-        <div className="flex items-end gap-3 flex-wrap">
+      <div className={l.selector}>
+        <div className={l.selectorRow}>
           {/* Season */}
           <PitWallSelect
             label="Season"
             value={String(year)}
             options={yearOptions(pro)}
             onChange={(v) => setYear(Number(v))}
-            width="90px"
+            width="120px"
           />
 
           {/* Grand Prix — search enabled when options > 8 */}
@@ -185,26 +183,26 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
             options={raceOptions}
             onChange={(v) => setSelectedMeetingKey(v ? Number(v) : null)}
             disabled={loadingRaces || races.length === 0}
-            width="280px"
+            width="min(340px, 100%)"
           />
 
           {/* Session pills */}
-          <div className="flex flex-col gap-1">
-            <label className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+          <div className={l.sessions} role="group" aria-labelledby="session-label">
+            <span id="session-label" className={ui.label} style={{ fontWeight: 600 }}>
               Session
-              {loadingSessions && (
-                <span className="ml-2 font-normal normal-case tracking-normal text-text-muted">loading…</span>
-              )}
-            </label>
-            <div className="flex items-center gap-1.5 flex-wrap">
+              {loadingSessions && <span style={{ marginLeft: 8, textTransform: 'none', letterSpacing: 0 }}>loading…</span>}
+            </span>
+            <div className={l.pills}>
               {sessions.length > 0 ? (
                 sessions.map((s) => {
                   const isSelected = selectedSessionKey === s.session_key
                   const isFuture = Boolean(s.date_start && new Date(s.date_start).getTime() > Date.now())
                   const selectedMeeting = races.find((r) => r.meeting_key === selectedMeetingKey)
                   return (
-                    <span key={s.session_key} className="inline-flex items-center gap-1">
+                    <span key={s.session_key} className={l.pill}>
                       <button
+                        type="button"
+                        aria-pressed={isSelected}
                         onClick={() => setSelectedSessionKey(s.session_key)}
                         onMouseEnter={() => {
                           if (
@@ -220,12 +218,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                             })
                           }
                         }}
-                        className={[
-                          'bg-bg-elevated border rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] transition-all whitespace-nowrap outline-none',
-                          isSelected
-                            ? 'border-signal-red text-signal-red'
-                            : 'border-border-default text-text-secondary hover:border-border-default/80 hover:text-text-primary',
-                        ].join(' ')}
+                        className={`${buttonClass()} ${isSelected ? l.pillOn : ''}`}
                       >
                         {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
                       </button>
@@ -249,27 +242,23 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                 })
               ) : selectedMeetingKey && !loadingSessions ? (
                 ['Race', 'Qualifying', 'FP3', 'FP2', 'FP1'].map((label) => (
-                  <span
-                    key={label}
-                    className="bg-bg-elevated border border-border-default rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] text-text-muted whitespace-nowrap opacity-50"
-                  >
+                  <span key={label} className={buttonClass()} style={{ opacity: 0.4, cursor: 'default' }} aria-hidden="true">
                     {label}
                   </span>
                 ))
               ) : (
-                <span className="font-mono text-[10px] text-text-muted opacity-50">
-                  {selectedMeetingKey ? '' : 'Select a race first'}
-                </span>
+                <span className={l.hint}>{selectedMeetingKey ? '' : 'Select a race first'}</span>
               )}
             </div>
           </div>
 
           {/* Analyze button */}
           <button
+            type="button"
             onClick={handleAnalyze}
             disabled={!canAnalyze}
             aria-disabled={!canAnalyze}
-            className="bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed border border-signal-red rounded-[3px] px-[10px] py-[6px] font-display font-semibold text-[11px] uppercase tracking-[0.5px] text-white transition-all whitespace-nowrap self-end"
+            className={buttonClass('primary', true)}
           >
             Analyze Race →
           </button>
@@ -277,83 +266,51 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
       </div>
 
       {/* Featured races */}
-      <div className="mb-4">
-        <h2 className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-text-secondary mb-3">
-          Featured Races
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {DEMO_RACES.map((race) => {
-            const chaosInfo = CHAOS_LEVEL(race.chaos_score)
-            const featured = FEATURED_TAGS[race.session_key]
-            const hasTelemetry = TELEMETRY_SESSIONS.has(race.session_key)
-            return (
-              <button
-                key={race.session_key}
-                onClick={() => openRace(race.session_key)}
-                className="bg-bg-panel border border-border-subtle rounded-[4px] p-4 text-left hover:border-border-default hover:bg-bg-elevated transition-all group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary group-hover:text-white transition-colors">
-                        {race.meeting_name}
-                      </div>
-                      {featured && (
-                        <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] shrink-0 ${featured.tagColor}`}>
-                          {featured.tag}
-                        </span>
-                      )}
-                      {hasTelemetry && (
-                        <span className="px-1.5 py-0.5 border border-signal-blue/40 bg-signal-blue/10 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] text-signal-blue shrink-0">
-                          ◈ Telemetry
-                        </span>
-                      )}
-                    </div>
-                    <div className="font-mono text-[10px] text-text-secondary">
-                      {race.circuit_short_name} · {race.year}
-                    </div>
-                    {featured && (
-                      <div className="font-mono text-[9px] text-text-muted mt-0.5">
-                        {featured.reason}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right ml-3 shrink-0">
-                    <div className={`font-mono font-bold text-[20px] leading-none ${chaosInfo.color}`}>
-                      {race.chaos_score}
-                    </div>
-                    <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted mt-0.5">
-                      Chaos
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between">
-                  <span className={`font-display font-bold text-[9px] uppercase tracking-[1px] ${chaosInfo.color}`}>
-                    {chaosInfo.label}
-                  </span>
-                  <span className="font-mono text-[10px] text-text-muted group-hover:text-signal-blue transition-colors">
-                    Analyze →
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-        <p className="mt-3 font-mono text-[9px] text-text-muted">
-          Circuit telemetry replay available for{' '}
-          <span className="text-signal-blue">◈ highlighted</span> races.{' '}
-          For other sessions, follow the{' '}
-          <a
-            href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-signal-blue hover:underline"
-          >
-            local setup guide →
-          </a>
-        </p>
+      <div className={`${ui.secHead} ${ui.secHeadWide}`} style={{ borderTop: '2px solid var(--pw-divider)' }}>
+        <h3 className={ui.h6}>Featured Races</h3>
       </div>
+      <div className={l.featured}>
+        {DEMO_RACES.map((race) => {
+          const chaosInfo = CHAOS_LEVEL(race.chaos_score)
+          const featured = FEATURED_TAGS[race.session_key]
+          const hasTelemetry = TELEMETRY_SESSIONS.has(race.session_key)
+          return (
+            <button key={race.session_key} type="button" onClick={() => openRace(race.session_key)} className={l.card}>
+              <div className={l.cardTop}>
+                <div style={{ minWidth: 0 }}>
+                  <div className={l.cardName}>{race.meeting_name}</div>
+                  <div className={ui.sub}>{race.circuit_short_name} · {race.year}</div>
+                  {featured && <div className={ui.sub}>{featured.reason}</div>}
+                  <div className={l.tags}>
+                    {featured && <Badge tone={featured.tone}>{featured.tag}</Badge>}
+                    {hasTelemetry && <Badge tone="info">◈ Telemetry</Badge>}
+                  </div>
+                </div>
+                <div>
+                  <div className={`${l.chaosNum} ${toneClass(chaosInfo.tone)}`}>{race.chaos_score}</div>
+                  <div className={ui.label} style={{ textAlign: 'right' }}>Chaos</div>
+                </div>
+              </div>
+              <div className={l.cardFoot}>
+                <Badge tone={chaosInfo.tone}>{chaosInfo.label}</Badge>
+                <span style={{ fontWeight: 800 }}>Analyze →</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <p className={l.gridNote} style={{ margin: 0 }}>
+        Circuit telemetry replay available for <span style={{ color: 'var(--pw-blue)', fontWeight: 700 }}>◈ highlighted</span> races.{' '}
+        For other sessions, follow the{' '}
+        <a
+          href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--pw-text)', fontWeight: 700 }}
+        >
+          local setup guide →
+        </a>
+      </p>
     </div>
   )
 }

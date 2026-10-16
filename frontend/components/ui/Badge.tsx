@@ -8,6 +8,11 @@ const TONE: Record<Tone, string> = {
   warn: s.toneWarn, info: s.toneInfo, purple: s.tonePurple,
 }
 
+/** The text colour of a tone, for a number or label that is not a badge. */
+export function toneClass(tone: Tone): string {
+  return TONE[tone]
+}
+
 /** A short uppercase tag. Outline by default; solid for the one thing that must stand out. */
 export function Badge({ tone = 'neutral', solid, dashed, title, children, className = '' }: {
   tone?: Tone

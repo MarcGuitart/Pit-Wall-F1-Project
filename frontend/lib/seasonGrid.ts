@@ -1,0 +1,47 @@
+import type { RaceListItem } from '@/types'
+
+/**
+ * A season as a grid of Grands Prix, for the selector.
+ *
+ * /races answers newest first and includes the pre-season tests. Taking the
+ * round from the index of that list made Abu Dhabi "Round 01" and a test
+ * "Round 27", and counted the tests as Grands Prix. Rounds here are
+ * chronological, ascending, and tests are not rounds.
+ *
+ * Two things this cannot do yet, both because /races does not carry the data
+ * (a backend dependency, PARITY.md):
+ *   - cancelled meetings (2026: Sakhir, Jeddah) are not marked, so they still
+ *     count as rounds and still open;
+ *   - `location` is not exposed. The place name falls back to the circuit,
+ *     because OpenF1's meeting_name and country_name are wrong for at least
+ *     one meeting (2026 Kuala Lumpur reads "Bahrain Grand Prix", "Bahrain").
+ */
+export type GridRace = RaceListItem & { location?: string | null; is_cancelled?: boolean | null }
+
+export type SeasonCell = {
+  race: GridRace
+  /** 1-based, chronological; null for anything that is not a round. */
+  round: number | null
+  place: string
+  cancelled: boolean
+}
+
+export function isPreSeasonTest(r: Pick<RaceListItem, 'meeting_name'>): boolean {
+  return /pre-?season|testing/i.test(r.meeting_name)
+}
+
+export function placeName(r: GridRace): string {
+  return r.location?.trim() || r.circuit_short_name?.trim() || r.meeting_name.replace(/ Grand Prix$/, '')
+}
+
+/** Grands Prix in calendar order with their rounds; tests dropped. */
+export function seasonGrid(races: GridRace[]): SeasonCell[] {
+  const gps = races
+    .filter((r) => !isPreSeasonTest(r))
+    .sort((a, b) => (a.date_start ?? '').localeCompare(b.date_start ?? ''))
+  let round = 0
+  return gps.map((race) => {
+    const cancelled = race.is_cancelled === true
+    return { race, round: cancelled ? null : ++round, place: placeName(race), cancelled }
+  })
+}

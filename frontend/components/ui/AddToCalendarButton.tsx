@@ -5,6 +5,7 @@
  * No external service — RFC 5545 built entirely client-side (lib/ics.ts).
  */
 import { buildSessionIcs, downloadIcs, icsFilename, type IcsEventInput } from '@/lib/ics'
+import ui from './ui.module.css'
 
 type AddToCalendarButtonProps = {
   event: IcsEventInput
@@ -27,10 +28,10 @@ export function AddToCalendarButton({ event, compact = false, className = '' }: 
         onClick={handleClick}
         title={`Add "${event.summary}" to your calendar`}
         aria-label={`Add ${event.summary} to calendar`}
-        className={`inline-flex items-center justify-center w-4 h-4 rounded-[2px] border border-border-default
-                    text-text-muted hover:text-signal-blue hover:border-signal-blue transition-colors ${className}`}
+        className={`${ui.btn} ${className}`}
+        style={{ padding: '0 7px', minHeight: 32 }}
       >
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
@@ -46,11 +47,9 @@ export function AddToCalendarButton({ event, compact = false, className = '' }: 
     <button
       type="button"
       onClick={handleClick}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] border border-border-default
-                  text-text-muted hover:text-signal-blue hover:border-signal-blue transition-colors
-                  font-mono text-[9px] uppercase tracking-[0.5px] ${className}`}
+      className={`${ui.btn} ${className}`}
     >
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="3" y="4" width="18" height="18" rx="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
