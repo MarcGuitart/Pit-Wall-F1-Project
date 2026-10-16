@@ -12,8 +12,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 |---|---|---|
 | 0 Inventario y línea base | hecho | 12582a5 |
 | 1 Sistema de diseño (components/ui/) | hecho | 6fb9788 |
-| 2 Shell y transiciones | hecho | 96c6d52, f18393d, (este commit) |
-| 3 Pantalla de carga | pendiente | |
+| 2 Shell y transiciones | hecho | 96c6d52, f18393d, e91c08e |
+| 3 Pantalla de carga | hecho | (estos commits) |
 | 4 Landing, selector, popover | pendiente | |
 | 5 Análisis módulo a módulo | pendiente | |
 | 6 Telemetría | pendiente | |
@@ -116,6 +116,33 @@ tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 - Suite: 108 tests (99 − 11 + 12 ui + 8 transición). El shell monta `next/font`: vitest usa un stub
   (`test/next-font-stub.ts`).
 
+## Fase 3 — diagnóstico de la pantalla de carga (navegador real, `scripts/parity/diagnose_loading.mjs`)
+
+Muestreo cada 100 ms de `/race/9636` contra fixtures, sobre el build de main (:3100) y el nuevo (:3000).
+
+| Caso | main (antes) | nuevo |
+|---|---|---|
+| (b) caché caliente, 150 ms | loader a ~120 ms, análisis a 722 ms: **parpadeo** (+400 ms de espera artificial tras la respuesta) | solo el shell (margen de 300 ms), análisis a 368-513 ms, sin loader |
+| (a) caché fría, 7,5 s | loader → análisis a 8,07 s | margen → loader a ~470 ms → análisis a 7,7 s |
+| (c) backend dormido, 30 s | loader 30 s; los pasos "acaban" a ~11 s y se quedan ahí 19 s | loader → "Waking up the analysis server…" a 8,2 s → análisis a 30,4 s |
+| respuesta a 60 s | loader indefinido | "Waking…" a 8 s → error "No answer from the analysis server" con Retry a 45,5 s (petición abortada) |
+| (d) 402 / 425 | ProWall / "Session still in live window" a ~120-150 ms | igual |
+| **clic en una tarjeta de la landing, servidor de Next lento (3 s)** | **3 s con la landing en pantalla y ningún cambio**; luego el loader | margen de 300 ms → loader en `/` a +300 ms → llega la ruta y el mismo loader sigue (reloj 00:03) |
+
+**Causa de "no aparece nada"**: no estaba en el loader de `/analysis` (ése aparece a ~120 ms en
+carga directa), sino **antes**: `/race/[sessionKey]` es una ruta dinámica (ƒ); en una navegación
+cliente Next espera la respuesta RSC del servidor (en Netlify, una función que puede estar fría)
+antes de pintar nada, y la ruta no tenía `loading.tsx` ni estado pendiente. Durante ese tiempo la
+página anterior seguía en pantalla sin ninguna señal de que el clic hubiera hecho algo. Un
+`loading.tsx` solo no lo arregla (medido: sin prefetch, Next también espera al servidor para el
+boundary); se añade, y además el clic marca la navegación pendiente (`lib/raceNav.ts`) y el shell
+muestra el loader al instante con el mismo reloj (`lib/loadPhase.ts`).
+
+Otros cambios: los pasos son decorativos y así consta en el código (avanzan por tiempo y se
+quedan uno antes del último; sin ✓ de "hecho"); la barra sigue `0,94·(1−e^(−t/10))` y nunca
+completa; el reloj es real; el copy no da cifras (antes: "8 strategic modules"); se quita la
+espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio de contrato).
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
@@ -180,7 +207,7 @@ tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 | Tarjeta de piloto con radios | analysis/DriverCard | | T driver-card:* (todos los pilotos); I radios | pendiente |
 | ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | | S race-9636-modules-failed / -not_applicable | pendiente |
 | Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | | T aria; T expand methodology | pendiente |
-| Pantalla de carga | analysis/AnalysisLoadingScreen | | S race-loading (1,5 s y 10 s); U fake timers | pendiente |
+| Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
 | SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | | S race-425, -425-no-unlock, -404, -429, -503 | pendiente |
 | Error genérico (500) y offline | app/race/[k]/page (inline) | | S race-500, race-offline | pendiente |
 | ProWall (402) | access/ProWall | | S race-402; I canje | pendiente |

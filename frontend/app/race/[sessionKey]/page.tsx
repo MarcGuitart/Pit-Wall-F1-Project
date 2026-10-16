@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useRaceStore } from '@/stores/raceStore'
 import { useRaceAnalysis } from '@/hooks/useRaceAnalysis'
 import { AppShell } from '@/components/layout/AppShell'
 import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
@@ -16,7 +15,6 @@ export default function RacePage() {
   const router = useRouter()
   const sessionKey = Number(params.sessionKey)
 
-  const { loadingStep } = useRaceStore()
   const { loading, data: analysis, error, retry } = useRaceAnalysis(
     isNaN(sessionKey) ? null : sessionKey,
   )
@@ -84,13 +82,13 @@ export default function RacePage() {
       )
     }
 
-    // ANALYSIS_FAILED or UNKNOWN — show generic error with retry
+    // ANALYSIS_FAILED, ANALYSIS_TIMEOUT (aborted at 45 s) or UNKNOWN — generic error with retry
     return (
       <AppShell>
         <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
           <div className="bg-bg-panel border border-signal-red/30 rounded-[4px] p-8 max-w-lg w-full">
             <div className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red mb-2">
-              Analysis Failed
+              {error.code === 'ANALYSIS_TIMEOUT' ? 'No answer from the analysis server' : 'Analysis Failed'}
             </div>
             <p className="font-mono text-[13px] text-text-secondary mb-4 leading-relaxed">
               {error.message}
@@ -118,11 +116,7 @@ export default function RacePage() {
   if (loading || !analysis) {
     return (
       <AppShell>
-        <AnalysisLoadingScreen
-          raceName={raceName}
-          sessionKey={sessionKey}
-          currentStep={loadingStep}
-        />
+        <AnalysisLoadingScreen raceName={raceName} sessionKey={sessionKey} />
       </AppShell>
     )
   }

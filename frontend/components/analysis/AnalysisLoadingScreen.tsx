@@ -1,121 +1,81 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { LOADING_STEPS } from '@/lib/constants'
+import { loadStartedAt, progressAt, useLoadPhase } from '@/lib/loadPhase'
+import { Panel, ui } from '@/components/ui'
+import s from './loading.module.css'
 
 type Props = {
-  raceName: string
+  raceName?: string
+  /** Shares the load clock with the route's loading.tsx (lib/loadPhase.ts). */
   sessionKey?: number
+  /** @deprecated progress is time-based now; ignored. */
   currentStep?: number
 }
 
-export function AnalysisLoadingScreen({ raceName, currentStep }: Props) {
-  // If currentStep is controlled externally (real API), use it; otherwise self-pace
-  const [internalStep, setInternalStep] = useState(0)
-  const [elapsed, setElapsed] = useState(0)
-  const [startTime] = useState(() => Date.now())
+const STEP_MS = 1400
 
-  const activeStep = currentStep ?? internalStep
+/**
+ * The wait for /analysis.
+ *
+ * /analysis is a single request with no progress events — the server answers
+ * with the whole analysis or not at all. So nothing here is a progress
+ * report:
+ *   - the steps are DECORATIVE: the kinds of work the server does, advanced
+ *     by elapsed time and capped one short of the last, so the list can never
+ *     claim to be finished before the answer is in;
+ *   - the bar follows progressAt(), which never reaches the end;
+ *   - the clock is the real elapsed time;
+ *   - no copy states a number the page cannot know (no "found N laps").
+ * Under 300 ms nothing is shown (a cache hit would only flash); after 8 s it
+ * says the server is probably waking; at 45 s useRaceAnalysis aborts and the
+ * page shows the error with a retry.
+ */
+export function AnalysisLoadingScreen({ raceName, sessionKey }: Props) {
+  const [fallbackStart] = useState(() => Date.now())
+  const startedAt = sessionKey != null ? loadStartedAt(sessionKey) : fallbackStart
+  const { phase, elapsedMs } = useLoadPhase(startedAt, 250)
 
-  useEffect(() => {
-    if (currentStep !== undefined) return // controlled externally
-    const id = setInterval(() => {
-      setInternalStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1))
-    }, 1400)
-    return () => clearInterval(id)
-  }, [currentStep])
+  // Reserve the space so the footer does not jump when the loader or the page appears.
+  if (phase === 'hidden') return <div className={s.reserve} aria-busy="true" />
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [startTime])
-
-  const progress = Math.round(((activeStep + 1) / LOADING_STEPS.length) * 100)
+  const waking = phase !== 'loading'
+  const step = Math.min(Math.floor(elapsedMs / STEP_MS), LOADING_STEPS.length - 2)
+  const pct = Math.round(progressAt(elapsedMs) * 100)
+  const secs = Math.floor(elapsedMs / 1000)
 
   return (
-    <div className="min-h-[calc(100vh-48px)] bg-bg-primary flex items-center justify-center relative overflow-hidden">
-      {/* Grid background */}
-      <div
-        className="absolute inset-0 bg-grid-pattern bg-grid opacity-30 pointer-events-none"
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10 w-full max-w-lg px-6">
-        {/* Race badge */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center gap-3 px-4 py-2 bg-bg-panel border border-border-subtle rounded-[4px]">
-            <div className="w-2 h-2 rounded-full bg-signal-blue animate-pulse" />
-            <span className="font-display font-bold text-[11px] uppercase tracking-[1px] text-text-primary">
-              {raceName}
-            </span>
+    <div className={s.reserve} aria-busy="true">
+      <div className={s.wrap}>
+        <Panel
+          boxed
+          title={raceName && raceName !== 'Loading…' ? raceName : 'Race analysis'}
+          aside={<span className={s.clock} aria-label={`Elapsed ${secs} seconds`}>{String(Math.floor(secs / 60)).padStart(2, '0')}:{String(secs % 60).padStart(2, '0')}</span>}
+          foot="Computed on the analysis server from OpenF1 timing data, in one request: the whole report arrives at once."
+        >
+          <div role="status" aria-live="polite">
+            <div className={s.kicker}><span className={ui.square} aria-hidden="true" />{waking ? 'Waking up the analysis server…' : 'Building the race report'}</div>
+            {waking && (
+              <p className={s.note}>
+                The analysis server sleeps when nobody has used it for a while. The first request
+                wakes it, which can take about half a minute.
+              </p>
+            )}
           </div>
-        </div>
 
-        {/* Title */}
-        <h2 className="font-display font-black text-[32px] uppercase tracking-[-0.5px] text-center text-text-primary mb-2">
-          Building Race Report
-        </h2>
-        <p className="text-center font-mono text-[11px] text-text-muted mb-8">
-          Fetching and computing 8 strategic modules
-        </p>
+          <div className={ui.bar} role="progressbar" aria-label="Time waited" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+            <span style={{ width: `${pct}%`, background: 'var(--pw-accent)' }} />
+          </div>
 
-        {/* Progress bar */}
-        <div className="h-[2px] bg-bg-panel border border-border-subtle rounded-full mb-8 overflow-hidden">
-          <div
-            className="h-full bg-signal-green transition-all duration-700 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Steps */}
-        <div className="space-y-2.5 mb-8">
-          {LOADING_STEPS.map((step, i) => {
-            const done = i < activeStep
-            const active = i === activeStep
-            const pending = i > activeStep
-
-            return (
-              <div key={i} className="flex items-center gap-3">
-                {/* Status indicator */}
-                <div className="shrink-0 w-4 flex justify-center">
-                  {done && <div className="w-2 h-2 rounded-full bg-signal-green" />}
-                  {active && <div className="w-2 h-2 rounded-full bg-signal-blue animate-pulse" />}
-                  {pending && <div className="w-2 h-2 rounded-full bg-bg-elevated border border-border-default" />}
-                </div>
-
-                <span
-                  className={`font-mono text-[11px] transition-all duration-300 ${
-                    done ? 'text-signal-green' : active ? 'text-text-primary' : 'text-text-muted'
-                  }`}
-                >
-                  {step}
-                </span>
-
-                {done && (
-                  <span className="ml-auto font-mono text-[10px] text-signal-green">✓</span>
-                )}
-                {active && (
-                  <span className="ml-auto font-mono text-[10px] text-signal-blue animate-pulse">
-                    …
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Elapsed timer */}
-        <div className="flex items-center justify-between px-3 py-2 bg-bg-panel border border-border-subtle rounded-[3px]">
-          <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-            Elapsed
-          </span>
-          <span className="font-mono text-[13px] text-text-secondary tabular-nums">
-            {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
-            {String(elapsed % 60).padStart(2, '0')}
-          </span>
-        </div>
+          <ol className={s.steps}>
+            {LOADING_STEPS.map((label, i) => (
+              <li key={label} className={i === step ? s.on : i < step ? s.past : ''} aria-current={i === step ? 'step' : undefined}>
+                <span className={s.mark} aria-hidden="true" />{label}
+              </li>
+            ))}
+          </ol>
+        </Panel>
       </div>
     </div>
   )

@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import type { FullRaceAnalysis } from '@/types'
 import type { AnalysisError } from '@/lib/errors'
 import { fetchAnalysis } from '@/lib/api'
 import { parseAnalysisError } from '@/lib/errors'
 import { useRaceStore } from '@/stores/raceStore'
-import { LOADING_STEPS } from '@/lib/constants'
-
-const STEP_INTERVAL_MS = 1400
+import { TIMEOUT_AFTER_MS, loadStartedAt, resetLoadClock } from '@/lib/loadPhase'
 
 type UseRaceAnalysisState = {
   loading: boolean
@@ -20,34 +18,32 @@ type UseRaceAnalysisState = {
 // Module-level in-flight set — survives React Strict Mode double-mount
 const inFlight = new Set<number>()
 
+export const TIMEOUT_ERROR: AnalysisError = {
+  code: 'ANALYSIS_TIMEOUT',
+  message:
+    'The analysis server did not answer within 45 seconds. It may still be waking up — try again.',
+}
+
+/**
+ * One GET /analysis/{key}. There is no progress to report: the loader on the
+ * page shows elapsed time only (lib/loadPhase.ts). The request is aborted
+ * after TIMEOUT_AFTER_MS, counted from when this session's load started
+ * (which may be the route's loading.tsx, before this hook mounted), and the
+ * page offers a retry. Unmounting does not abort: the answer still lands in
+ * the store for when the reader comes back.
+ */
 export function useRaceAnalysis(sessionKey: number | null): UseRaceAnalysisState {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<AnalysisError | null>(null)
-  const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const {
     analysis,
     setAnalysis,
     clearAnalysis,
     setIsLoading,
-    setLoadingStep,
     setCurrentSessionKey,
     setError: setStoreError,
   } = useRaceStore()
-
-  const stopStepTimer = useCallback(() => {
-    if (stepTimerRef.current) {
-      clearInterval(stepTimerRef.current)
-      stepTimerRef.current = null
-    }
-  }, [])
-
-  const startStepTimer = useCallback(() => {
-    setLoadingStep(0)
-    stepTimerRef.current = setInterval(() => {
-      setLoadingStep((prev: number) => Math.min(prev + 1, LOADING_STEPS.length - 1))
-    }, STEP_INTERVAL_MS)
-  }, [setLoadingStep])
 
   const doFetch = useCallback(
     async (key: number) => {
@@ -59,36 +55,30 @@ export function useRaceAnalysis(sessionKey: number | null): UseRaceAnalysisState
       setError(null)
       setStoreError(null)
       setCurrentSessionKey(key)
-      startStepTimer()
+
+      const controller = new AbortController()
+      const left = Math.max(0, loadStartedAt(key) + TIMEOUT_AFTER_MS - Date.now())
+      let timedOut = false
+      const timer = setTimeout(() => { timedOut = true; controller.abort() }, left)
 
       try {
-        const data = await fetchAnalysis(key)
-        stopStepTimer()
-        setLoadingStep(LOADING_STEPS.length - 1)
-        await new Promise((r) => setTimeout(r, 400))
+        const data = await fetchAnalysis(key, controller.signal)
         setAnalysis(data)
         setError(null)
         setStoreError(null)
       } catch (err) {
-        stopStepTimer()
-        const analysisError = parseAnalysisError(err)
+        const analysisError = timedOut ? TIMEOUT_ERROR : parseAnalysisError(err)
         setError(analysisError)
         setStoreError(analysisError.message)
       } finally {
+        clearTimeout(timer)
+        resetLoadClock(key)
         setLoading(false)
         setIsLoading(false)
         inFlight.delete(key)
       }
     },
-    [
-      setAnalysis,
-      setCurrentSessionKey,
-      setIsLoading,
-      setLoadingStep,
-      setStoreError,
-      startStepTimer,
-      stopStepTimer,
-    ],
+    [setAnalysis, setCurrentSessionKey, setIsLoading, setStoreError],
   )
 
   const retry = useCallback(() => {
@@ -96,6 +86,7 @@ export function useRaceAnalysis(sessionKey: number | null): UseRaceAnalysisState
     clearAnalysis()
     setError(null)
     setStoreError(null)
+    resetLoadClock(sessionKey)
     doFetch(sessionKey)
   }, [sessionKey, clearAnalysis, setStoreError, doFetch])
 
@@ -106,10 +97,6 @@ export function useRaceAnalysis(sessionKey: number | null): UseRaceAnalysisState
     if (analysis?.race.session_key === sessionKey) return
 
     doFetch(sessionKey)
-
-    return () => {
-      stopStepTimer()
-    }
   }, [sessionKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

@@ -206,8 +206,8 @@ export async function fetchSessions(
   return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
 }
 
-export async function fetchAnalysis(sessionKey: number): Promise<FullRaceAnalysis> {
-  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`)
+export async function fetchAnalysis(sessionKey: number, signal?: AbortSignal): Promise<FullRaceAnalysis> {
+  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`, signal ? { signal } : undefined)
 }
 
 export type LapChartsPayload = {

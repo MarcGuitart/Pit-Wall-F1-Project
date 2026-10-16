@@ -12,6 +12,8 @@ export type ErrorCode =
   | 'OPENF1_RATE_LIMIT'
   | 'ANALYSIS_FAILED'
   | 'OPENF1_ERROR'
+  /** Frontend-only: /analysis did not answer within TIMEOUT_AFTER_MS and was aborted. */
+  | 'ANALYSIS_TIMEOUT'
   | 'UNKNOWN'
 
 export type AnalysisError = {
