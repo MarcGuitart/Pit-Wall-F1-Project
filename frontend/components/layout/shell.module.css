@@ -1,0 +1,93 @@
+/* The app shell in the live page's design: the preview nav (components/preview)
+   promoted to the real top bar, and live's footer. Tokens from components/ui. */
+
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.main { flex: 1; min-width: 0; overflow-x: clip; }
+
+/* ── top bar ── */
+.bar {
+  position: sticky; top: 0; z-index: 50; background: var(--pw-bg);
+  border-bottom: 2px solid var(--pw-divider);
+  display: flex; align-items: stretch; flex-wrap: wrap; column-gap: 24px;
+  padding: 0 var(--pw-gutter); min-height: 56px;
+}
+.brand {
+  display: flex; align-items: center; font-weight: 800; font-size: 16px; letter-spacing: 0.04em;
+  color: var(--pw-text); text-decoration: none; white-space: nowrap; min-height: 56px;
+}
+.brand span { color: var(--pw-accent-text); margin-left: 6px; }
+
+.crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; font-size: 13px; color: var(--pw-muted); }
+.crumbs ol { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.crumbs li { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
+.crumbs li + li::before { content: '/'; color: var(--pw-divider); font-weight: 800; }
+.crumbs a { color: var(--pw-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--pw-text); }
+.crumbs [aria-current] { color: var(--pw-text); font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
+
+.right { margin-left: auto; display: flex; align-items: stretch; gap: 20px; }
+.navLink {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--pw-muted);
+  text-decoration: none; border-bottom: 4px solid transparent; margin-bottom: -2px; white-space: nowrap;
+  background: transparent; border-top: 0; border-left: 0; border-right: 0; font-family: inherit; padding: 0; cursor: pointer;
+}
+.navLink:hover { color: var(--pw-text); }
+.navOn { color: var(--pw-text); font-weight: 800; border-bottom-color: var(--pw-accent); cursor: default; }
+.navOff { opacity: 0.6; }
+.liveOn { color: var(--pw-text); font-weight: 800; }
+.liveDot { width: 8px; height: 8px; background: var(--pw-accent); display: inline-block; animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .liveDot { animation: none; } }
+.pro { font-size: 10px; letter-spacing: 0.08em; background: var(--pw-text); color: var(--pw-bg); padding: 2px 6px; font-weight: 800; }
+.proActive {
+  display: inline-flex; align-items: center; gap: 6px; align-self: center; text-decoration: none;
+  font-size: 10px; letter-spacing: 0.08em; font-weight: 800; padding: 3px 7px; background: var(--pw-accent); color: #fff;
+}
+.tipWrap { position: relative; display: flex; align-items: stretch; }
+.tip {
+  position: absolute; top: 100%; right: 0; z-index: 60; width: 260px; margin-top: 2px;
+  background: var(--pw-bg); border: 2px solid var(--pw-text); padding: 12px 14px; font-size: 12px; line-height: 1.5;
+  box-shadow: 6px 6px 0 color-mix(in srgb, var(--pw-text) 18%, transparent);
+}
+.tipTitle { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+.tipBody { color: var(--pw-muted); }
+.tipFoot { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--pw-divider); display: grid; gap: 8px; }
+
+.engineer {
+  align-self: center; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 10px; min-height: 36px;
+  background: transparent; color: var(--pw-text); border: 2px solid var(--pw-text); cursor: pointer; white-space: nowrap;
+}
+.engineer:hover:not(:disabled) { background: var(--pw-text); color: var(--pw-bg); }
+.engineer:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--pw-divider); }
+.wave { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.wave span { width: 2px; background: var(--pw-green); transition: height 280ms; }
+.engineer:disabled .wave span { background: var(--pw-divider); }
+@media (prefers-reduced-motion: reduce) { .wave span { transition: none; } }
+
+/* Narrow: two rows — brand and the engineer, then the mode, docs and crumbs. */
+@media (max-width: 860px) {
+  .bar { row-gap: 0; }
+  .crumbs { order: 3; flex-basis: 100%; min-height: 36px; border-top: 1px solid var(--pw-divider); }
+  .right { gap: 14px; }
+}
+@media (max-width: 520px) {
+  .right { order: 2; flex-basis: 100%; justify-content: space-between; border-top: 1px solid var(--pw-divider); min-height: 48px; margin-left: 0; }
+  .brand { font-size: 15px; }
+}
+
+/* ── footer ── */
+.footer {
+  border-top: 2px solid var(--pw-divider); padding: 24px var(--pw-gutter) 40px;
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 20px;
+  font-size: 12px; line-height: 1.6; color: var(--pw-muted);
+}
+.footer p { margin: 0; max-width: 680px; }
+.footer a { color: var(--pw-text); }
+.attribution { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.attribution b { display: block; color: var(--pw-text); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
+.extLink {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 2px solid var(--pw-divider);
+  color: var(--pw-text) !important; text-decoration: none; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.extLink:hover { border-color: var(--pw-text); }

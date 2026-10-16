@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRaceStore } from '@/stores/raceStore'
+import sh from '@/components/layout/shell.module.css'
 
 const NUM_BARS = 9
 
@@ -22,29 +23,17 @@ export function RadioTrigger() {
 
   return (
     <button
+      type="button"
       onClick={() => setRadioOpen(true)}
       disabled={!analysis}
-      className="flex items-center gap-2 px-3 py-1.5 bg-bg-panel border border-border-subtle rounded-[3px] hover:border-border-default hover:bg-bg-elevated transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+      className={sh.engineer}
       title={analysis ? 'Talk to Race Engineer' : 'Load a race first'}
     >
       {/* Animated waveform bars */}
-      <div className="flex items-end gap-[1.5px]" style={{ height: '14px' }}>
-        {heights.map((h, i) => (
-          <div
-            key={i}
-            className="rounded-sm transition-all"
-            style={{
-              width: '2px',
-              height: `${h}px`,
-              backgroundColor: analysis ? '#23D18B' : '#252D3A',
-              transitionDuration: '280ms',
-            }}
-          />
-        ))}
-      </div>
-      <span className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary group-hover:text-text-primary transition-colors whitespace-nowrap">
-        {label}
+      <span className={sh.wave} aria-hidden="true">
+        {heights.map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
       </span>
+      <span>{label}</span>
     </button>
   )
 }

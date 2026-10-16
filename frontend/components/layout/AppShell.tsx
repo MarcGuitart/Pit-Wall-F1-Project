@@ -2,6 +2,8 @@
 
 import { TopBar } from './TopBar'
 import { SiteFooter } from './SiteFooter'
+import { PwRoot } from '@/components/ui'
+import s from './shell.module.css'
 
 type BreadcrumbItem = {
   label: string
@@ -15,14 +17,18 @@ type AppShellProps = {
   footerAttribution?: boolean
 }
 
+/**
+ * Every page's frame: the design system's root (tokens, Archivo, dark
+ * ground), the top bar, the page and the footer.
+ */
 export function AppShell({ children, breadcrumb, footerAttribution = false }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col">
+    <PwRoot className={s.shell}>
       <TopBar breadcrumb={breadcrumb} />
-      <main className="flex-1 overflow-x-hidden">
+      <main className={s.main}>
         {children}
       </main>
       <SiteFooter attribution={footerAttribution} />
-    </div>
+    </PwRoot>
   )
 }
