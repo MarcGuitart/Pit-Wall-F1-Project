@@ -6,6 +6,8 @@ import { useAccessStore } from '@/stores/accessStore'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { NotifyButton } from '@/components/notify/NotifyButton'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
+import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
+import { Popover } from '@/components/ui'
 import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
 import s from './shell.module.css'
@@ -64,36 +66,63 @@ export function TopBar({ breadcrumb }: TopBarProps) {
         <span className={`${s.navLink} ${s.navOn}`} aria-current="page">Historical</span>
 
         {/* Live — a real link once a session is live (verified against the live
-            server, never the clock alone), the real next session when PRO but
-            nothing is live, or an invitation to Settings without PRO. Status
-            shared with the landing page's Live bay via useLiveStatus. */}
-        <div
-          className={s.tipWrap}
-          onMouseEnter={() => pro && liveSessionKey === null && setShowLiveTip(true)}
-          onMouseLeave={() => setShowLiveTip(false)}
-        >
-          {pro && liveSessionKey !== null ? (
-            <Link href={`/live/${liveSessionKey}`} className={`${s.navLink} ${s.liveOn}`}>
-              <span className={s.liveDot} aria-hidden="true" />
-              Live
-            </Link>
-          ) : pro ? (
-            <span
-              onMouseEnter={() => setShowLiveTip(true)}
-              onMouseLeave={() => setShowLiveTip(false)}
-              onFocus={() => setShowLiveTip(true)}
-              onBlur={() => setShowLiveTip(false)}
-              tabIndex={0}
-              className={s.navLink}
-              aria-label="Live mode — no session live right now"
+            server, never the clock alone); the next session in a popover when
+            PRO but nothing is live (click, tap or keyboard — the old hover tip
+            closed as the pointer moved towards its own button); an invitation
+            to Settings without PRO. Status shared with the landing page's Live
+            bay via useLiveStatus. */}
+        {pro && liveSessionKey !== null ? (
+          <Link href={`/live/${liveSessionKey}`} className={`${s.navLink} ${s.liveOn}`}>
+            <span className={s.liveDot} aria-hidden="true" />
+            Live
+          </Link>
+        ) : pro ? (
+          <span className={s.tipWrap}>
+            <Popover
+              trigger="Live"
+              triggerLabel="Live mode — no session live right now"
+              triggerClassName={s.navLink}
+              title="No live session right now"
             >
-              Live
-            </span>
-          ) : (
+              <div className={s.tipBody}>
+                {liveChecked && nextLive ? (
+                  <>Next live session: {nextLive.meetingName} {nextLive.sessionName}, {formatLocalDateTime(nextLive.dateStart)}</>
+                ) : liveChecked ? (
+                  <>No upcoming session is scheduled.</>
+                ) : (
+                  <>Checking…</>
+                )}
+              </div>
+              {liveChecked && nextLive && (
+                <div className={s.tipFoot}>
+                  {nextLive.dateEnd && (
+                    <AddToCalendarButton
+                      event={{
+                        uid: `pitwall-live-${nextLive.dateStart}@pitwallengineer.com`,
+                        summary: `Pit Wall — ${nextLive.meetingName} ${nextLive.sessionName}`,
+                        description: 'Live mode on Pit Wall Engineer follows the session while it runs.',
+                        location: nextLive.circuitShortName ?? '',
+                        dateStart: nextLive.dateStart,
+                        dateEnd: nextLive.dateEnd,
+                      }}
+                    />
+                  )}
+                  <NotifyButton
+                    watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.meetingName} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
+                    className={s.navLink}
+                  />
+                </div>
+              )}
+            </Popover>
+          </span>
+        ) : (
+          <span
+            className={s.tipWrap}
+            onMouseEnter={() => setShowLiveTip(true)}
+            onMouseLeave={() => setShowLiveTip(false)}
+          >
             <Link
               href="/settings"
-              onMouseEnter={() => setShowLiveTip(true)}
-              onMouseLeave={() => setShowLiveTip(false)}
               onFocus={() => setShowLiveTip(true)}
               onBlur={() => setShowLiveTip(false)}
               className={`${s.navLink} ${s.navOff}`}
@@ -101,41 +130,17 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             >
               Live<span className={s.pro}>PRO</span>
             </Link>
-          )}
-          {showLiveTip && (
-            <div className={s.tip} style={pro ? undefined : { pointerEvents: 'none' }}>
-              {pro ? (
-                <>
-                  <div className={s.tipTitle}>No live session right now</div>
-                  <div className={s.tipBody}>
-                    {liveChecked && nextLive ? (
-                      <>Next live session: {nextLive.meetingName} {nextLive.sessionName}, {formatLocalDateTime(nextLive.dateStart)}</>
-                    ) : liveChecked ? (
-                      <>No upcoming session is scheduled.</>
-                    ) : (
-                      <>Checking…</>
-                    )}
-                  </div>
-                  {liveChecked && nextLive && (
-                    <div className={s.tipFoot}>
-                      <NotifyButton
-                        watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.meetingName} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
-                        className={s.navLink}
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className={s.tipTitle} style={{ color: 'var(--pw-accent-text)' }}>Live mode · PRO</div>
-                  <div className={s.tipBody}>
-                    Follow the race as it happens, live. Part of PRO — enter an access code in Settings to unlock it.
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+            {/* Information only, no controls: the link itself is the action. */}
+            {showLiveTip && (
+              <div className={s.tip} style={{ pointerEvents: 'none' }} role="tooltip">
+                <div className={s.tipTitle} style={{ color: 'var(--pw-accent-text)' }}>Live mode · PRO</div>
+                <div className={s.tipBody}>
+                  Follow the race as it happens, live. Part of PRO — enter an access code in Settings to unlock it.
+                </div>
+              </div>
+            )}
+          </span>
+        )}
 
         <Link href="/docs" className={s.navLink}>Docs</Link>
 

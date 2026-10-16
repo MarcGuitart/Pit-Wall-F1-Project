@@ -12,7 +12,8 @@ import s from './ui.module.css'
  *   - closes on Escape (focus returns to the trigger), on a click or tap
  *     outside, and on the trigger again;
  *   - aria-expanded / aria-controls on the trigger, role="dialog" with an
- *     accessible name on the panel; focus moves into the panel on open.
+ *     accessible name on the panel; focus moves into the panel on open;
+ *   - shifted sideways when it would hang off the viewport.
  */
 export function Popover({ trigger, triggerLabel, title, children, align = 'right', triggerClassName = '', open: controlled, onOpenChange }: {
   /** Visible content of the trigger button. */
@@ -47,7 +48,17 @@ export function Popover({ trigger, triggerLabel, title, children, align = 'right
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
-    panel.current?.focus()
+    // Keep the panel on screen: anchored to its trigger, it can hang off a
+    // narrow viewport (the trigger sits on the left of the phone top bar).
+    const el = panel.current
+    if (el) {
+      el.style.transform = ''
+      const r = el.getBoundingClientRect()
+      const margin = 8
+      const dx = r.left < margin ? margin - r.left : r.right > window.innerWidth - margin ? window.innerWidth - margin - r.right : 0
+      if (dx) el.style.transform = `translateX(${Math.round(dx)}px)`
+      el.focus()
+    }
     return () => {
       document.removeEventListener('pointerdown', onDown)
       document.removeEventListener('keydown', onKey)

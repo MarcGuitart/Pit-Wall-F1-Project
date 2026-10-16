@@ -73,7 +73,12 @@ export const SCENARIOS = [
   { id: 'landing-intro', path: '/', seenIntro: false, settleMs: 300, views: [{ name: 'intro-playing' }], textOnly: false, only: 'screens' },
   { id: 'landing-pro', path: '/', pro: true, views: [
     { name: 'top' },
-    { name: 'live-popover', desktopOnly: true, act: (p) => p.getByLabel(/live mode/i).first().hover().then(() => p.waitForTimeout(300)) },
+    // The old build opens the tip on hover, the new one on click: try hover, then click.
+    { name: 'live-popover', desktopOnly: true, act: async (p) => {
+      const t = p.getByLabel(/live mode/i).first()
+      await t.hover(); await p.waitForTimeout(300)
+      if (!(await p.getByText(/^no live session right now$/i).count())) { await t.click(); await p.waitForTimeout(300) }
+    } },
   ] },
   { id: 'docs', path: '/docs', views: [{ name: 'top' }] },
   { id: 'settings', path: '/settings', views: [{ name: 'top' }] },
