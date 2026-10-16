@@ -10,8 +10,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 
 | Fase | Estado | Commit |
 |---|---|---|
-| 0 Inventario y línea base | hecho | (este commit) |
-| 1 Sistema de diseño (components/ui/) | pendiente | |
+| 0 Inventario y línea base | hecho | 12582a5 |
+| 1 Sistema de diseño (components/ui/) | hecho | (este commit) |
 | 2 Shell y transiciones | pendiente | |
 | 3 Pantalla de carga | pendiente | |
 | 4 Landing, selector, popover | pendiente | |
@@ -71,6 +71,29 @@ No hay en caché ningún análisis de clasificación ni de libres: sus layouts (
 `Qualifying`/`Practice` de las pestañas) no tienen línea base visual; ver hallazgos.
 
 Estados de fila: `pendiente` · `en curso` · `verificado` · `descartado: <motivo>`.
+
+## Sistema de diseño (fase 1)
+
+`components/ui/` — copiado de `components/live/dashboard/live.module.css` (no se modifica ni se
+importa: live lo adoptará en otro bloque). Mismos nombres de variable `--pw-*`, así una primitiva
+se ve igual bajo la raíz del shell y bajo la del dashboard live.
+
+| Pieza | De dónde sale en live | Archivo |
+|---|---|---|
+| Tokens (oscuro y claro), foco visible, gutter responsive | `.root`, `.root[data-theme=light]`, `:focus-visible` | ui.module.css, Root.tsx (`PwRoot`) |
+| Panel y cabecera de panel, rejilla de celdas con reglas de 2 px | `.panel` `.secHead` `.h6` `.secAside` `.foot` `.cells` `.cell` | Panel.tsx (`Panel`, `Cells`, `Empty`) |
+| Métrica | `Kpi` (`.label` `.big` `.sub`) | Metric.tsx |
+| Badge, estado de módulo, confianza | chips, `ConfDots` | Badge.tsx (`Badge`, `StatusBadge`, `ConfidenceBadge`) |
+| Banner | `StatusStrip` (`.strip` `.stripBad` `.blinker`) | Banner.tsx |
+| Filas de tabla | `TimingTable` (`.tHead` `.th` `.tRow` `.td`) | Table.tsx (`DataTable`, `Row`, `Cell`) |
+| Esqueleto | (nuevo, en superficie; nunca datos falsos) | Skeleton.tsx |
+| Popover (clic/tap/teclado, Escape, fuera, ARIA) | (nuevo; sustituye el tip por hover) | Popover.tsx |
+| Botón, segmentado, pestañas, cabecera de página | `.btn` `.seg` `.tabs` `.tab` `Header` | Controls.tsx, PageHeader.tsx |
+
+Tokens añadidos respecto a live (allí eran literales): `--pw-blue` (#4da3ff, compuesto WET /
+bandera azul), `--pw-amber` (avisos que no deben leerse como bandera amarilla), `--pw-gutter`.
+Decisión: la app sigue en fondo oscuro; los tokens llevan el claro pero no se añade un selector de
+tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 
 ## Inventario (alcanzable desde app/ en main)
 
