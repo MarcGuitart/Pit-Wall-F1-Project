@@ -91,3 +91,14 @@
   color: var(--pw-text) !important; text-decoration: none; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
 }
 .extLink:hover { border-color: var(--pw-text); }
+
+/* ── page enter transition (app/template.tsx) ──
+   Entry only: opacity and transform, 180 ms, 8 px. No exit, no delay — the
+   content is in the DOM from the first frame. Nothing at all with reduced
+   motion. Applied to the page's <main>, so the top bar does not blink. */
+@keyframes pwEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.enter main { animation: pwEnter 180ms cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) { .enter main { animation: none; } }
