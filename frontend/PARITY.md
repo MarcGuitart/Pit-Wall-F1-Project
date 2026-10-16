@@ -11,8 +11,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | Fase | Estado | Commit |
 |---|---|---|
 | 0 Inventario y línea base | hecho | 12582a5 |
-| 1 Sistema de diseño (components/ui/) | hecho | (este commit) |
-| 2 Shell y transiciones | pendiente | |
+| 1 Sistema de diseño (components/ui/) | hecho | 6fb9788 |
+| 2 Shell y transiciones | hecho | 96c6d52, f18393d, (este commit) |
 | 3 Pantalla de carga | pendiente | |
 | 4 Landing, selector, popover | pendiente | |
 | 5 Análisis módulo a módulo | pendiente | |
@@ -95,18 +95,39 @@ bandera azul), `--pw-amber` (avisos que no deben leerse como bandera amarilla), 
 Decisión: la app sigue en fondo oscuro; los tokens llevan el claro pero no se añade un selector de
 tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 
+## Fase 2 — notas
+
+- Transición: `@keyframes pwEnter` (opacity 0→1, translateY 8px→0), 180 ms, sin retardo, en el
+  `<main>` de la página (el TopBar no parpadea). En navegador: contenido en el DOM a los 18 ms de
+  una navegación cliente; `animation-name: none` con reduced-motion y en /live.
+- Tests eliminados con la animación de apertura (`components/brand/IntroAnimation.test.tsx`, 11):
+  prefers-reduced-motion › renders a short fade instead of nothing at all (Block 25);
+  › never scales the car — only opacity, via the reduced-fade keyframe; › is shorter than the full
+  animation; › marks the session seen once the fade completes — it did play something; › is
+  skippable like the full animation; › does not show the full zoom animation instead;
+  first visit of the session › renders on the first visit (no prior sessionStorage flag);
+  › does not render at all on a second mount within the same session; › marks the session as seen
+  once the animation completes; skippable › a click immediately marks it seen and removes the
+  overlay; › a keypress also skips it.
+- grep de `IntroAnimation|CarSilhouette|RaceStartLoader|pwGoFlash|pwIntroReducedFade|pwiq_intro_seen|
+  start-lights|loader-preview|sessionStorage` en app, components, lib, hooks, stores, public, docs y
+  README: cero. Solo `scripts/parity/lib.mjs` conserva `pwiq_intro_seen`, para silenciar la intro
+  del build **viejo** al capturar la base.
+- Suite: 108 tests (99 − 11 + 12 ui + 8 transición). El shell monta `next/font`: vitest usa un stub
+  (`test/next-font-stub.ts`).
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| TopBar: logo, PRO badge, breadcrumb, Historical/Live, Docs, botón Engineer | layout/TopBar | | S todas; T; U TopBar.test | pendiente |
+| TopBar: logo, PRO badge, breadcrumb, Historical/Live, Docs, botón Engineer | layout/TopBar | layout/TopBar + shell.module.css | S todas; U TopBar.test (12, sin cambios); 390 px sin desbordar | verificado |
 | Popover "próxima sesión" (hover hoy) con Notify | layout/TopBar | | S landing-pro/live-popover; I clic/tap/teclado/Escape/fuera; U | pendiente |
-| Footer (aviso legal, Docs, atribución LinkedIn/CV en home) | layout/SiteFooter | | S; T | pendiente |
-| AppShell (estructura, main) | layout/AppShell | | S todas | pendiente |
-| Animación de apertura (coche) | brand/IntroAnimation + brand/CarSilhouette | (se elimina, fase 2) | grep cero refs; U eliminados listados | pendiente |
-| Race-start loader (no montado: comentado en layout) | layout/RaceStartLoader | (se elimina, fase 2) | R: inalcanzable | pendiente |
+| Footer (aviso legal, Docs, atribución LinkedIn/CV en home) | layout/SiteFooter | layout/SiteFooter (mismo texto y enlaces) | S landing, todas | verificado |
+| AppShell (estructura, main) | layout/AppShell | layout/AppShell sobre `PwRoot` | S todas; scrollWidth 390 en /, /docs, /settings, /race (base: 492-530) | verificado |
+| Animación de apertura (coche) | brand/IntroAnimation + brand/CarSilhouette | app/template.tsx (transición de entrada) | grep cero refs en app/components/lib/hooks/stores/public/docs; U template.test (8) | descartado: eliminada por el brief; sustituta verificada |
+| Race-start loader (no montado: comentado en layout) | layout/RaceStartLoader (+ public/start-lights.mp3, public/loader-preview.html) | — | R: inalcanzable; grep cero refs | descartado: eliminado por el brief (era inalcanzable) |
 | Arranque de acceso PRO (estado del token) | access/AccessBootstrap | (lógica, se conserva) | U accessStore | pendiente |
 | Notify me when it starts (Notification API, decisión: **se conserva restilado**) | notify/NotifyButton + NotifyWatcher | | U notify; S race-425 | pendiente |
 | Página 404 de Next | (default de Next) | | S not-found | pendiente |
@@ -185,7 +206,7 @@ tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 | Rate-limit (cuenta atrás, input bloqueado) | radio/RadioOverlay | | S chat-rate-limited | pendiente |
 | Offline (Ollama/Groq no listos) | radio/EngineerOfflineState | | S chat-offline | pendiente |
 | Sonido on/off | radio/AudioToggle | | S; I | pendiente |
-| Botón Engineer en TopBar | radio/RadioTrigger | | S | pendiente |
+| Botón Engineer en TopBar | radio/RadioTrigger | radio/RadioTrigger restilado (mismas etiquetas y title) | S; en 390 px ya se puede pulsar | verificado |
 
 ### Settings, Docs
 
@@ -198,7 +219,7 @@ tema (sería una feature nueva). Tests: `components/ui/ui.test.tsx` (12).
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Dashboard live, NotLiveYet, ConnectionBanner, vista clásica de reserva | live/** | (sin cambios) | replay de Bakú antes y después del shell (fase 2) | pendiente |
+| Dashboard live, NotLiveYet, ConnectionBanner, vista clásica de reserva | live/** | (sin cambios) | replay de Bakú a 30x, t=20/45/75 s, 1440 y 390, antes y después del shell: mismo dashboard, cambian solo TopBar y footer (`~/.pitwall-ui-baseline/live-before` vs `live-after`) | verificado (shell) |
 
 ### Fuera de la app migrada
 
