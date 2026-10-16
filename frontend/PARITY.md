@@ -161,6 +161,10 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
     `is_cancelled`. El código ya lo respeta si llega (`seasonGrid`, test incluido); hoy Sakhir y
     Jeddah 2026 siguen como rondas 04 y 05 con "Analyse →". No se toca el backend.
 - First Load JS de `/`: 157 kB → 119 kB (sin framer-motion en la landing).
+- Corrección: `AddToCalendarButton` también lo pinta `/live` (NotLiveYet). El restilado de la fase 4
+  cambiaba /live; ahora el aspecto clásico es el valor por defecto y las páginas migradas piden
+  `variant="system"`. Componentes compartidos con /live a vigilar en lo que queda: `ProWall` (402
+  de /live), `ConfidenceChip`, `charts/LapCharts`, `NotifyButton` — no se restilan in situ.
 
 ## Inventario (alcanzable desde app/ en main)
 

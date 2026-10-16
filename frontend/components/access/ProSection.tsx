@@ -109,6 +109,7 @@ export function ProSection() {
             </p>
             {nextRace.status === 'upcoming' && nextRace.dateEnd && (
               <AddToCalendarButton
+                variant="system"
                 event={{
                   uid: `pitwall-next-${currentSeasonYear}-race@pitwallengineer.com`,
                   summary: `Pit Wall — ${nextRace.meetingName} Race`,

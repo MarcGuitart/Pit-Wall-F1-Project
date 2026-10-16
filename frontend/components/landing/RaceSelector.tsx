@@ -224,6 +224,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                       </button>
                       {isFuture && s.date_start && s.date_end && selectedMeeting && (
                         <AddToCalendarButton
+                          variant="system"
                           compact
                           event={{
                             uid: `pitwall-${s.session_key}@pitwallengineer.com`,

@@ -97,6 +97,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                 <div className={s.tipFoot}>
                   {nextLive.dateEnd && (
                     <AddToCalendarButton
+                      variant="system"
                       event={{
                         uid: `pitwall-live-${nextLive.dateStart}@pitwallengineer.com`,
                         summary: `Pit Wall — ${nextLive.meetingName} ${nextLive.sessionName}`,
