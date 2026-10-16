@@ -27,7 +27,9 @@ const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? proces
 
 // ── compare ──────────────────────────────────────────────────────────────────
 
-const norm = (s) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+// Case and spacing are presentation: the new design may uppercase through CSS
+// or split a sentence across elements ("next: X , Fri").
+const norm = (s) => s.replace(/\s+/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim().toLowerCase()
 const ATOM = /(?<![\w.])(?:\d{1,2}:\d{2}\.\d{3}|[+-]?\d+(?:\.\d+)?%?s?|[A-Z]{3})(?![\w.])/g
 function atomsOf(view) {
   const out = new Set()
@@ -48,7 +50,8 @@ if (process.argv.includes('--compare')) {
     const haveJoined = norm([...a.lines, ...a.svg, ...a.aria].join(' '))
     const lines = [...new Set(v.lines.map(norm))].filter((l) => l && !have.has(l) && !haveJoined.includes(l))
     const aAtoms = atomsOf(a)
-    const atoms = [...atomsOf(v)].filter((x) => !aAtoms.has(x))
+    // A three-letter code can be a CSS-uppercased word ("ASK", "ADD"): look for those case-insensitively
+    const atoms = [...atomsOf(v)].filter((x) => !aAtoms.has(x) && !(/^[A-Z]{3}$/.test(x) && new RegExp(`\\b${x}\\b`, 'i').test(haveJoined)))
     if (lines.length || atoms.length) {
       md.push(`### ${k}`)
       if (atoms.length) md.push(`- atoms missing: ${atoms.map((x) => `\`${x}\``).join(' ')}`)
