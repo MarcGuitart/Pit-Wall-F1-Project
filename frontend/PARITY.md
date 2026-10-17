@@ -302,6 +302,19 @@ estados, textos y tiempos; colores, fuentes y px salen de los tokens de `compone
 - **Token nuevo**: `--pw-ease-out: cubic-bezier(0.2, 0, 0, 1)` (la curva de salida de la spec).
 - **Tests**: vitest 181 (antes 157); backend en `ops/loading-meta` 576 passed, 28 skipped.
 
+## Bloque 29 — landing en "/", la lista de carreras en "/races"
+
+| Pieza de la home anterior | Dónde queda | Nota |
+|---|---|---|
+| Cuadrícula de temporada (`SeasonGrid`) | `/races` | sin cambios; "Back to race list", migas y CTAs llevan aquí |
+| Selector de sesión (`RaceSelector`) | `/races`, bajo la cuadrícula | sin cambios |
+| Carreras destacadas | `/races`, dentro del selector | sin cambios |
+| PRO informativa (`ProSection`) | se integra en "Planes" de "/" | precio y temporadas de `lib/access.ts`; código con el formulario de Settings |
+| Cifras "50K+ / 12 / 40+" | **quitadas** | no salían de ningún dato; las sustituye `/stats` |
+| Pasos 01–03 | sustituidos por "Four questions" | |
+
+Con PRO activo "/" sigue siendo la landing. Logo → "/"; Historical → "/races".
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global

@@ -1,65 +1,29 @@
 import { AppShell } from '@/components/layout/AppShell'
-import { RaceSelector } from '@/components/landing/RaceSelector'
-import { SeasonGrid } from '@/components/landing/SeasonGrid'
-import { ProSection } from '@/components/access/ProSection'
-import { Cells, Metric, PageHeader, ui } from '@/components/ui'
-import l from '@/components/landing/landing.module.css'
+import { AnchorBar } from '@/components/home/AnchorBar'
+import { Hero } from '@/components/home/Hero'
+import { Questions } from '@/components/home/Questions'
+import { Method } from '@/components/home/Method'
+import { Faq } from '@/components/home/Faq'
+import { Closing } from '@/components/home/Closing'
+import h from '@/components/home/home.module.css'
 
-const STATS = [
-  { value: '50K+', label: 'Data Points Per Session', sub: 'pos · intervals · car data · weather' },
-  { value: '12', label: 'Analysis Modules', sub: 'pace · tyre · pit · chaos · DRS · DNA…' },
-  { value: '40+', label: 'Strategic Signals', sub: 'engineer notes · decisions · phases' },
-]
-
-const STEPS = [
-  { num: '01', title: 'Select a session', sub: 'Season, race and session type' },
-  { num: '02', title: 'Decode the strategy', sub: 'Pace, tyres, pit cycles, chaos' },
-  { num: '03', title: 'Ask the race engineer', sub: 'Grounded answers from session data' },
-]
-
+/**
+ * "/" — the landing (Block 29, design/Landing.dc.html). Static: nothing here is
+ * rendered per request; what is live (next session, figures, live state) is a
+ * client island with a 3 s timeout. Header and footer are the AppShell's: one
+ * <header>, one <footer>. The race list is /races.
+ */
 export default function HomePage() {
   return (
     <AppShell footerAttribution>
-      <PageHeader
-        kicker="Race Intelligence Dashboard"
-        title={<>See the race<br /><span className={l.heroAccent}>like they do.</span></>}
-        meta={
-          <p className={l.lead} style={{ margin: 0 }}>
-            Turn raw F1 data into strategy-grade insight: pace, tyres, pit windows
-            and race momentum in one engineer-style view.
-          </p>
-        }
-      />
-
-      <Cells min={220} ruled>
-        {STATS.map(({ value, label, sub }) => (
-          <Metric key={label} label={label} value={value} sub={sub} />
-        ))}
-      </Cells>
-
-      <Cells min={240} className={ui.section}>
-        {STEPS.map((step) => (
-          <div key={step.num} className={`${ui.cell} ${l.step}`}>
-            <span className={l.stepNum} aria-hidden="true">{step.num}</span>
-            <div>
-              <div className={l.stepTitle}>{step.title}</div>
-              <div className={ui.sub}>{step.sub}</div>
-            </div>
-          </div>
-        ))}
-      </Cells>
-
-      <SeasonGrid />
-
-      <section className={ui.section} aria-labelledby="any-session">
-        <div className={`${ui.secHead} ${ui.secHeadWide}`}>
-          <h2 className={ui.h6} id="any-session">Any session</h2>
-          <span className={ui.sub}>Practice, qualifying, sprint and race — and the featured races</span>
-        </div>
-        <RaceSelector />
-      </section>
-
-      <ProSection />
+      <div className={h.page}>
+        <AnchorBar />
+        <Hero />
+        <Questions />
+        <Method />
+        <Faq />
+        <Closing />
+      </div>
     </AppShell>
   )
 }

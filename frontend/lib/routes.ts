@@ -1,2 +1,2 @@
-/** Where "Back to race list" goes. Block 29 moves the season grid to /races. */
-export const RACE_LIST_HREF = '/'
+/** The race list (Block 29): the season grid lives at /races; "/" is the landing. */
+export const RACE_LIST_HREF = '/races'

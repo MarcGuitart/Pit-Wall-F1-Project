@@ -41,8 +41,8 @@ export function formatUtcInstant(iso: string | null | undefined): string | null 
 export function raceBreadcrumb(meta: SessionMeta | null): { label: string; href?: string }[] | undefined {
   if (!meta || meta.year == null || !meta.session_name) return undefined
   return [
-    { label: String(meta.year), href: '/' },
-    { label: placeOf(meta), href: '/' },
+    { label: String(meta.year), href: '/races' },
+    { label: placeOf(meta), href: '/races' },
     { label: meta.session_name },
   ]
 }

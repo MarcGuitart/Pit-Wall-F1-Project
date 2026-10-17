@@ -91,7 +91,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
           </p>
 
           <div>
-            <button type="button" onClick={() => router.push('/')} className={buttonClass('ghost')} style={{ paddingLeft: 0, textDecoration: 'underline', textUnderlineOffset: 4 }}>
+            <button type="button" onClick={() => router.push('/races')} className={buttonClass('ghost')} style={{ paddingLeft: 0, textDecoration: 'underline', textUnderlineOffset: 4 }}>
               Back to the free seasons
             </button>
           </div>

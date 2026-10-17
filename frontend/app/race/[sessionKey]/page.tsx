@@ -59,8 +59,8 @@ export default function RacePage() {
 
   if (analysis && (stage === 'done' || stage === 'arriving')) {
     const breadcrumb = [
-      { label: String(analysis.race.year), href: '/' },
-      { label: meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`, href: '/' },
+      { label: String(analysis.race.year), href: '/races' },
+      { label: meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`, href: '/races' },
       { label: analysis.race.session_name },
     ]
     return (

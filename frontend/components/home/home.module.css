@@ -1,0 +1,84 @@
+/* The landing at "/" (Block 29, design/Landing.dc.html). Structure, copy and
+   behaviour from the prototype; colours, sizes and type from components/ui
+   tokens — Archivo with tabular numerals, no JetBrains Mono. */
+
+.page { display: flex; flex-direction: column; min-width: 0; }
+
+/* ── anchor sub-bar: under the sticky top bar ── */
+.anchors {
+  position: sticky; top: 58px; z-index: 40; background: var(--pw-bg);
+  border-bottom: 2px solid var(--pw-divider); display: flex; gap: 24px; overflow-x: auto;
+  padding: 0 var(--pw-gutter); scrollbar-width: none;
+}
+.anchors::-webkit-scrollbar { display: none; }
+.anchors a {
+  display: flex; align-items: center; min-height: 44px; white-space: nowrap; font-size: 13px; font-weight: 600;
+  color: var(--pw-muted); text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.anchors a:hover { color: var(--pw-text); border-bottom-color: var(--pw-accent); }
+/* Sections stop under both bars (58 + 46), with a little air. */
+.anchored { scroll-margin-top: 112px; }
+@media (max-width: 860px) {
+  .anchors { position: static; }
+  .anchored { scroll-margin-top: 116px; }
+}
+
+/* ── hero ── */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 32px 48px; align-items: end; padding: 48px var(--pw-gutter) 40px; }
+@media (max-width: 1100px) { .hero { grid-template-columns: 1fr; } }
+.kicker { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+.square { width: 10px; height: 10px; background: var(--pw-accent); flex: none; }
+.display { font-size: clamp(44px, 8.4vw, 128px); line-height: 0.92; letter-spacing: -0.045em; font-weight: 800; margin: 18px 0 22px; max-width: 11.5em; }
+.lead { font-size: 18px; line-height: 1.5; margin: 0 0 24px; max-width: 34em; color: var(--pw-muted); }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.note { margin: 16px 0 0; font-size: 13px; color: var(--pw-muted); }
+
+/* ── sections ── */
+.section { border-top: 2px solid var(--pw-divider); }
+.secHead { padding: 40px var(--pw-gutter) 24px; display: grid; gap: 10px; }
+.secNum { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--pw-accent-text); }
+.secTitle { margin: 0; font-size: clamp(28px, 4.2vw, 56px); line-height: 1; letter-spacing: -0.03em; font-weight: 800; }
+.secLead { margin: 0; font-size: 15px; line-height: 1.55; color: var(--pw-muted); max-width: 46em; }
+.grid { display: grid; gap: 2px; background: var(--pw-divider); border-top: 2px solid var(--pw-divider); }
+.cell { background: var(--pw-bg); padding: 24px; min-width: 0; }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .g3, .g2 { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .g4 { grid-template-columns: 1fr; } }
+.foot { padding: 16px var(--pw-gutter) 28px; margin: 0; font-size: 13px; line-height: 1.55; color: var(--pw-muted); border-top: 2px solid var(--pw-divider); }
+
+/* four questions */
+.qLabel { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; color: var(--pw-muted); }
+.qTitle { margin: 10px 0 8px; font-size: 22px; font-weight: 800; line-height: 1.15; }
+.qBody { margin: 0; font-size: 14px; line-height: 1.55; color: var(--pw-muted); }
+.diagram { display: block; width: 100%; height: 96px; margin-bottom: 18px; color: var(--pw-text); }
+
+/* method */
+.dots { display: flex; gap: 3px; margin: 10px 0; }
+.dots span { width: 10px; height: 10px; background: var(--pw-surface-2); }
+.dots span.on { background: var(--pw-text); }
+.h3 { margin: 0 0 8px; font-size: 18px; font-weight: 800; }
+.p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--pw-muted); }
+
+/* FAQ */
+.faq { border-top: 2px solid var(--pw-divider); }
+.faqItem + .faqItem { border-top: 2px solid var(--pw-divider); }
+.faqBtn {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; text-align: left;
+  background: transparent; border: 0; color: var(--pw-text); font: inherit; font-size: 18px; font-weight: 800;
+  padding: 20px var(--pw-gutter); cursor: pointer; min-height: 44px;
+}
+.faqBtn:hover { background: var(--pw-surface); }
+.faqSign { font-size: 22px; font-weight: 600; flex: none; }
+.faqAnswer { padding: 0 var(--pw-gutter) 22px; margin: 0; font-size: 15px; line-height: 1.6; color: var(--pw-muted); max-width: 52em; }
+
+/* closing band */
+.closing { background: var(--pw-accent-strong); color: #fff; padding: 56px var(--pw-gutter); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 24px; }
+.closingTitle { margin: 0; font-size: clamp(36px, 6vw, 88px); line-height: 0.95; letter-spacing: -0.04em; font-weight: 800; }
+.closingLink {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 20px; font-weight: 800; font-size: 15px;
+  color: var(--pw-accent-strong); background: #fff; text-decoration: none;
+}
+.closingLink:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }

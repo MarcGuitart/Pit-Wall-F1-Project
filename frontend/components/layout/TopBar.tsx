@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAccessStore } from '@/stores/accessStore'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { NotifyButton } from '@/components/notify/NotifyButton'
@@ -35,6 +36,8 @@ export function TopBar({ breadcrumb }: TopBarProps) {
   const currentSeasonYear = proSeasons()[0]
   const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
   const [showLiveTip, setShowLiveTip] = useState(false)
+  const pathname = usePathname() ?? ''
+  const historical = pathname.startsWith('/races') || pathname.startsWith('/race/')
 
   return (
     <header className={s.bar}>
@@ -62,8 +65,10 @@ export function TopBar({ breadcrumb }: TopBarProps) {
       )}
 
       <div className={s.right}>
-        {/* Historical — always the mode of these pages */}
-        <span className={`${s.navLink} ${s.navOn}`} aria-current="page">Historical</span>
+        {/* Historical — the race list (Block 29: "/" is the landing, the list is /races) */}
+        {historical
+          ? <Link href="/races" className={`${s.navLink} ${s.navOn}`} aria-current="page">Historical</Link>
+          : <Link href="/races" className={s.navLink}>Historical</Link>}
 
         {/* Live — a real link once a session is live (verified against the live
             server, never the clock alone); the next session in a popover when

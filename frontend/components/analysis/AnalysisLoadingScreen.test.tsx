@@ -72,7 +72,7 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     expect(screen.queryByText(/Elapsed/)).toBeNull()
     screen.getByRole('button', { name: 'Retry' }).click()
     expect(retry).toHaveBeenCalled()
-    expect(screen.getByRole('link', { name: 'Back to race list' }).getAttribute('href')).toBe('/')
+    expect(screen.getByRole('link', { name: 'Back to race list' }).getAttribute('href')).toBe('/races')
   })
 
   it('failed (the page aborted) shows state 4 at once', () => {

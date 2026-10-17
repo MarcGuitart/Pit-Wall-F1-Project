@@ -9,7 +9,7 @@ export default function NotFound() {
     <AppShell>
       <PageHeader kicker="404" title="404" meta={<span>This page could not be found.</span>} />
       <div className={pg.page}>
-        <Link href="/" className={buttonClass('ink', true)}>Back to the race list</Link>
+        <Link href="/races" className={buttonClass('ink', true)}>Back to the race list</Link>
       </div>
     </AppShell>
   )
