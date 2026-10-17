@@ -10,10 +10,24 @@
 export const DISPLAY_NAMES: Readonly<Record<string, string>> = {
   'Marina Bay': 'Singapore',
   'Yas Island': 'Abu Dhabi',
+  'Yas Marina': 'Abu Dhabi',
+  'Monte Carlo': 'Monaco',
   Lusail: 'Qatar',
   Sakhir: 'Bahrain',
   'Miami Gardens': 'Miami',
 }
+
+/**
+ * Locations OpenF1 uses (2023–2026) that are shown exactly as given. Not used
+ * at run time — an unknown location is still shown as given — but the test
+ * against test/fixtures/openf1_locations_2023_2026.json fails on a location
+ * in neither list, which is how the next rename gets noticed.
+ */
+export const PASSTHROUGH: readonly string[] = [
+  'Austin', 'Bahrain', 'Baku', 'Barcelona', 'Budapest', 'Imola', 'Jeddah', 'Kuala Lumpur',
+  'Las Vegas', 'Madrid', 'Melbourne', 'Mexico City', 'Miami', 'Monaco', 'Montréal', 'Monza',
+  'Shanghai', 'Silverstone', 'Spa-Francorchamps', 'Spielberg', 'Suzuka', 'São Paulo', 'Zandvoort',
+]
 
 type HasLocation = { location?: string | null } | null | undefined
 

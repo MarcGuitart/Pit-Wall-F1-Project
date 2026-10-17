@@ -1,0 +1,390 @@
+[
+ {
+  "year": 2023,
+  "location": "Austin"
+ },
+ {
+  "year": 2023,
+  "location": "Baku"
+ },
+ {
+  "year": 2023,
+  "location": "Barcelona"
+ },
+ {
+  "year": 2023,
+  "location": "Budapest"
+ },
+ {
+  "year": 2023,
+  "location": "Imola"
+ },
+ {
+  "year": 2023,
+  "location": "Jeddah"
+ },
+ {
+  "year": 2023,
+  "location": "Las Vegas"
+ },
+ {
+  "year": 2023,
+  "location": "Lusail"
+ },
+ {
+  "year": 2023,
+  "location": "Marina Bay"
+ },
+ {
+  "year": 2023,
+  "location": "Melbourne"
+ },
+ {
+  "year": 2023,
+  "location": "Mexico City"
+ },
+ {
+  "year": 2023,
+  "location": "Miami"
+ },
+ {
+  "year": 2023,
+  "location": "Monaco"
+ },
+ {
+  "year": 2023,
+  "location": "Montréal"
+ },
+ {
+  "year": 2023,
+  "location": "Monza"
+ },
+ {
+  "year": 2023,
+  "location": "Sakhir"
+ },
+ {
+  "year": 2023,
+  "location": "Silverstone"
+ },
+ {
+  "year": 2023,
+  "location": "Spa-Francorchamps"
+ },
+ {
+  "year": 2023,
+  "location": "Spielberg"
+ },
+ {
+  "year": 2023,
+  "location": "Suzuka"
+ },
+ {
+  "year": 2023,
+  "location": "São Paulo"
+ },
+ {
+  "year": 2023,
+  "location": "Yas Island"
+ },
+ {
+  "year": 2023,
+  "location": "Zandvoort"
+ },
+ {
+  "year": 2024,
+  "location": "Austin"
+ },
+ {
+  "year": 2024,
+  "location": "Baku"
+ },
+ {
+  "year": 2024,
+  "location": "Barcelona"
+ },
+ {
+  "year": 2024,
+  "location": "Budapest"
+ },
+ {
+  "year": 2024,
+  "location": "Imola"
+ },
+ {
+  "year": 2024,
+  "location": "Jeddah"
+ },
+ {
+  "year": 2024,
+  "location": "Las Vegas"
+ },
+ {
+  "year": 2024,
+  "location": "Lusail"
+ },
+ {
+  "year": 2024,
+  "location": "Marina Bay"
+ },
+ {
+  "year": 2024,
+  "location": "Melbourne"
+ },
+ {
+  "year": 2024,
+  "location": "Mexico City"
+ },
+ {
+  "year": 2024,
+  "location": "Miami"
+ },
+ {
+  "year": 2024,
+  "location": "Monaco"
+ },
+ {
+  "year": 2024,
+  "location": "Montréal"
+ },
+ {
+  "year": 2024,
+  "location": "Monza"
+ },
+ {
+  "year": 2024,
+  "location": "Sakhir"
+ },
+ {
+  "year": 2024,
+  "location": "Shanghai"
+ },
+ {
+  "year": 2024,
+  "location": "Silverstone"
+ },
+ {
+  "year": 2024,
+  "location": "Spa-Francorchamps"
+ },
+ {
+  "year": 2024,
+  "location": "Spielberg"
+ },
+ {
+  "year": 2024,
+  "location": "Suzuka"
+ },
+ {
+  "year": 2024,
+  "location": "São Paulo"
+ },
+ {
+  "year": 2024,
+  "location": "Yas Island"
+ },
+ {
+  "year": 2024,
+  "location": "Zandvoort"
+ },
+ {
+  "year": 2025,
+  "location": "Austin"
+ },
+ {
+  "year": 2025,
+  "location": "Baku"
+ },
+ {
+  "year": 2025,
+  "location": "Barcelona"
+ },
+ {
+  "year": 2025,
+  "location": "Budapest"
+ },
+ {
+  "year": 2025,
+  "location": "Imola"
+ },
+ {
+  "year": 2025,
+  "location": "Jeddah"
+ },
+ {
+  "year": 2025,
+  "location": "Las Vegas"
+ },
+ {
+  "year": 2025,
+  "location": "Lusail"
+ },
+ {
+  "year": 2025,
+  "location": "Marina Bay"
+ },
+ {
+  "year": 2025,
+  "location": "Melbourne"
+ },
+ {
+  "year": 2025,
+  "location": "Mexico City"
+ },
+ {
+  "year": 2025,
+  "location": "Miami Gardens"
+ },
+ {
+  "year": 2025,
+  "location": "Monaco"
+ },
+ {
+  "year": 2025,
+  "location": "Montréal"
+ },
+ {
+  "year": 2025,
+  "location": "Monza"
+ },
+ {
+  "year": 2025,
+  "location": "Sakhir"
+ },
+ {
+  "year": 2025,
+  "location": "Shanghai"
+ },
+ {
+  "year": 2025,
+  "location": "Silverstone"
+ },
+ {
+  "year": 2025,
+  "location": "Spa-Francorchamps"
+ },
+ {
+  "year": 2025,
+  "location": "Spielberg"
+ },
+ {
+  "year": 2025,
+  "location": "Suzuka"
+ },
+ {
+  "year": 2025,
+  "location": "São Paulo"
+ },
+ {
+  "year": 2025,
+  "location": "Yas Island"
+ },
+ {
+  "year": 2025,
+  "location": "Zandvoort"
+ },
+ {
+  "year": 2026,
+  "location": "Austin"
+ },
+ {
+  "year": 2026,
+  "location": "Bahrain"
+ },
+ {
+  "year": 2026,
+  "location": "Baku"
+ },
+ {
+  "year": 2026,
+  "location": "Barcelona"
+ },
+ {
+  "year": 2026,
+  "location": "Budapest"
+ },
+ {
+  "year": 2026,
+  "location": "Jeddah"
+ },
+ {
+  "year": 2026,
+  "location": "Kuala Lumpur"
+ },
+ {
+  "year": 2026,
+  "location": "Las Vegas"
+ },
+ {
+  "year": 2026,
+  "location": "Lusail"
+ },
+ {
+  "year": 2026,
+  "location": "Madrid"
+ },
+ {
+  "year": 2026,
+  "location": "Marina Bay"
+ },
+ {
+  "year": 2026,
+  "location": "Melbourne"
+ },
+ {
+  "year": 2026,
+  "location": "Mexico City"
+ },
+ {
+  "year": 2026,
+  "location": "Miami Gardens"
+ },
+ {
+  "year": 2026,
+  "location": "Monte Carlo"
+ },
+ {
+  "year": 2026,
+  "location": "Montréal"
+ },
+ {
+  "year": 2026,
+  "location": "Monza"
+ },
+ {
+  "year": 2026,
+  "location": "Sakhir"
+ },
+ {
+  "year": 2026,
+  "location": "Shanghai"
+ },
+ {
+  "year": 2026,
+  "location": "Silverstone"
+ },
+ {
+  "year": 2026,
+  "location": "Spa-Francorchamps"
+ },
+ {
+  "year": 2026,
+  "location": "Spielberg"
+ },
+ {
+  "year": 2026,
+  "location": "Suzuka"
+ },
+ {
+  "year": 2026,
+  "location": "São Paulo"
+ },
+ {
+  "year": 2026,
+  "location": "Yas Marina"
+ },
+ {
+  "year": 2026,
+  "location": "Zandvoort"
+ }
+]

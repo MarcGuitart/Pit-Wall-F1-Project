@@ -1,12 +1,15 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { DISPLAY_NAMES, displayName, displayNameOf, placeOf } from './displayName'
+import { DISPLAY_NAMES, PASSTHROUGH, displayName, displayNameOf, placeOf } from './displayName'
+import locations from '@/test/fixtures/openf1_locations_2023_2026.json'
 
 describe('display names, keyed on location', () => {
   it.each([
     ['Marina Bay', 'Singapore'],
     ['Yas Island', 'Abu Dhabi'],
+    ['Yas Marina', 'Abu Dhabi'],
+    ['Monte Carlo', 'Monaco'],
     ['Lusail', 'Qatar'],
     ['Sakhir', 'Bahrain'],
     ['Miami Gardens', 'Miami'],
@@ -16,8 +19,22 @@ describe('display names, keyed on location', () => {
     expect(placeOf({ location, circuit_short_name: 'X' })).toBe(shown)
   })
 
-  it('the table has exactly those five entries', () => {
-    expect(Object.keys(DISPLAY_NAMES).sort()).toEqual(['Lusail', 'Marina Bay', 'Miami Gardens', 'Sakhir', 'Yas Island'])
+  it('the table has exactly those seven entries', () => {
+    expect(Object.keys(DISPLAY_NAMES).sort()).toEqual(['Lusail', 'Marina Bay', 'Miami Gardens', 'Monte Carlo', 'Sakhir', 'Yas Island', 'Yas Marina'])
+  })
+
+  it.each(PASSTHROUGH.map((l) => [l]))('%s passes through unchanged', (location) => {
+    expect(displayName(location)).toBe(location)
+    expect(DISPLAY_NAMES[location]).toBeUndefined()
+  })
+
+  // OpenF1's real (year, location) pairs, 2023–2026 (from /races, only those two
+  // fields). A location in neither list is a rename to decide on.
+  it('every location OpenF1 used in 2023–2026 is in the table or in PASSTHROUGH', () => {
+    const known = new Set([...Object.keys(DISPLAY_NAMES), ...PASSTHROUGH])
+    const unknown = (locations as { year: number; location: string }[]).filter((p) => !known.has(p.location))
+    expect(unknown).toEqual([])
+    expect(locations.length).toBeGreaterThan(90)
   })
 
   it('a location not in the table is shown as OpenF1 gives it', () => {
