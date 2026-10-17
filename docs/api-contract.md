@@ -11,10 +11,29 @@
 Response: {"status": "ok"}
 
 ### GET /races?year=2024
-Returns list of race meetings for the year.
+Returns list of race meetings for the year, newest first. Each item:
+`meeting_key`, `meeting_name`, `country_name`, `circuit_short_name`,
+`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`.
 
 ### GET /races/{meeting_key}/sessions
-Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint).
+Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint). Each
+item: `session_key`, `session_name`, `session_type`, `date_start`, `date_end`,
+and (since Block 26d, additive) `location`, `is_cancelled`.
+
+#### location and is_cancelled (both endpoints)
+- `location`: the host city as OpenF1 publishes it, or `null` when unknown. It
+  can differ from the meeting name (a relocated grand prix keeps its name) —
+  clients that show a place should prefer it over `circuit_short_name`.
+- `is_cancelled`: always a boolean, never absent. `true` when either
+  - OpenF1 sends `is_cancelled` as the boolean `true` — anything else (missing,
+    `null`, `"true"`, `1`) reads as not cancelled; or
+  - `backend/excluded_sessions.json` lists it: a row's `session_key` cancels
+    that session, a row's optional `meeting_key` cancels the whole meeting.
+  The file only adds cancellations; it never un-cancels what OpenF1 flags.
+- Caching: a cached list written before these fields existed is refreshed
+  from OpenF1 once; if OpenF1 fails it is served as is, with `location: null`,
+  `is_cancelled: false` and the exclusion file still applied.
+- Clients that ignore the two fields keep working unchanged.
 
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`

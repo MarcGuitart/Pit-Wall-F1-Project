@@ -169,6 +169,16 @@ def parse_exclusions(data: dict | None) -> dict[int, str]:
     return out
 
 
+def excluded_meetings(data: dict | None) -> set[int]:
+    """
+    Meetings excluded_sessions.json marks as off as a whole: the rows that also
+    carry an integer meeting_key. Optional per row — a row without one only
+    excludes its session from publication. Read by /races.
+    """
+    rows = (data or {}).get("excluded") or []
+    return {row["meeting_key"] for row in rows if isinstance(row.get("meeting_key"), int)}
+
+
 def has_chequered(race_control: list[dict]) -> bool:
     for row in race_control or []:
         for field in ("message", "flag"):
