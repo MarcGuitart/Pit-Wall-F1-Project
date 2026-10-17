@@ -448,7 +448,11 @@ Revisadas a mano las 44 restantes:
    cual en CSS, así que ningún swatch de equipo se pintaba. Las piezas migradas normalizan con `#` y
    ahora sí se ven. Es un cambio visible respecto a la base, hecho por necesidad del restilado;
    reversible si se prefiere conservar el aspecto anterior.
-10. El estado offline del chat dice "Start Ollama"; en producción el proveedor puede ser Groq.
+10. ~~El estado offline del chat decía "Start Ollama"~~ — **arreglado (26d)**: copy neutral por
+    categoría desde `/chat/health` (servidor que no responde / modelo no disponible), sin proveedor ni
+    comandos (`lib/chat/engineerStatus.ts` + test). Además "Check connection" miraba
+    `ollama_reachable` en vez de `ai_ready`, así que con otro proveedor nunca volvía a "online"; usa la
+    misma regla que la apertura.
 11. ~~Las píldoras "Tyres loaded · Pit mapped · Race ctrl parsed" del chat se mostraban siempre~~ —
     **arreglado (26d)**: "Tyres loaded" y "Pit mapped" solo aparecen si `tyre_degradation` /
     `pit_impact` traen filas; "Race ctrl parsed" se quita (`/analysis` no expone race control con

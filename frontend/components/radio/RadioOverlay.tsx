@@ -10,6 +10,7 @@ import { AudioToggle } from './AudioToggle'
 import { EngineerOfflineState } from './EngineerOfflineState'
 import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
 import { contextPills } from '@/lib/chat/contextPills'
+import { engineerStatus } from '@/lib/chat/engineerStatus'
 import { Badge, ConfidenceBadge, buttonClass, ui } from '@/components/ui'
 import r from './radio.module.css'
 
@@ -29,7 +30,7 @@ type Message = {
   content: string
 }
 
-type OllamaStatus = 'checking' | 'online' | 'offline'
+type EngineerConnection = 'checking' | 'online' | 'offline'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -65,8 +66,9 @@ function WaveformBars({ active }: { active: boolean }) {
 
 export function RadioOverlay({ analysis, onClose }: Props) {
   const [phase, setPhase] = useState<'opening' | 'chat'>('opening')
-  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>('checking')
+  const [connection, setConnection] = useState<EngineerConnection>('checking')
   const [showOffline, setShowOffline] = useState(false)
+  const [offlineReason, setOfflineReason] = useState<'server' | 'model'>('model')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -91,18 +93,20 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     playRadioOpen()
   }, [])
 
-  // Check Ollama health on open
+  // Check the engineer (/chat/health) on open
   useEffect(() => {
     let cancelled = false
     fetchChatHealth()
       .then((health) => {
         if (cancelled) return
-        // ai_ready = true when Ollama has a model OR Groq key is configured
-        const ready = !!(health.ai_ready ?? (health.ollama_reachable && (health.model_available ?? (health.available_models?.length ?? 0) > 0)))
-        setOllamaStatus(ready ? 'online' : 'offline')
+        const st = engineerStatus(health)
+        if (!st.online) setOfflineReason(st.reason)
+        setConnection(st.online ? 'online' : 'offline')
       })
       .catch(() => {
-        if (!cancelled) setOllamaStatus('offline')
+        if (cancelled) return
+        setOfflineReason('server')
+        setConnection('offline')
       })
     return () => { cancelled = true }
   }, [])
@@ -111,17 +115,17 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setPhase('chat')
-      if (ollamaStatus === 'offline') setShowOffline(true)
+      if (connection === 'offline') setShowOffline(true)
     }, 1200)
     return () => clearTimeout(timer)
-  }, [ollamaStatus])
+  }, [connection])
 
   // After animation, react to late-resolving status
   useEffect(() => {
     if (phase !== 'chat') return
-    if (ollamaStatus === 'offline') setShowOffline(true)
-    if (ollamaStatus === 'online') setShowOffline(false)
-  }, [phase, ollamaStatus])
+    if (connection === 'offline') setShowOffline(true)
+    if (connection === 'online') setShowOffline(false)
+  }, [phase, connection])
 
   // Close on Escape
   useEffect(() => {
@@ -143,17 +147,21 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   }, [onClose])
 
   const checkConnection = useCallback(async () => {
-    setOllamaStatus('checking')
+    setConnection('checking')
     try {
-      const health = await fetchChatHealth()
-      if (health.ollama_reachable) {
-        setOllamaStatus('online')
+      // Same rule as on open (ai_ready): this used ollama_reachable, so a
+      // deployment answering through another provider never came back online.
+      const st = engineerStatus(await fetchChatHealth())
+      if (st.online) {
+        setConnection('online')
         setShowOffline(false)
       } else {
-        setOllamaStatus('offline')
+        setOfflineReason(st.reason)
+        setConnection('offline')
       }
     } catch {
-      setOllamaStatus('offline')
+      setOfflineReason('server')
+      setConnection('offline')
     }
   }, [])
 
@@ -230,7 +238,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
             </div>
             <WaveformBars active={true} />
             <div className={ui.sub} role="status">
-              {ollamaStatus === 'checking'
+              {connection === 'checking'
                 ? 'Checking engineer connection…'
                 : 'Establishing session context…'}
             </div>
@@ -240,6 +248,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
         {/* === CHAT PHASE — OFFLINE === */}
         {phase === 'chat' && showOffline && (
           <EngineerOfflineState
+            reason={offlineReason}
             onCheckConnection={checkConnection}
             onContinueAnyway={() => setShowOffline(false)}
           />

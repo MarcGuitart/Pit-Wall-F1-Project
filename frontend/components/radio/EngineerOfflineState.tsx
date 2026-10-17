@@ -2,13 +2,17 @@
 
 import { buttonClass, ui } from '@/components/ui'
 import r from './radio.module.css'
+import { OFFLINE_COPY } from '@/lib/chat/engineerStatus'
 
 type EngineerOfflineStateProps = {
+  /** Which side is down: the API itself, or the language model behind it. */
+  reason: 'server' | 'model'
   onCheckConnection: () => void
   onContinueAnyway: () => void
 }
 
 export function EngineerOfflineState({
+  reason,
   onCheckConnection,
   onContinueAnyway,
 }: EngineerOfflineStateProps) {
@@ -20,16 +24,8 @@ export function EngineerOfflineState({
           Engineer Radio Offline
         </h2>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--pw-muted)' }}>
-          The local race engineer model is not running.
-          Start Ollama to enable race engineer answers.
+          {OFFLINE_COPY[reason]}
         </p>
-      </div>
-
-      {/* Commands */}
-      <div style={{ display: 'grid', gap: 8 }}>
-        <p className={ui.label} style={{ margin: 0 }}>Run in terminal:</p>
-        <code className={r.code}>ollama serve</code>
-        <code className={r.code}>ollama pull llama3.1:8b</code>
       </div>
 
       {/* Actions */}
