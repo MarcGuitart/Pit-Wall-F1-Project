@@ -5,7 +5,8 @@ import races2026 from '@/test/fixtures/races_2026.json'
 
 // /races?year=2026 as the backend answers it since Block 26d (location and
 // is_cancelled), recorded from ops/races-meta. Sakhir (1282) and Jeddah (1283)
-// are cancelled; Kuala Lumpur (1308) is OpenF1's "Bahrain Grand Prix".
+// are cancelled; Kuala Lumpur (1308) is OpenF1's "Bahrain Grand Prix". Places
+// go through lib/displayName.ts: Sakhir shows as Bahrain, Miami Gardens as Miami.
 vi.mock('@/lib/api', () => ({
   fetchRaces: vi.fn(async () => races2026),
   fetchSessions: vi.fn(async () => []),
@@ -32,7 +33,7 @@ function cellOf(place: string) {
 describe('SeasonGrid with /races carrying location and is_cancelled', () => {
   it('shows Sakhir and Jeddah as Cancelled, with nothing to click', async () => {
     await grid()
-    for (const place of ['Sakhir', 'Jeddah']) {
+    for (const place of ['Bahrain', 'Jeddah']) {
       const cell = cellOf(place)
       expect(cell.tagName).toBe('DIV')
       expect(cell.closest('a, button')).toBeNull()
@@ -51,12 +52,14 @@ describe('SeasonGrid with /races carrying location and is_cancelled', () => {
     expect(rounds).toEqual(Array.from({ length: live }, (_, i) => i + 1))
     // Melbourne, Shanghai, Suzuka; Sakhir and Jeddah do not take rounds 4 and 5.
     expect(within(cellOf('Suzuka')).getByText(/^Round 03 ·/)).toBeTruthy()
-    expect(within(cellOf('Miami Gardens')).getByText(/^Round 04 ·/)).toBeTruthy()
+    expect(within(cellOf('Miami')).getByText(/^Round 04 ·/)).toBeTruthy()
   })
 
   it('names the meeting by location: Kuala Lumpur, not Bahrain', async () => {
     await grid()
     expect(cellOf('Kuala Lumpur').tagName).toBe('BUTTON')
-    expect(screen.queryByText('Bahrain')).toBeNull()
+    // OpenF1's meeting name is never shown; the one "Bahrain" is Sakhir's cell, cancelled.
+    expect(screen.queryByText(/Grand Prix/)).toBeNull()
+    expect(cellOf('Bahrain').getAttribute('data-cancelled')).toBe('true')
   })
 })

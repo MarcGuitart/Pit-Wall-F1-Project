@@ -37,7 +37,7 @@ describe('seasonGrid', () => {
   })
 
   it('prefers location once /races exposes it', () => {
-    expect(placeName(r(1, '2026-01-01', 'X Grand Prix', 'Yas Marina Circuit', { location: 'Yas Island' }))).toBe('Yas Island')
+    expect(placeName(r(1, '2026-01-01', 'X Grand Prix', 'Yas Marina Circuit', { location: 'Yas Island' }))).toBe('Abu Dhabi')
   })
 
   it('a cancelled meeting is not a round, once /races says so', () => {

@@ -290,7 +290,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
             <button key={race.session_key} type="button" onClick={() => openRace(race.session_key)} className={l.card}>
               <div className={l.cardTop}>
                 <div style={{ minWidth: 0 }}>
-                  <div className={l.cardName}>{race.location}</div>
+                  <div className={l.cardName}>{placeOf(race)}</div>
                   <div className={ui.sub}>{race.circuit_short_name} · {race.year}</div>
                   {featured && <div className={ui.sub}>{featured.reason}</div>}
                   <div className={l.tags}>

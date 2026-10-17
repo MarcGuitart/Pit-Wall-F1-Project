@@ -151,7 +151,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
                   uid: `pitwall-analysis-${sessionKey}@pitwallengineer.com`,
                   summary,
                   description: `Earliest possible time for the analysis. It is normally published within a few hours of the chequered flag.${meta?.date_start ? ` Session start: ${formatUtcInstant(meta.date_start)}.` : ''}`,
-                  location: meta?.location ?? undefined,
+                  location: meta ? placeOf(meta) : undefined,
                   dateStart: earliest,
                   dateEnd: end,
                 }))

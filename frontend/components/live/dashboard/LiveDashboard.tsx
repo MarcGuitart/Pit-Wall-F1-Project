@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { displayNameOf } from '@/lib/displayName'
 import { archivo } from '@/lib/fonts'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
@@ -309,7 +310,7 @@ function Header({ snapshot, now, profile }: { snapshot: LiveSnapshot; now: numbe
   const info = snapshot.session_info ?? {}
   const start = info.date_start ? new Date(info.date_start).getTime() : null
   const end = info.date_end ? new Date(info.date_end).getTime() : null
-  const city = snapshot.location ?? info.circuit_short_name ?? 'Live timing'
+  const city = displayNameOf(snapshot) ?? info.circuit_short_name ?? 'Live timing'
   const windowTxt = start && end
     ? `${clock(info.date_start).slice(0, 5)} – ${clock(info.date_end).slice(0, 5)} your time`
     : null

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { displayNameOf } from '@/lib/displayName'
 import s from './live.module.css'
 import { liveEngineerChat, type EngineerAnswer } from '@/lib/api'
 import { buildLiveDigest } from '@/lib/liveContext'
@@ -59,7 +60,7 @@ export function LiveEngineer({ snapshot, drivers, selected }: { snapshot: LiveSn
       const { context, signals } = buildLiveDigest(snap, driver)
       const reply = await liveEngineerChat({
         session_key: snap.session_key ?? 0, question, mode, driver,
-        session_name: [snap.location, snap.session_name].filter(Boolean).join(' ') || null,
+        session_name: [displayNameOf(snap), snap.session_name].filter(Boolean).join(' ') || null,
         context, signals,
       })
       setMsgs(m => [...m, { role: 'ai', reply, mode, driver }])

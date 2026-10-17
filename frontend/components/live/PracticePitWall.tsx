@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { displayNameOf } from '@/lib/displayName'
 import { useMemo } from 'react'
 import { ConfidenceChip } from '@/components/ui/ConfidenceChip'
 import { RadioFeed } from '@/components/live/RadioFeed'
@@ -139,7 +140,7 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
 
 function SessionStatus({ snapshot, flagKey, flag }: { snapshot: LiveSnapshot; flagKey: string; flag: typeof FLAG[string] }) {
   const sessionName = snapshot.session_name ?? snapshot.session_type ?? 'Live session'
-  const location = snapshot.location ?? 'Circuit location unavailable'
+  const location = displayNameOf(snapshot) ?? 'Circuit location unavailable'
   return (
     <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">

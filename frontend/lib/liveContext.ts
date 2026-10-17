@@ -7,6 +7,7 @@
  * more reliably than nested JSON, and the API caps the context size.
  */
 import { formatLap } from '@/lib/lapCharts'
+import { displayNameOf } from '@/lib/displayName'
 import type { LiveSnapshot } from '@/types/live'
 
 export type LiveSignal = { id: string; title: string; lap_number: number | null }
@@ -17,7 +18,7 @@ export function buildLiveDigest(snap: LiveSnapshot, focus: string | null): { con
   const d = snap.dashboard
   const lines: string[] = []
   const profile = snap.profile ?? 'race'
-  lines.push(`SESSION ${snap.session_name ?? snap.session_type ?? '?'} at ${snap.location ?? '?'} · profile ${profile} · generated ${snap.generated_at}`)
+  lines.push(`SESSION ${snap.session_name ?? snap.session_type ?? '?'} at ${displayNameOf(snap) ?? '?'} · profile ${profile} · generated ${snap.generated_at}`)
   lines.push(`FLAG ${snap.track_status.flag} (${snap.track_status.source})${snap.chequered ? ' · CHEQUERED' : ''}`)
   if (profile === 'race') lines.push(`LAP ${snap.current_lap}${snap.race_distance ? ` of ${snap.race_distance}` : ' (race distance unknown until the flag)'}`)
   const w = d?.weather
