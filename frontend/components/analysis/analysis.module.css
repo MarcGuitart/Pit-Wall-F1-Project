@@ -48,8 +48,9 @@
 .sq { width: 10px; height: 10px; display: inline-block; flex: none; }
 .track { position: relative; height: 10px; background: var(--pw-surface-2); overflow: hidden; }
 .track > span { position: absolute; top: 0; bottom: 0; left: 0; }
-.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 2px; background: var(--pw-divider); }
-.kv > div { background: var(--pw-bg); padding: 10px 14px; min-width: 0; }
+/* Readings in ruled cells; rules on the cells, so a short last row leaves no grey hole. */
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); border-top: 2px solid var(--pw-divider); border-left: 2px solid var(--pw-divider); }
+.kv > div { background: var(--pw-bg); padding: 10px 14px; min-width: 0; border-right: 2px solid var(--pw-divider); border-bottom: 2px solid var(--pw-divider); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* A module that has no content: "not applicable" is quiet and dashed,
@@ -57,3 +58,28 @@
 .unavailable { padding: 16px 20px; display: grid; gap: 6px; }
 .unavailableFailed { box-shadow: inset 4px 0 0 var(--pw-accent); }
 .unavailableNa { box-shadow: inset 4px 0 0 var(--pw-divider); }
+
+/* ── Race Brain / DNA ── */
+.brain { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 20px; }
+@media (max-width: 860px) { .brain { grid-template-columns: 1fr; } }
+.brainQ { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; text-transform: uppercase; }
+.dnaValue { font-size: 16px; font-weight: 800; line-height: 1.2; margin-top: 4px; }
+
+/* ── True Pace podium, decisions ── */
+.podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.podiumCard {
+  font: inherit; color: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); min-width: 0;
+}
+.podiumCard:hover { border-color: var(--pw-text); }
+.podiumP1 { border-color: var(--pw-accent); background: var(--pw-accent-tint); }
+.podiumEmpty { display: flex; align-items: center; justify-content: center; padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); }
+.podiumCode { display: block; font-size: 20px; font-weight: 800; line-height: 1; }
+.podiumTime { display: block; font-size: 16px; font-weight: 800; }
+.ellipsis { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialogClose { width: 100%; justify-content: center; border: 0 !important; border-top: 2px solid var(--pw-divider) !important; }
+.rank { font-size: 28px; font-weight: 800; line-height: 1; color: var(--pw-accent); flex: none; min-width: 22px; }
+.itemTitle { font-size: 14px; font-weight: 800; line-height: 1.25; }
+.impact { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin: 4px 0; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 520px) { .podium { grid-template-columns: 1fr; } .podiumP1 { order: -1; } }
