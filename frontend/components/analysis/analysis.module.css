@@ -142,3 +142,8 @@
   .arrive { animation: pwArriveFade 120ms linear both; }
 }
 @keyframes pwArriveFade { from { opacity: 0; } }
+
+/* A race with no team radio keeps the lane's measured height (121 px, 145 on
+   mobile, with its 2 px rule), so arrival over the skeleton moves nothing. */
+.radioEmpty { min-height: 121px; }
+@media (max-width: 860px) { .radioEmpty { min-height: 145px; } }

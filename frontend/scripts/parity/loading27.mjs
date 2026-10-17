@@ -2,7 +2,12 @@
 /**
  * Block 27 — the loading experience, verified in a browser.
  *
- *   node scripts/parity/loading27.mjs cls   [--base URL] [--runs 5]   CLS/LCP with /analysis taking 3.2 s
+ *   node scripts/parity/loading27.mjs cls   [--base URL] [--runs 5] [--no-radio]
+ *       CLS/LCP with /analysis taking 3.2 s; --no-radio serves the same race
+ *       with team_radio not_applicable (no radio lane: a shorter band)
+ *   node scripts/parity/loading27.mjs geom  [--base URL] [--no-radio]  skeleton vs page, module by module
+ *       (what arrival would move: CLS cannot see it — the page is new DOM over
+ *       an absolutely positioned skeleton, so a mismatch is not a layout shift)
  *   node scripts/parity/loading27.mjs shots [--base URL] [--out DIR]  every state at 1440 and 390
  *
  * Fixtures as in the rest of scripts/parity (lib.mjs). /sessions/{key}/meta is
@@ -22,6 +27,13 @@ const BASE = arg('--base', 'http://localhost:3000')
 const RUNS = Number(arg('--runs', '5'))
 const OUT = arg('--out', join(homedir(), '.pitwall-ui-baseline', 'shots27'))
 const KEY = 9539
+const NO_RADIO = process.argv.includes('--no-radio')
+/** The analysis of a race with no team radio: the lane is not drawn, the band is shorter. */
+const withoutRadio = (a) => ({
+  ...a,
+  team_radio: null,
+  modules: { ...(a.modules ?? {}), team_radio: { status: 'not_applicable', reason: 'No team radio published for this session.' } },
+})
 const T0 = new Date('2026-10-16T12:00:00Z').getTime()
 
 const META = {
@@ -50,7 +62,7 @@ if (MODE === 'cls') {
     const runs = []
     for (let i = 0; i < RUNS; i++) {
       const page = await newPage(browser, { viewport: vp, fixedTime: false })
-      await installApi(page, { override: api({ analysis: { delayMs: 3200 } }) })
+      await installApi(page, { override: api({ analysis: { delayMs: 3200, ...(NO_RADIO ? { transform: withoutRadio } : {}) } }) })
       await page.addInitScript(() => {
         window.__cls = 0; window.__lcp = 0; window.__shifts = []
         new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) { window.__cls += e.value; window.__shifts.push([Math.round(e.startTime), +e.value.toFixed(4)]) } }).observe({ type: 'layout-shift', buffered: true })
@@ -63,7 +75,31 @@ if (MODE === 'cls') {
       await page.context().close()
     }
     const m = median(runs.map((r) => r.cls))
-    console.log(`${vp.padEnd(8)} CLS ${m.toFixed(4)}  LCP ${Math.round(median(runs.map((r) => r.lcp)))} ms  (median of ${RUNS}; shifts in run 1: ${JSON.stringify(runs[0].shifts)})`)
+    console.log(`${NO_RADIO ? 'no-radio ' : ''}${vp.padEnd(8)} CLS ${m.toFixed(4)}  LCP ${Math.round(median(runs.map((r) => r.lcp)))} ms  (median of ${RUNS}; shifts in run 1: ${JSON.stringify(runs[0].shifts)})`)
+  }
+}
+
+if (MODE === 'geom') {
+  for (const vp of ['desktop', 'mobile']) {
+    const out = {}
+    for (const which of ['skel', 'real']) {
+      const page = await newPage(browser, { viewport: vp, fixedTime: false })
+      await installApi(page, { override: api({ analysis: which === 'skel' ? { hang: true } : NO_RADIO ? { transform: withoutRadio } : {} }) })
+      await page.goto(`${BASE}/race/${KEY}`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector(which === 'skel' ? '[data-skeleton="loading"]' : '[role="tablist"]', { timeout: 30000 })
+      await page.waitForTimeout(900)
+      out[which] = await page.evaluate((w) => {
+        const o = {}
+        document.querySelectorAll(w === 'skel' ? '[data-skel]' : '[data-arrive]').forEach((el) => {
+          const b = el.getBoundingClientRect()
+          o[el.getAttribute(w === 'skel' ? 'data-skel' : 'data-arrive')] = [Math.round(b.top + scrollY), Math.round(b.height)]
+        })
+        return o
+      }, which)
+      await page.context().close()
+    }
+    const worst = Math.max(...Object.keys(out.real).map((k) => Math.abs((out.skel[k]?.[0] ?? 0) - out.real[k][0])))
+    console.log(`${NO_RADIO ? 'no-radio ' : ''}${vp.padEnd(8)} worst top offset ${worst} px  ` + Object.keys(out.real).map((k) => `${k}:${out.skel[k]?.join('/')}→${out.real[k].join('/')}`).join(' '))
   }
 }
 

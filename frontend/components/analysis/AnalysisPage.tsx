@@ -6,7 +6,7 @@ import { useRaceStore } from '@/stores/raceStore'
 import { getSessionType } from '@/lib/utils'
 import { chaosLevel, CHAOS_LEVEL_TONE } from '@/lib/chaos'
 import { headerFacts } from '@/lib/sessionFacts'
-import { Badge, PageHeader, toneClass, ui } from '@/components/ui'
+import { Badge, PageHeader, Panel, toneClass, ui } from '@/components/ui'
 import a from './analysis.module.css'
 
 import { TabNav } from './TabNav'
@@ -131,10 +131,20 @@ export function AnalysisPage({ analysis, hideHeader = false, meta = null, arrivi
         )
       }
 
-      {/* Team radio lane — only when the session has clips; no lane, no gap otherwise */}
-      {sessionType === 'Race' && analysis.team_radio && analysis.team_radio.clips.length > 0 && (
-        <TeamRadioLane radio={analysis.team_radio} totalLaps={totalLaps} />
-      )}
+      {/* Team radio lane. A race with no clips keeps the lane's height with a line
+          that says so (Block 27b): the loader reserves that height, and without
+          it the whole page jumped 121 px (145 on mobile) up on arrival. */}
+      {sessionType === 'Race' && (analysis.team_radio && analysis.team_radio.clips.length > 0
+        ? <TeamRadioLane radio={analysis.team_radio} totalLaps={totalLaps} />
+        : (
+          <div className={a.radioEmpty} data-radio-empty>
+            <Panel title="Team Radio">
+              <p className={ui.sub} style={{ margin: 0 }}>
+                {analysis.modules?.team_radio?.reason ?? 'No team radio was published for this session.'}
+              </p>
+            </Panel>
+          </div>
+        ))}
       </div>
 
       {/* Tab navigation */}
