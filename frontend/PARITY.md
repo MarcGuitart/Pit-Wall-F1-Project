@@ -16,7 +16,7 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 3 Pantalla de carga | hecho | f9d3ca6, 5754fc9 |
 | 4 Landing, selector, popover | hecho | 9ddb3ba, 16726b8, 0c30de2, 0991bcb |
 | 5 Análisis módulo a módulo | pendiente | |
-| 6 Telemetría | pendiente | |
+| 6 Telemetría | hecho | (estos commits) |
 | 7 Race Engineer | pendiente | |
 | 8 Settings, Docs, ProWall, estados | pendiente | |
 | 9 Auditoría de paridad | pendiente | |
@@ -198,8 +198,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Chaos Index | 3d148b7 | ninguna |
 | Decisiones (timeline) | c28d12c | confianza abreviada → palabra completa |
 | Exclusion log | 213c5aa | ninguna |
-| Race Phase Timeline | (siguiente) | ninguna; segmentos enfocables por teclado (antes solo hover) |
-| Session / Race Timeline | (siguiente) | ninguna; marcadores enfocables por teclado |
+| Race Phase Timeline | 0a9ccd5 | ninguna; segmentos enfocables por teclado (antes solo hover) |
+| Session / Race Timeline | be66c39 | ninguna; marcadores enfocables por teclado |
 | Lap charts | — | `charts/LapCharts` lo comparte /live: no se restila; solo su contenedor (75dca06) |
 
 ## Inventario (alcanzable desde app/ en main)
@@ -277,13 +277,13 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Replay: mapa del circuito | CircuitTelemetryReplay/TrackReplayMap | | S tab-telemetry; I | pendiente |
-| Canales (speed, throttle, brake…) | CircuitTelemetryReplay/TelemetryChannels | | S; T svg | pendiente |
-| G-force y diagrama GG | CircuitTelemetryReplay/GForceMeter, GGDiagram | | S | pendiente |
-| Sectores | CircuitTelemetryReplay/SectorCards | | S; T | pendiente |
-| Selector de pilotos y métricas (pestañas) | CircuitTelemetryReplay/DriverSelector, MetricSelector | | S; I comparación | pendiente |
-| Controles: play, pausa, scrub, velocidad, vuelta | CircuitTelemetryReplay/ReplayControls + index | | I | pendiente |
-| Sin telemetría (sesión sin precomputar / no race) | CircuitTelemetryReplay/index | | S race-11377-pro/tab-telemetry | pendiente |
+| Replay: mapa del circuito | CircuitTelemetryReplay/TrackReplayMap | mismo (marco, tipografía, botón 2D/3D con aria-pressed) | S tab-telemetry 9636; I en fase 9 | verificado (S) |
+| Canales (speed, throttle, brake…) | CircuitTelemetryReplay/TelemetryChannels | mismo (colores de serie intactos, marco y textos en tokens) | S; T shallow | verificado (S, T) |
+| G-force y diagrama GG | CircuitTelemetryReplay/GForceMeter, GGDiagram | mismos (Archivo, textos ≥11 px, sin redondeos, tokens) | S; T shallow | verificado (S, T) |
+| Sectores | CircuitTelemetryReplay/SectorCards | CircuitTelemetryReplay/SectorCards | S; T shallow | verificado |
+| Selector de pilotos y métricas (pestañas) | CircuitTelemetryReplay/DriverSelector, MetricSelector | chips con aria-pressed; métricas y modo de vuelta en ui/Segmented | S; T shallow; I comparación en fase 9 | verificado (S, T) |
+| Controles: play, pausa, scrub, velocidad, vuelta | CircuitTelemetryReplay/ReplayControls + index | ReplayControls: scrub como slider (flechas, Re/Av Pág, Inicio/Fin, puntero y táctil) | I en fase 9 | en curso (falta I) |
+| Sin telemetría (sesión sin precomputar / no race) | CircuitTelemetryReplay/index | mismo copy, estado del sistema | S race-11377-pro/tab-telemetry; T shallow | verificado |
 
 ### Race Engineer (chat)
 

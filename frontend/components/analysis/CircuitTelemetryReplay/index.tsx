@@ -14,6 +14,8 @@ import { ReplayControls } from './ReplayControls'
 import { SectorCards } from './SectorCards'
 import { GGDiagram } from './GGDiagram'
 import { GForceMeter } from './GForceMeter'
+import { Segmented, buttonClass, ui } from '@/components/ui'
+import t from './telemetry.module.css'
 
 const MAX_FETCH = 5
 const MAX_SELECTED = 3
@@ -165,24 +167,9 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="bg-bg-panel border border-border-subtle rounded-[4px] p-8 flex flex-col items-center justify-center gap-3 min-h-[280px]">
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-1.5 h-1.5 rounded-full bg-signal-blue animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
-        </div>
-        <div className="text-center">
-          <div className="font-display font-bold text-[11px] uppercase tracking-[1.5px] text-text-secondary mb-1">
-            Loading Telemetry
-          </div>
-          <div className="font-mono text-[10px] text-text-muted">
-            Fetching FastF1 lap data · First load: 5–15s
-          </div>
-        </div>
+      <div className={t.state} aria-busy="true">
+        <div className={ui.h6}>Loading Telemetry</div>
+        <div className={ui.sub}>Fetching FastF1 lap data · First load: 5–15s</div>
       </div>
     )
   }
@@ -193,34 +180,27 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     const isNotPrecomputed = error === 'not_precomputed' || error === 'production_unavailable'
 
     return (
-      <div className="bg-bg-panel border border-border-subtle rounded-[4px] p-8 flex flex-col items-center justify-center gap-3 min-h-[280px]">
-        <div className="font-display font-bold text-[11px] uppercase tracking-[1.5px] text-text-secondary">
-          Telemetry Unavailable
-        </div>
-        <div className="font-mono text-[10px] text-text-muted text-center max-w-sm">
+      <div className={t.state}>
+        <div className={ui.h6}>Telemetry Unavailable</div>
+        <p className={ui.sub} style={{ margin: 0, maxWidth: 420, fontSize: 13, lineHeight: 1.5 }}>
           {isRaceOnly
             ? 'Circuit telemetry is only available for Race sessions.'
             : isNotPrecomputed
               ? "Telemetry for this session hasn't been precomputed yet. To visualise it locally, follow the setup guide in the repository."
               : (error ?? 'FastF1 data not found for this session.')}
-        </div>
+        </p>
         {isNotPrecomputed && (
           <a
             href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-mono text-[10px] text-signal-blue hover:underline"
+            style={{ color: 'var(--pw-text)', fontWeight: 700, fontSize: 13 }}
           >
             View local setup guide →
           </a>
         )}
         {!isRaceOnly && !isNotPrecomputed && (
-          <button
-            onClick={handleRetry}
-            className="mt-1 px-3 py-1.5 rounded-[3px] border border-border-default text-text-secondary hover:border-signal-blue hover:text-signal-blue font-display font-bold text-[10px] uppercase tracking-[1px] transition-all"
-          >
-            Retry
-          </button>
+          <button type="button" onClick={handleRetry} className={buttonClass('ink')}>Retry</button>
         )}
       </div>
     )
@@ -228,9 +208,9 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
 
   // ── Main view ─────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
+    <div>
       {/* ── Full-width header: drivers · lap · mode · metric ── */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className={t.controls}>
         <DriverSelector
           drivers={selectable}
           selected={selectedDrivers}
@@ -238,60 +218,40 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
           max={MAX_SELECTED}
         />
         {/* Lap chip */}
-        <div className="flex items-center gap-2 px-2.5 py-1 bg-bg-elevated border border-border-subtle rounded-[3px]">
-          <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-text-muted">Lap</span>
-          <span className="font-mono text-[11px] text-text-primary font-bold">
-            {selectedTelemetry[0]?.fastest_lap_number
-              ? `L${selectedTelemetry[0].fastest_lap_number}`
-              : '–'}
-          </span>
+        <div className={t.group}>
+          <span className={ui.label}>Lap</span>
+          <b>{selectedTelemetry[0]?.fastest_lap_number ? `L${selectedTelemetry[0].fastest_lap_number}` : '–'}</b>
         </div>
         {/* Lap mode toggle */}
-        <div className="flex items-center bg-bg-elevated border border-border-subtle rounded-[3px] p-0.5 gap-0.5">
-          {([
-            { mode: 'fastest_clean' as const, label: 'Fastest',
+        <Segmented
+          small
+          label="Lap mode"
+          value={lapMode}
+          onChange={setLapMode}
+          options={[
+            { value: 'fastest_clean', label: 'Fastest',
               title: 'Fastest clean lap — shows the driver at the absolute limit. Highest G-forces and speed traces.' },
-            { mode: 'representative' as const, label: 'Representative',
+            { value: 'representative', label: 'Representative',
               title: 'Representative lap — closest to the median race lap time. Shows typical race-pace behaviour; expect lower G-forces during safety car periods.' },
-          ]).map(({ mode, label, title }) => (
-            <button
-              key={mode}
-              onClick={() => setLapMode(mode)}
-              title={title}
-              className={[
-                'px-2 py-0.5 rounded-[2px] font-display font-bold text-[9px] uppercase tracking-[0.5px] transition-all',
-                lapMode === mode
-                  ? 'bg-signal-blue/20 text-signal-blue border border-signal-blue/30'
-                  : 'text-text-muted hover:text-text-secondary',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          ]}
+        />
         <MetricSelector
           active={metric}
           onChange={setMetric}
           multiDriver={selectedDrivers.length > 1}
         />
-        <span className="font-mono text-[9px] text-text-muted ml-auto">
-          FastF1 · {data.confidence} confidence
-        </span>
+        <span className={ui.sub} style={{ marginLeft: 'auto' }}>FastF1 · {data.confidence} confidence</span>
       </div>
 
       {/* ── Main 50/50 grid: circuit left · channels right ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" style={{ alignItems: 'stretch' }}>
+      <div className={t.grid2}>
         {/* Left: circuit map + replay controls anchored to bottom */}
-        <section className="min-h-[430px] bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between shrink-0">
-            <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-              Circuit Map · {data.circuit_name}
-            </span>
-            <span className="font-mono text-[9px] text-text-muted">
-              {metric} heatmap
-            </span>
+        <section className={t.pane} aria-label="Circuit map">
+          <div className={t.paneHead}>
+            <span className={ui.label}>Circuit Map · {data.circuit_name}</span>
+            <span className={ui.sub}>{metric} heatmap</span>
           </div>
-          <div className="flex-1 min-h-0 p-2">
+          <div className={t.paneBody}>
             <TrackReplayMap
               data={data}
               selectedDrivers={selectedDrivers}
@@ -301,7 +261,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
               onHover={setHoveredProgress}
             />
           </div>
-          <div className="p-2 pt-0 shrink-0">
+          <div className={t.paneFoot}>
             <ReplayControls
               playing={playing}
               progress={progress}
@@ -315,16 +275,12 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
         </section>
 
         {/* Right: telemetry channels + sector cards anchored to bottom */}
-        <section className="min-h-[430px] bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between shrink-0">
-            <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
-              Telemetry Channels · {selectedTelemetry[0]?.driver_code ?? 'Driver'}
-            </span>
-            <span className="font-mono text-[9px] text-text-muted">
-              L{selectedTelemetry[0]?.fastest_lap_number ?? '–'} fastest
-            </span>
+        <section className={t.pane} aria-label="Telemetry channels">
+          <div className={t.paneHead}>
+            <span className={ui.label}>Telemetry Channels · {selectedTelemetry[0]?.driver_code ?? 'Driver'}</span>
+            <span className={ui.sub}>L{selectedTelemetry[0]?.fastest_lap_number ?? '–'} fastest</span>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className={t.paneBody} style={{ padding: 0 }}>
             <TelemetryChannels
               data={data}
               selectedDrivers={selectedDrivers}
@@ -333,15 +289,15 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
               onHover={setHoveredProgress}
             />
           </div>
-          <div className="p-2 pt-0 shrink-0">
+          <div className={t.paneFoot}>
             <SectorCards drivers={selectedTelemetry} />
           </div>
         </section>
       </div>
 
-      {/* ── Bottom row: G-Force meter (50%) · GG diagram (50%) ── */}
+      {/* ── Bottom row: G-Force meter · GG diagram ── */}
       {selectedTelemetry.length === 1 && (
-        <div className="grid grid-cols-1 xl:grid-cols-[380px_720px] gap-3 items-start justify-center">
+        <div className={t.bottom}>
           <GForceMeter driver={selectedTelemetry[0]} progress={progress} />
           <GGDiagram driver={selectedTelemetry[0]} />
         </div>
