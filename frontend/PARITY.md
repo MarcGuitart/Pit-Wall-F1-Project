@@ -15,11 +15,11 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 2 Shell y transiciones | hecho | 96c6d52, f18393d, e91c08e |
 | 3 Pantalla de carga | hecho | f9d3ca6, 5754fc9 |
 | 4 Landing, selector, popover | hecho | 9ddb3ba, 16726b8, 0c30de2, 0991bcb |
-| 5 Análisis módulo a módulo | pendiente | |
+| 5 Análisis módulo a módulo | hecho | 75dca06…be66c39 (un commit por módulo; tabla de la fase 5) |
 | 6 Telemetría | hecho | db2002b…9184214 |
 | 7 Race Engineer | hecho | b85ed9c…19b371d |
 | 8 Settings, Docs, ProWall, estados | hecho | dfd3441…ed096ee |
-| 9 Auditoría de paridad | hecho | (estos commits) |
+| 9 Auditoría de paridad | hecho | c0676d6…60d5bef |
 
 ## Línea base (main @ 2bd9d6e)
 
@@ -433,6 +433,12 @@ Revisadas a mano las 44 restantes:
 3. No hay análisis de clasificación ni libres en caché: sus layouts no tienen cobertura visual.
 4. `/races` sin `is_cancelled` ni `location` (dependencia).
 5. 14 componentes inalcanzables (lista arriba) siguen en el repo.
+6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce
+   el zoom). El botón Engineer del TopBar queda tapado por la etiqueta PRO de Live, y
+   "Open tables" (Race Control) por la fila de filtros de Engineer Signals: no se pueden pulsar.
+   La línea base marca esos 9 pasos como fallidos en móvil. El shell nuevo no debe desbordar.
+7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
+   (se conserva tal cual).
 8. EngineerSignalSummary ordena por severidad **en su sitio** el array de notas que recibe
    (`base.sort` sobre la prop): tras visitar Race Control cambia el orden de las notas en el resto de
    la página. Se conserva tal cual.
@@ -443,9 +449,3 @@ Revisadas a mano las 44 restantes:
 10. El estado offline del chat dice "Start Ollama"; en producción el proveedor puede ser Groq.
 11. Las píldoras "Tyres loaded · Pit mapped · Race ctrl parsed" del chat se muestran siempre, sin
     comprobar nada.
-7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
-   (se conserva tal cual).
-6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce
-   el zoom). El botón Engineer del TopBar queda tapado por la etiqueta PRO de Live, y
-   "Open tables" (Race Control) por la fila de filtros de Engineer Signals: no se pueden pulsar.
-   La línea base marca esos 9 pasos como fallidos en móvil. El shell nuevo no debe desbordar.
