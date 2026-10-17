@@ -111,3 +111,7 @@ backend/cache/*/drivers.json
 backend/cache/*/team_radio.json
 backend/cache/*/car_data_*.json
 backend/.autopublish-state.json
+
+# Design sources (Claude Design exports). Read locally, never published:
+# the repo is public. Anchored: only the root design/ directory.
+/design/
