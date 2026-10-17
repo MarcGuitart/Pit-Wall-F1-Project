@@ -7,6 +7,8 @@ import { PitSequenceSummary } from '../strategy/PitSequenceSummary'
 import { DRSTrainDetector } from '../strategy/DRSTrainDetector'
 import { CleanAirValueCard } from '../CleanAirValueCard'
 import { ModuleUnavailable } from '../ModuleUnavailable'
+import { Cells } from '@/components/ui'
+import a from '../analysis.module.css'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -29,8 +31,8 @@ export function ManagementTab({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+    <div className={a.stack}>
+      <Cells cols={2}>
         <TyreCliffMap
           degradationRows={analysis.tyre_degradation}
           onDriverClick={click}
@@ -42,8 +44,8 @@ export function ManagementTab({
           onViewAll={onSwitchToData}
           sessionType={sessionType}
         />
-      </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      </Cells>
+      <Cells cols={2}>
         {analysis.drs_trains && analysis.drs_trains.meaningful_trains.length > 0
           ? <DRSTrainDetector drs={analysis.drs_trains} />
           : <ModuleUnavailable title="DRS Train Detector" analysis={analysis} field="drs_trains" />
@@ -52,7 +54,7 @@ export function ManagementTab({
           ? <ModuleUnavailable title="Clean Air Value" analysis={analysis} field="clean_air_value" />
           : <CleanAirValueCard data={analysis.clean_air_value ?? null} />
         }
-      </div>
+      </Cells>
     </div>
   )
 }

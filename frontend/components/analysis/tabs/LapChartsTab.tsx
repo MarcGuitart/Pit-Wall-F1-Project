@@ -5,6 +5,7 @@ import { RaceLapCharts } from '@/components/charts/LapCharts'
 import chartStyles from '@/components/charts/charts.module.css'
 import { fetchLapCharts, type LapChartsPayload } from '@/lib/api'
 import type { ChartDriver } from '@/lib/lapCharts'
+import { ui } from '@/components/ui'
 
 /**
  * The four lap-by-lap charts for a finished race — the same components and the
@@ -31,13 +32,13 @@ export function LapChartsTab({ sessionKey }: { sessionKey: number }) {
   })), [data])
 
   if (error) {
-    return <div className="bg-bg-panel border border-border-subtle px-4 py-8 font-mono text-[11px] text-text-secondary">{error}</div>
+    return <div className={ui.empty} role="alert">{error}</div>
   }
   if (!data) {
-    return <div className="bg-bg-panel border border-border-subtle px-4 py-8 font-mono text-[11px] text-text-muted">Loading lap data… the first visit to an older race builds it from OpenF1, which takes a few seconds.</div>
+    return <div className={ui.empty} aria-busy="true">Loading lap data… the first visit to an older race builds it from OpenF1, which takes a few seconds.</div>
   }
   return (
-    <div className={`border-2 border-border-subtle ${chartStyles.darkTokens}`}>
+    <div className={chartStyles.darkTokens}>
       <RaceLapCharts drivers={drivers} bands={data.bands} totalLaps={data.total_laps} winnerCode={data.winner} idPrefix="race" />
     </div>
   )

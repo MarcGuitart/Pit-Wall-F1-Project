@@ -14,7 +14,7 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 1 Sistema de diseño (components/ui/) | hecho | 6fb9788 |
 | 2 Shell y transiciones | hecho | 96c6d52, f18393d, e91c08e |
 | 3 Pantalla de carga | hecho | f9d3ca6, 5754fc9 |
-| 4 Landing, selector, popover | hecho | (estos commits) |
+| 4 Landing, selector, popover | hecho | 9ddb3ba, 16726b8, 0c30de2, 0991bcb |
 | 5 Análisis módulo a módulo | pendiente | |
 | 6 Telemetría | pendiente | |
 | 7 Race Engineer | pendiente | |
@@ -166,6 +166,17 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
   `variant="system"`. Componentes compartidos con /live a vigilar en lo que queda: `ProWall` (402
   de /live), `ConfidenceChip`, `charts/LapCharts`, `NotifyButton` — no se restilan in situ.
 
+## Fase 5 — análisis
+
+Verificación por módulo: build nuevo, `screens.mjs --only race-9636` (y la sesión que lo pinte),
+`parity_diff --shallow` contra la base (solo vistas principales; desplegables y tarjetas en la
+fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por CSS).
+
+| Módulo | Commit | Diferencias de texto |
+|---|---|---|
+| Marco (cabecera, pestañas, Strategy/Data, foco, contenedores) | (este) | `›` decorativo |
+| ModuleUnavailable | (este) | ninguna |
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
@@ -199,12 +210,12 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Cabecera de carrera (chaos, pilotos, stints, nivel) | analysis/AnalysisPage | | S race-*; T | pendiente |
+| Cabecera de carrera (chaos, pilotos, stints, nivel) | analysis/AnalysisPage | analysis/AnalysisPage (PageHeader) | S race-9636*; T shallow: sin pérdidas | verificado |
 | Fases de carrera | analysis/RacePhaseTimeline | | S; T; módulos failed/n.a. | pendiente |
 | Barra de sesión (sin fases) | analysis/SessionTimelineBar | | S modules-*; T | pendiente |
 | Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | | S; T expand; I un solo audio, clip muerto | pendiente |
-| Pestañas (6, con badges) | analysis/TabNav | | S; T | pendiente |
-| Strategy / Data View | analysis/AnalysisModeToggle | | S; T | pendiente |
+| Pestañas (6, con badges) | analysis/TabNav | analysis/TabNav sobre ui/Tabs | S; T shallow | verificado |
+| Strategy / Data View | analysis/AnalysisModeToggle | ui/Segmented (role tablist) | S; T shallow | verificado |
 | Driver focus strip | analysis/DriverFocusStrip | | S driver-card | pendiente |
 | Race Brain | strategy/RaceBrainV2 | | S; T | pendiente |
 | Race DNA | analysis/RaceDNACard | | S; T; módulos failed/n.a. | pendiente |
@@ -228,9 +239,9 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
 | Tren de DRS | strategy/DRSTrainDetector | | S tyre-pit; T expand | pendiente |
 | Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | | S; T | pendiente |
 | Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | | S lap-charts; T svg | pendiente |
-| Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab | | S | pendiente |
+| Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab, LapChartsTab | mismos archivos (stack con reglas, Cells de 2 columnas, sin framer-motion) | S; T shallow | verificado |
 | Tarjeta de piloto con radios | analysis/DriverCard | | T driver-card:* (todos los pilotos); I radios | pendiente |
-| ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | | S race-9636-modules-failed / -not_applicable | pendiente |
+| ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | analysis/ModuleUnavailable (StatusBadge: failed sólido acento, n/a discontinuo) — adelantado de la fase 8 | S race-9636-modules-failed / -not_applicable; T shallow | verificado |
 | Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | | T aria; T expand methodology | pendiente |
 | Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
 | SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | | S race-425, -425-no-unlock, -404, -429, -503 | pendiente |

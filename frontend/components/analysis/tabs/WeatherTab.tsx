@@ -3,6 +3,7 @@
 import type { FullRaceAnalysis } from '@/types'
 import { WeatherOverlay } from '../strategy/WeatherOverlay'
 import { ModuleUnavailable } from '../ModuleUnavailable'
+import a from '../analysis.module.css'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -19,7 +20,7 @@ export function WeatherTab({ analysis, totalLaps, sessionType }: Props) {
   const winnersStatus = analysis.modules?.weather_winners_losers?.status
 
   return (
-    <div className="space-y-3">
+    <div className={a.stack}>
       <WeatherOverlay
         weather={analysis.weather_analysis}
         totalLaps={totalLaps}

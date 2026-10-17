@@ -174,9 +174,10 @@
 
 /* ── tabs ── */
 .tabs {
-  position: sticky; top: 0; z-index: 20; display: flex; overflow-x: auto; background: var(--pw-bg);
+  display: flex; overflow-x: auto; background: var(--pw-bg);
   border-bottom: 2px solid var(--pw-divider); padding: 0 var(--pw-gutter); scrollbar-width: none;
 }
+.tabsSticky { position: sticky; top: 0; z-index: 20; }
 .tab {
   font: inherit; font-size: 14px; font-weight: 700; padding: 16px 18px 13px; background: transparent;
   color: var(--pw-muted); border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px;

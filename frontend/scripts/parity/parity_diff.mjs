@@ -76,6 +76,8 @@ if (process.argv.includes('--compare')) {
 const BASE = arg('--base', 'http://localhost:3100')
 const OUT = arg('--out', 'text.json')
 const ONLY = arg('--only', null)
+// --shallow: the scenario views only — no collapsibles, no driver cards (quick per-module checks)
+const SHALLOW = process.argv.includes('--shallow')
 
 async function capture(page) {
   return page.evaluate(() => {
@@ -170,10 +172,10 @@ for (const sc of SCENARIOS) {
       result.failures.push({ view: key, error: String(e.message).split('\n')[0] })
     }
     await page?.context().close()
-    if (sc.ok) await expandAll(sc, i, key, result.views).catch((e) => result.failures.push({ view: `${key}+expand`, error: String(e.message).split('\n')[0] }))
+    if (sc.ok && !SHALLOW) await expandAll(sc, i, key, result.views).catch((e) => result.failures.push({ view: `${key}+expand`, error: String(e.message).split('\n')[0] }))
   }
   // Every driver card, opened from the Data View
-  if (sc.ok) {
+  if (sc.ok && !SHALLOW) {
     const key = Number(sc.path.split('/').pop())
     let page = await openAt(sc, 0)
     await clickStrategyData(page)

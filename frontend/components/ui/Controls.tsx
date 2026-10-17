@@ -60,15 +60,17 @@ export function Segmented<T extends string>({ value, options, onChange, label, s
   )
 }
 
-/** Live's tab bar: sticky, scrolls sideways, red underline on the current tab. */
-export function Tabs<T extends string>({ value, tabs, onChange, label }: {
+/** Live's tab bar: scrolls sideways, red underline on the current tab; sticky on request. */
+export function Tabs<T extends string>({ value, tabs, onChange, label, sticky = false }: {
   value: T
   tabs: { id: T; label: ReactNode; count?: number | string; icon?: ReactNode }[]
   onChange: (v: T) => void
   label: string
+  /** Sticks to the top of the viewport — only where no sticky bar sits above it. */
+  sticky?: boolean
 }) {
   return (
-    <nav className={s.tabs} aria-label={label}>
+    <nav className={`${s.tabs} ${sticky ? s.tabsSticky : ''}`} aria-label={label}>
       {tabs.map((t) => (
         <button
           key={t.id}

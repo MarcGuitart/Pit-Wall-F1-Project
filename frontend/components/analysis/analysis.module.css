@@ -1,0 +1,59 @@
+/* The race analysis page and its modules, in the design system.
+   Tokens and primitives: components/ui (ui.module.css). */
+
+.page { display: flex; flex-direction: column; min-width: 0; }
+.stack { display: flex; flex-direction: column; min-width: 0; }
+.stack > * + * { border-top: 2px solid var(--pw-divider); }
+.headStats { display: flex; align-items: stretch; gap: 0; border: 2px solid var(--pw-divider); }
+.headStats > div { padding: 10px 16px; min-width: 96px; }
+.headStats > div + div { border-left: 2px solid var(--pw-divider); }
+
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;
+  padding: 12px var(--pw-gutter); border-bottom: 2px solid var(--pw-divider);
+}
+.toolbarNote { font-size: 12px; color: var(--pw-muted); }
+.toolbarNote b { color: var(--pw-text); font-weight: 700; }
+
+.focus {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px var(--pw-gutter); background: var(--pw-accent-tint); border-bottom: 2px solid var(--pw-divider);
+  font-size: 13px; cursor: pointer;
+}
+.focus b { font-weight: 800; }
+
+.tabIcon { display: inline-flex; width: 14px; justify-content: center; font-size: 13px; line-height: 1; }
+
+/* ── shared module pieces ── */
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--pw-muted); }
+.small { font-size: 12px; }
+.tiny { font-size: 11px; }
+.strong { font-weight: 800; }
+.num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.para { margin: 0; font-size: 13px; line-height: 1.55; color: var(--pw-muted); }
+.paraStrong { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 700; color: var(--pw-text); }
+.list { display: flex; flex-direction: column; }
+.list > * + * { border-top: 1px solid var(--pw-divider); }
+.item { padding: 12px 20px; min-width: 0; }
+.itemBtn { padding: 12px 20px; min-width: 0; width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; display: block; }
+.itemBtn:hover { background: var(--pw-accent-tint); }
+.linkBtn { font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; background: transparent; border: 0; padding: 0; color: var(--pw-text); cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.linkBtn:hover { color: var(--pw-accent-text); }
+.code { font-weight: 800; letter-spacing: 0.02em; }
+.swatch { width: 4px; align-self: stretch; flex: none; min-height: 18px; }
+.sq { width: 10px; height: 10px; display: inline-block; flex: none; }
+.track { position: relative; height: 10px; background: var(--pw-surface-2); overflow: hidden; }
+.track > span { position: absolute; top: 0; bottom: 0; left: 0; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 2px; background: var(--pw-divider); }
+.kv > div { background: var(--pw-bg); padding: 10px 14px; min-width: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* A module that has no content: "not applicable" is quiet and dashed,
+   "failed" is the accent and must never look the same. */
+.unavailable { padding: 16px 20px; display: grid; gap: 6px; }
+.unavailableFailed { box-shadow: inset 4px 0 0 var(--pw-accent); }
+.unavailableNa { box-shadow: inset 4px 0 0 var(--pw-divider); }
