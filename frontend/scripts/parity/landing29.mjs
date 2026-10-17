@@ -5,6 +5,7 @@
  *   node scripts/parity/landing29.mjs shots [--base URL] [--out DIR]
  *   node scripts/parity/landing29.mjs geom  [--base URL]
  *   node scripts/parity/landing29.mjs cls   [--base URL] [--runs 5]
+ *   node scripts/parity/landing29.mjs keys  [--base URL]   the FAQ by keyboard alone
  *
  * The islands' data comes from the contracts of ops/landing-meta, answered
  * here (STATS, live state); the calendar (/races, sessions) from the parity
@@ -106,6 +107,24 @@ if (MODE === 'geom') {
     console.log(`${vp.padEnd(8)} data    ${states(loading)} → ${states(ok)}  worst ${c1.worst} px (${c1.where || '—'}), in first screen ${c1.worstVisible} px`)
     console.log(`${vp.padEnd(8)} timeout ${states(loading2)} → ${states(failed)}  worst ${c2.worst} px (${c2.where || '—'}), in first screen ${c2.worstVisible} px`)
   }
+}
+
+if (MODE === 'keys') {
+  const page = await open('desktop')
+  await page.waitForTimeout(1500)
+  const q = page.locator('#faq button').nth(1)
+  await q.focus()
+  const before = await q.getAttribute('aria-expanded')
+  await page.keyboard.press('Enter')
+  const afterEnter = await q.getAttribute('aria-expanded')
+  const visible = await page.locator('#faq-1').isVisible()
+  await page.keyboard.press('Space')
+  const afterSpace = await q.getAttribute('aria-expanded')
+  await page.keyboard.press('Tab')
+  const next = await page.evaluate(() => document.activeElement?.textContent?.trim())
+  console.log(`FAQ by keyboard: ${before} → Enter ${afterEnter} (answer visible ${visible}) → Space ${afterSpace}; Tab moves to "${next}"`)
+  await page.context().close()
+  if (!(before === 'false' && afterEnter === 'true' && visible && afterSpace === 'false')) process.exitCode = 1
 }
 
 if (MODE === 'cls') {

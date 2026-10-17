@@ -17,7 +17,7 @@ import { playwright, installApi, newPage, settle } from './lib.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BUILDS = { old: arg('--old', 'http://localhost:3100'), new: arg('--new', 'http://localhost:3000') }
-const PAGES = ['/', '/race/9636', '/settings', '/docs']
+const PAGES = arg('--pages', '/,/race/9636,/settings,/docs').split(',')
 const tools = process.env.PW_TOOLS ?? join(homedir(), '.pitwall-ui-tools')
 const axePath = createRequire(join(tools, 'package.json')).resolve('axe-core/axe.min.js')
 
