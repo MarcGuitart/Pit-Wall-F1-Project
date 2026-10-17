@@ -12,6 +12,7 @@ from app.api.admin import router as admin_router
 from app.api.chat import router as chat_router
 from app.api.telemetry import router as telemetry_router
 from app.api.laps import router as laps_router
+from app.utils.origins import netlify_preview_origin_regex
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ app.add_middleware(ErrorEnvelopeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    # Deploy previews of the allowed Netlify site(s) — app/utils/origins.py.
+    allow_origin_regex=netlify_preview_origin_regex(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
