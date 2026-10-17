@@ -14,6 +14,8 @@ import { useAccessStore } from '@/stores/accessStore'
 import { redeemAccessCode } from '@/lib/api'
 import { formatExpiry } from '@/lib/format'
 import { ApiError } from '@/lib/errors'
+import { Badge, PageHeader, buttonClass, ui } from '@/components/ui'
+import pg from '@/components/layout/page.module.css'
 
 const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
@@ -82,27 +84,13 @@ export default function SettingsPage() {
 
   return (
     <AppShell breadcrumb={[{ label: 'Settings' }]}>
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        <h1 className="font-display font-black text-[28px] uppercase tracking-[-0.5px] text-text-primary mb-1">
-          Settings
-        </h1>
-        <p className="font-mono text-[11px] text-text-muted mb-8">
-          Preferences for this browser only.
-        </p>
-
-        <section
-          className="bg-bg-panel border border-border-default rounded-[4px] p-6"
-          aria-labelledby="pro-access-heading"
-        >
-          <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
+      <PageHeader kicker="This browser" title="Settings" meta={<span>Preferences for this browser only.</span>} />
+      <div className={pg.page}>
+        <section className={pg.card} aria-labelledby="pro-access-heading">
+          <div className={pg.cardHead}>
             <div>
-              <h2
-                id="pro-access-heading"
-                className="font-display font-bold text-[14px] uppercase tracking-[0.5px] text-text-primary"
-              >
-                PRO access
-              </h2>
-              <p className="font-mono text-[10px] text-text-muted mt-1 max-w-sm leading-relaxed">
+              <h2 id="pro-access-heading" className={pg.h2}>PRO access</h2>
+              <p className={pg.small} style={{ marginTop: 6 }}>
                 {pro
                   ? 'A valid access code is active on this browser.'
                   : 'Races from 2025, the current season and Live mode.'}
@@ -114,29 +102,18 @@ export default function SettingsPage() {
               type="button"
               role="switch"
               aria-checked={toggleOn}
+              aria-labelledby="pro-access-heading"
               onClick={handleToggle}
-              className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${
-                toggleOn ? 'bg-signal-green' : 'bg-bg-elevated border border-border-default'
-              }`}
+              className={`${pg.switch} ${toggleOn ? pg.switchOn : ''}`}
             >
-              <span
-                aria-hidden="true"
-                className={`absolute left-0 top-[2px] w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  toggleOn ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                }`}
-              />
+              <span aria-hidden="true" />
             </button>
           </div>
 
           {pro ? (
-            <div className="border-t border-border-subtle pt-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-signal-green" aria-hidden="true" />
-                <span className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-green">
-                  PRO access active
-                </span>
-              </div>
-              <p className="font-mono text-[10px] text-text-muted mb-4">
+            <div className={pg.cardBody}>
+              <div><Badge tone="accent" solid>PRO access active</Badge></div>
+              <p className={pg.small}>
                 {checked && until
                   ? `Valid until ${until}.`
                   : checked
@@ -144,36 +121,23 @@ export default function SettingsPage() {
                     : 'Confirming with the server…'}
               </p>
 
-              <p className="font-mono text-[9px] text-text-muted mb-4 leading-relaxed max-w-sm">
+              <p className={pg.small}>
                 {showBadge
                   ? 'The toggle above only controls the PRO badge in the top bar — it is a display preference for this browser, not your access. Turning it off does not sign you out.'
                   : 'The PRO badge is hidden in the top bar. Your access code is still active — this only changed what is displayed.'}
               </p>
 
-              <button
-                type="button"
-                onClick={signOut}
-                className="font-mono text-[10px] text-text-muted hover:text-signal-red transition-colors underline underline-offset-4 decoration-border-default"
-              >
-                Sign out of PRO
-              </button>
+              <button type="button" onClick={signOut} className={pg.linkBtn}>Sign out of PRO</button>
             </div>
           ) : (
-            <div className="border-t border-border-subtle pt-4">
+            <div className={pg.cardBody}>
               {!showCodeField ? (
-                <p className="font-mono text-[10px] text-text-muted">
-                  Turn this on to enter an access code.
-                </p>
+                <p className={pg.small}>Turn this on to enter an access code.</p>
               ) : (
                 <>
-                  <form onSubmit={submit} className="flex flex-wrap items-start gap-2">
-                    <div className="flex-1 min-w-[220px]">
-                      <label
-                        htmlFor="settings-pro-code"
-                        className="block font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted mb-1.5"
-                      >
-                        Access code
-                      </label>
+                  <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 220, display: 'grid', gap: 6 }}>
+                      <label htmlFor="settings-pro-code" className={ui.label}>Access code</label>
                       <input
                         ref={inputRef}
                         id="settings-pro-code"
@@ -185,19 +149,10 @@ export default function SettingsPage() {
                         spellCheck={false}
                         aria-invalid={error !== null}
                         aria-describedby={error ? 'settings-pro-code-error' : undefined}
-                        className="w-full bg-bg-primary border border-border-default rounded-[3px] px-3 py-2
-                                   font-mono text-[12px] text-text-primary placeholder:text-text-muted
-                                   focus:outline-none focus:border-signal-blue transition-colors"
+                        className={ui.input}
                       />
                     </div>
-                    <button
-                      type="submit"
-                      disabled={submitting || code.trim().length === 0}
-                      className="mt-[22px] px-4 py-2 rounded-[3px] border border-signal-red bg-signal-red/10
-                                 font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red
-                                 hover:bg-signal-red/20 disabled:opacity-40 disabled:hover:bg-signal-red/10
-                                 disabled:cursor-not-allowed transition-colors"
-                    >
+                    <button type="submit" disabled={submitting || code.trim().length === 0} className={buttonClass('primary', true)}>
                       {submitting ? 'Checking…' : 'Unlock'}
                     </button>
                   </form>
@@ -205,7 +160,8 @@ export default function SettingsPage() {
                     id="settings-pro-code-error"
                     role="status"
                     aria-live="polite"
-                    className={`font-mono text-[10px] mt-2 ${error ? 'text-signal-red' : 'sr-only'}`}
+                    className={error ? ui.accent : ui.srOnly}
+                    style={{ margin: 0, fontSize: 13 }}
                   >
                     {error ?? ''}
                   </p>
