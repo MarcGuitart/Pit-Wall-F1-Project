@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -131,6 +132,18 @@ def test_the_script_sends_the_same_header_the_gate_reads():
 
 
 # ── 3. wired together for real ───────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def isolated_cache(monkeypatch, tmp_path):
+    """
+    compute() writes _analysis.json as it goes. Point it at a copy of 11377's
+    cache so the versioned backend/cache/11377/_analysis.json is never
+    rewritten by a test run (Block 26d).
+    """
+    shutil.copytree(BACKEND_ROOT / "cache" / str(PRO_SESSION_KEY), tmp_path / str(PRO_SESSION_KEY))
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    return tmp_path
+
 
 @pytest.fixture
 def build_secret_configured(monkeypatch):
