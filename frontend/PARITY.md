@@ -16,8 +16,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 3 Pantalla de carga | hecho | f9d3ca6, 5754fc9 |
 | 4 Landing, selector, popover | hecho | 9ddb3ba, 16726b8, 0c30de2, 0991bcb |
 | 5 Análisis módulo a módulo | pendiente | |
-| 6 Telemetría | hecho | (estos commits) |
-| 7 Race Engineer | pendiente | |
+| 6 Telemetría | hecho | db2002b…9184214 |
+| 7 Race Engineer | hecho | (estos commits) |
 | 8 Settings, Docs, ProWall, estados | pendiente | |
 | 9 Auditoría de paridad | pendiente | |
 
@@ -238,7 +238,7 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Cabecera de carrera (chaos, pilotos, stints, nivel) | analysis/AnalysisPage | analysis/AnalysisPage (PageHeader) | S race-9636*; T shallow: sin pérdidas | verificado |
 | Fases de carrera | analysis/RacePhaseTimeline | analysis/RacePhaseTimeline | S; T shallow; módulos failed/n.a. | verificado |
 | Barra de sesión (sin fases) | analysis/SessionTimelineBar | analysis/SessionTimelineBar | S modules-*; T shallow | verificado |
-| Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | | S; T expand; I un solo audio, clip muerto | pendiente |
+| Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | mismos (marcadores con aria-expanded; audioBus intacto) | S; T shallow; I un solo audio y clip muerto en fase 9 | verificado (S, T) |
 | Pestañas (6, con badges) | analysis/TabNav | analysis/TabNav sobre ui/Tabs | S; T shallow | verificado |
 | Strategy / Data View | analysis/AnalysisModeToggle | ui/Segmented (role tablist) | S; T shallow | verificado |
 | Driver focus strip | analysis/DriverFocusStrip | | S driver-card | pendiente |
@@ -265,7 +265,7 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | analysis/CleanAirValueCard | S; T shallow; módulos failed/n.a. | verificado |
 | Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | tabs/LapChartsTab (LapCharts sin cambios: compartido con /live) | S lap-charts; T shallow | verificado |
 | Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab, LapChartsTab | mismos archivos (stack con reglas, Cells de 2 columnas, sin framer-motion) | S; T shallow | verificado |
-| Tarjeta de piloto con radios | analysis/DriverCard | | T driver-card:* (todos los pilotos); I radios | pendiente |
+| Tarjeta de piloto con radios | analysis/DriverCard | analysis/DriverCard (dialog modal, Escape, cerrar etiquetado) | S/T driver-card-9636; todas las tarjetas en fase 9 | verificado (S, T) |
 | ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | analysis/ModuleUnavailable (StatusBadge: failed sólido acento, n/a discontinuo) — adelantado de la fase 8 | S race-9636-modules-failed / -not_applicable; T shallow | verificado |
 | Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | ui/ConfidenceBadge (ConfidenceChip queda para /live), EstimatedLabel, MethodologyBadge sobre Popover | T shallow; expand en fase 9 | verificado (T shallow) |
 | Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
@@ -289,11 +289,11 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Overlay: apertura, preguntas sugeridas, envío | radio/RadioOverlay | | S chat-answer; I | pendiente |
-| Citas (cited signals) y confianza | radio/RadioOverlay | | S chat-answer/answered; T | pendiente |
-| Rate-limit (cuenta atrás, input bloqueado) | radio/RadioOverlay | | S chat-rate-limited | pendiente |
-| Offline (Ollama/Groq no listos) | radio/EngineerOfflineState | | S chat-offline | pendiente |
-| Sonido on/off | radio/AudioToggle | | S; I | pendiente |
+| Overlay: apertura, preguntas sugeridas, envío | radio/RadioOverlay | radio/RadioOverlay (dialog modal con nombre, feed aria-live) | S/T chat-answer (0 pérdidas); en 390 px ya se abre (en la base no) | verificado (S, T); I en fase 9 |
+| Citas (cited signals) y confianza | radio/RadioOverlay | ConfidenceBadge + citas | S/T chat-cited, chat-answer | verificado |
+| Rate-limit (cuenta atrás, input bloqueado) | radio/RadioOverlay | igual (mensaje con role=status) | S/T chat-rate-limited | verificado |
+| Offline (Ollama/Groq no listos) | radio/EngineerOfflineState | radio/EngineerOfflineState (role=alert) | S/T chat-offline | verificado |
+| Sonido on/off | radio/AudioToggle | radio/AudioToggle (aria-pressed) | S; T | verificado |
 | Botón Engineer en TopBar | radio/RadioTrigger | radio/RadioTrigger restilado (mismas etiquetas y title) | S; en 390 px ya se puede pulsar | verificado |
 
 ### Settings, Docs
@@ -377,6 +377,13 @@ Revisadas a mano las 44 restantes:
 8. EngineerSignalSummary ordena por severidad **en su sitio** el array de notas que recibe
    (`base.sort` sobre la prop): tras visitar Race Control cambia el orden de las notas en el resto de
    la página. Se conserva tal cual.
+9. **Colores de equipo**: el backend da `team_colour` sin `#` ("3671C6") y la UI vieja lo usaba tal
+   cual en CSS, así que ningún swatch de equipo se pintaba. Las piezas migradas normalizan con `#` y
+   ahora sí se ven. Es un cambio visible respecto a la base, hecho por necesidad del restilado;
+   reversible si se prefiere conservar el aspecto anterior.
+10. El estado offline del chat dice "Start Ollama"; en producción el proveedor puede ser Groq.
+11. Las píldoras "Tyres loaded · Pit mapped · Race ctrl parsed" del chat se muestran siempre, sin
+    comprobar nada.
 7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
    (se conserva tal cual).
 6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce
