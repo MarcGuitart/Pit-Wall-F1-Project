@@ -180,10 +180,13 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Race DNA | d513c4c | ninguna (sin la celda vacía) |
 | True Pace podio + MethodologyBadge + EstimatedLabel | eaa7d3b | ninguna; confianza "High" → "High confidence" (contiene el texto) |
 | Key Decisions | fdbe490 | ninguna |
-| Tyre Cliff Map | (siguiente) | ninguna |
-| Pit Sequence | (siguiente) | ninguna |
-| DRS Train Detector | (siguiente) | ninguna |
-| Clean Air Value | (siguiente) | "estimated…" y "estimated from pace comparison…" ya no van pegados en una línea |
+| Tyre Cliff Map | 23ac107 | ninguna |
+| Pit Sequence | 55fde5d | ninguna |
+| DRS Train Detector | ef640b7 | ninguna |
+| Clean Air Value | f39e00a | "estimated…" y "estimated from pace comparison…" ya no van pegados en una línea |
+| Meteo (WeatherOverlay) | (siguiente) | ninguna (9636, 11377) |
+| Crossovers | (siguiente) | ninguna; el aviso de SC concurrente sigue siempre visible |
+| Weather winners & losers | (siguiente) | ninguna (9636 lo tiene not_applicable) |
 
 ## Inventario (alcanzable desde app/ en main)
 
@@ -241,9 +244,9 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Decisiones (timeline) | analysis/DecisionsTimeline | | T data view | pendiente |
 | Exclusion log | data/ExclusionLogPanel | | T data view | pendiente |
 | Data View (índice y secciones) | data/DataViewTables | | S; T | pendiente |
-| Meteo | strategy/WeatherOverlay | | S weather; T | pendiente |
-| Crossovers | analysis/CrossoverWindowPanel | | S; T expand | pendiente |
-| Weather winners & losers | analysis/WeatherWinnersLosers | | T; módulos | pendiente |
+| Meteo | strategy/WeatherOverlay | strategy/WeatherOverlay | S weather 9636/11377; T shallow; módulos failed/n.a. | verificado |
+| Crossovers | analysis/CrossoverWindowPanel | analysis/CrossoverWindowPanel | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
+| Weather winners & losers | analysis/WeatherWinnersLosers | analysis/WeatherWinnersLosers | T shallow 11377; módulos failed/n.a. | verificado |
 | Tren de DRS | strategy/DRSTrainDetector | strategy/DRSTrainDetector | S tyre-pit; T shallow (expand en fase 9); módulos failed/n.a. | verificado (S, T shallow) |
 | Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | analysis/CleanAirValueCard | S; T shallow; módulos failed/n.a. | verificado |
 | Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | | S lap-charts; T svg | pendiente |

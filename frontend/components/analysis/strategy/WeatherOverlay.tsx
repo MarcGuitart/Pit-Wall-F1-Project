@@ -2,6 +2,8 @@ import type { WeatherAnalysis, WeatherLap, CrossoverWindow, WeatherWinnersLosers
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
 import { CrossoverWindowPanel } from '@/components/analysis/CrossoverWindowPanel'
 import { WeatherWinnersLosers as WeatherWinnersLosersPanel } from '@/components/analysis/WeatherWinnersLosers'
+import { Badge, Panel, toneClass, ui, type Tone } from '@/components/ui'
+import a from '../analysis.module.css'
 
 type Props = {
   weather: WeatherAnalysis
@@ -12,22 +14,22 @@ type Props = {
 }
 
 const CONDITION_COLOR = {
-  DRY:  { bar: '#23D18B', bg: 'rgba(35,209,139,.12)', text: 'text-signal-green' },
-  WET:  { bar: '#4DA3FF', bg: 'rgba(77,163,255,.12)',  text: 'text-signal-blue' },
+  DRY:  { bar: 'var(--pw-green)', tone: 'ok' as Tone },
+  WET:  { bar: 'var(--pw-blue)',  tone: 'info' as Tone },
 }
 
 const EVENT_COLOR: Record<string, string> = {
-  RAIN_ONSET: '#4DA3FF',
-  RAIN_END:   '#23D18B',
-  TEMP_SPIKE: '#FFB020',
-  TEMP_DROP:  '#8A94A6',
+  RAIN_ONSET: 'var(--pw-blue)',
+  RAIN_END:   'var(--pw-green)',
+  TEMP_SPIKE: 'var(--pw-amber)',
+  TEMP_DROP:  'var(--pw-muted)',
 }
 
-const IMPACT_PILL: Record<string, { cls: string; label: string }> = {
-  None:   { cls: 'text-text-muted border-border-subtle',              label: 'No impact' },
-  Low:    { cls: 'text-signal-green border-signal-green/30 bg-signal-green/10',  label: 'Low impact' },
-  Medium: { cls: 'text-signal-amber border-signal-amber/30 bg-signal-amber/10',  label: 'Medium impact' },
-  High:   { cls: 'text-signal-blue border-signal-blue/30 bg-signal-blue/10',     label: 'High impact' },
+const IMPACT_PILL: Record<string, { tone: Tone; label: string }> = {
+  None:   { tone: 'muted', label: 'No impact' },
+  Low:    { tone: 'ok',    label: 'Low impact' },
+  Medium: { tone: 'warn',  label: 'Medium impact' },
+  High:   { tone: 'info',  label: 'High impact' },
 }
 
 function ConditionBar({ laps, totalLaps }: { laps: WeatherLap[]; totalLaps: number }) {
@@ -35,7 +37,7 @@ function ConditionBar({ laps, totalLaps }: { laps: WeatherLap[]; totalLaps: numb
   const lapMap = new Map(laps.map((l) => [l.lap_number, l]))
 
   return (
-    <div className="flex rounded-[2px] overflow-hidden" style={{ height: '10px' }}>
+    <div style={{ display: 'flex', height: 12 }} role="img" aria-label="Track condition by lap">
       {Array.from({ length: totalLaps }, (_, i) => {
         const lapNum = i + 1
         const lc = lapMap.get(lapNum)
@@ -70,11 +72,11 @@ function TempSparkline({ laps }: { laps: WeatherLap[] }) {
   }).join(' ')
 
   return (
-    <svg width={W} height={H} style={{ display: 'block' }}>
+    <svg width={W} height={H} style={{ display: 'block', maxWidth: '100%' }} aria-hidden="true">
       <polyline
         points={points}
         fill="none"
-        stroke="#FFB020"
+        stroke="var(--pw-amber)"
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
@@ -88,84 +90,58 @@ export function WeatherOverlay({ weather, totalLaps, crossoverWindows, weatherWi
   const total = totalCovered || totalLaps || 1
 
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
-          Weather Strategy Impact
-        </span>
-        <div className="flex items-center gap-2">
-          <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${impactCfg.cls}`}>
-            {impactCfg.label}
-          </span>
-          <EstimatedLabel />
-        </div>
-      </div>
-
-      <div className="p-3 space-y-3">
+    <Panel
+      title="Weather Strategy Impact"
+      aside={<><Badge tone={impactCfg.tone}>{impactCfg.label}</Badge><EstimatedLabel /></>}
+    >
+      <div style={{ display: 'grid', gap: 16 }}>
         {/* Condition bar */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">
-              Conditions by lap
-            </span>
-            <span className="font-mono text-[8px] text-text-muted">
-              L1 → L{totalLaps}
-            </span>
+          <div className={a.between} style={{ marginBottom: 6 }}>
+            <span className={ui.label}>Conditions by lap</span>
+            <span className={ui.sub}>L1 → L{totalLaps}</span>
           </div>
           <ConditionBar laps={weather.lap_conditions} totalLaps={totalLaps} />
           {/* Condition legend */}
-          <div className="flex items-center gap-3 mt-1.5">
+          <div className={a.row} style={{ gap: 14, marginTop: 6 }}>
             {(['DRY', 'WET'] as const).map((cond) => {
               const count = cond === 'DRY' ? weather.dry_laps : weather.wet_laps
               if (count === 0) return null
               const cfg = CONDITION_COLOR[cond]
               return (
-                <div key={cond} className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: cfg.bar }} />
-                  <span className="font-mono text-[9px] text-text-muted">
-                    {cond} <span className={`font-bold ${cfg.text}`}>{count}L</span>
-                  </span>
-                </div>
+                <span key={cond} className={`${a.row} ${ui.sub}`}>
+                  <span className={a.sq} style={{ background: cfg.bar }} aria-hidden="true" />
+                  {cond} <b className={toneClass(cfg.tone)}>{count}L</b>
+                </span>
               )
             })}
           </div>
         </div>
 
         {/* Temperature + stats row */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className={a.kv} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
           {/* Temperature sparkline */}
           <div>
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mb-1">
-              Track temp (°C)
-            </div>
-            <div className="flex items-end gap-2">
+            <div className={ui.label} style={{ marginBottom: 6 }}>Track temp (°C)</div>
+            <div className={a.row} style={{ alignItems: 'flex-end' }}>
               <TempSparkline laps={weather.lap_conditions} />
-              <div className="flex flex-col items-end shrink-0">
-                <span className="font-mono font-bold text-[11px] text-signal-amber">
-                  {weather.max_track_temp}°
-                </span>
-                <span className="font-mono text-[9px] text-text-muted">
-                  {weather.min_track_temp}°
-                </span>
-              </div>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <b className={toneClass('warn')}>{weather.max_track_temp}°</b>
+                <span className={ui.sub}>{weather.min_track_temp}°</span>
+              </span>
             </div>
           </div>
 
           {/* Quick stats */}
-          <div className="space-y-1">
+          <div style={{ display: 'grid', gap: 4, alignContent: 'start' }}>
             {[
               { label: 'Avg track', value: `${weather.avg_track_temp}°C` },
               { label: 'Wet laps', value: `${weather.wet_laps} / ${total}` },
               { label: 'Peak rain', value: weather.peak_rainfall_lap ? `L${weather.peak_rainfall_lap}` : '—' },
             ].map(({ label, value }) => (
-              <div key={label} className="flex items-center justify-between">
-                <span className="font-display font-bold text-[8px] uppercase tracking-[0.5px] text-text-muted">
-                  {label}
-                </span>
-                <span className="font-mono text-[9px] text-text-primary tabular-nums">
-                  {value}
-                </span>
+              <div key={label} className={a.between}>
+                <span className={ui.label}>{label}</span>
+                <span className={a.num}>{value}</span>
               </div>
             ))}
           </div>
@@ -174,49 +150,35 @@ export function WeatherOverlay({ weather, totalLaps, crossoverWindows, weatherWi
         {/* Events */}
         {weather.events.length > 0 && (
           <div>
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mb-1.5">
-              Key events
-            </div>
-            <div className="space-y-1">
+            <div className={ui.label} style={{ marginBottom: 6 }}>Key events</div>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
               {weather.events.slice(0, 4).map((ev, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <div
-                    className="w-1 mt-1 shrink-0 rounded-full"
-                    style={{ height: '8px', backgroundColor: EVENT_COLOR[ev.event_type] ?? '#8A94A6' }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-mono text-[9px] text-text-secondary leading-snug">
-                      {ev.message.length > 90 ? ev.message.slice(0, 90) + '…' : ev.message}
-                    </span>
-                  </div>
-                </div>
+                <li key={i} className={a.row} style={{ alignItems: 'flex-start' }}>
+                  <span className={a.swatch} style={{ background: EVENT_COLOR[ev.event_type] ?? 'var(--pw-muted)', minHeight: 14, marginTop: 2 }} aria-hidden="true" />
+                  <span className={a.para}>{ev.message.length > 90 ? ev.message.slice(0, 90) + '…' : ev.message}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
         {/* Summary */}
-        <p className="font-mono text-[9px] text-text-muted pt-1 border-t border-border-subtle leading-relaxed">
-          {weather.summary}
-        </p>
+        <p className={a.para} style={{ paddingTop: 12, borderTop: '1px solid var(--pw-divider)' }}>{weather.summary}</p>
 
         {/* V4: Crossover windows */}
         {(crossoverWindows ?? []).length > 0 && (
-          <div className="pt-1 border-t border-border-subtle">
-            <CrossoverWindowPanel
-              windows={crossoverWindows!}
-              sessionType={sessionType}
-            />
+          <div style={{ paddingTop: 12, borderTop: '1px solid var(--pw-divider)' }}>
+            <CrossoverWindowPanel windows={crossoverWindows!} sessionType={sessionType} />
           </div>
         )}
 
         {/* V4: Weather winners & losers */}
         {weatherWinners && (
-          <div className="pt-1 border-t border-border-subtle">
+          <div style={{ paddingTop: 12, borderTop: '1px solid var(--pw-divider)' }}>
             <WeatherWinnersLosersPanel data={weatherWinners} />
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   )
 }

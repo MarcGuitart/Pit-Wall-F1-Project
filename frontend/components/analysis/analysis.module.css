@@ -88,3 +88,9 @@
 .colHead { padding: 10px 14px; border-bottom: 1px solid var(--pw-divider); }
 .colFoot { padding: 8px 14px; border-top: 1px solid var(--pw-divider); margin-top: auto; }
 .highlight { background: color-mix(in srgb, var(--pw-blue) 10%, transparent); box-shadow: inset 4px 0 0 var(--pw-blue); }
+
+/* ── weather sub-panels ── */
+.subCard { display: grid; gap: 8px; padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); min-width: 0; }
+.warnNote { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; font-size: 12px; line-height: 1.45; color: var(--pw-amber); border: 2px solid currentColor; }
+.twoCol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 640px) { .twoCol { grid-template-columns: 1fr; } }
