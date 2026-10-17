@@ -21,7 +21,7 @@ router = APIRouter(tags=["races"])
 _EXCLUSIONS_PATH = Path(__file__).resolve().parents[2] / EXCLUSIONS_FILE
 
 
-def _exclusions() -> dict | None:
+def read_exclusions() -> dict | None:
     """The exclusions file, read per request (small, edited by hand); None if
     it is missing or unreadable — nothing is excluded then."""
     try:
@@ -37,7 +37,7 @@ def _has_meta(rows: list) -> bool:
 
 
 def _races_out(rows: list) -> list[RaceListItem]:
-    off = excluded_meetings(_exclusions())
+    off = excluded_meetings(read_exclusions())
     out = [RaceListItem(**r) if isinstance(r, dict) else r for r in rows]
     for item in out:
         item.is_cancelled = item.is_cancelled is True or item.meeting_key in off
@@ -45,7 +45,7 @@ def _races_out(rows: list) -> list[RaceListItem]:
 
 
 def _sessions_out(rows: list) -> list[SessionInfo]:
-    off = parse_exclusions(_exclusions())
+    off = parse_exclusions(read_exclusions())
     out = [SessionInfo(**r) if isinstance(r, dict) else r for r in rows]
     for item in out:
         item.is_cancelled = item.is_cancelled is True or item.session_key in off

@@ -194,6 +194,7 @@ Every non-2xx response, whatever raised it, has the same body:
 |---|---|---|
 | SESSION_NOT_CACHED | 404 | /analysis (demo mode, session not in cache); /races/{meeting}/sessions (needs token) |
 | SESSION_NOT_HISTORICAL_YET | 425 | /analysis — details: `unlock_at_utc`, `retry_after_minutes` |
+| SESSION_CANCELLED | 410 | /analysis — the session did not take place: in `backend/excluded_sessions.json` or OpenF1 `is_cancelled` is the boolean `true` (same reading as /races). Checked before the PRO gate, without computing or caching anything. details: `session_key`, `source` (`excluded_sessions.json` \| `openf1`) |
 | OPENF1_RATE_LIMIT | 429 | /analysis, /races — details: `endpoint`, `attempts` |
 | OPENF1_ERROR | 503 | /analysis, /races — details: `endpoint`, `attempts`, `upstream_status` when OpenF1 answered |
 | OPENF1_UNAUTHORIZED | 503 | /analysis, /races — token configured but rejected by OpenF1 (without a token the same 401 is SESSION_NOT_CACHED) |
