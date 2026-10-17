@@ -25,9 +25,9 @@ KL_RACE = {
 
 @pytest.fixture
 def client():
-    meta_api._memo.clear()
+    meta_api._reset_for_tests()
     yield TestClient(app, raise_server_exceptions=False)
-    meta_api._memo.clear()
+    meta_api._reset_for_tests()
 
 
 @pytest.fixture

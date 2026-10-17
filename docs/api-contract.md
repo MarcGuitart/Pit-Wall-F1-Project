@@ -44,9 +44,14 @@ to `country_name`), `circuit_short_name`, `country_name`, `year`,
 (same reading as /races), `analysis_cached` (an analysis file is on this
 server), `earliest_at` (the historical guard's unlock instant: the earliest
 /analysis can compute it, not a publication time; null without a date).
-Sources, in order: `_session_meta.json` or the cached analysis, then one
-uncached OpenF1 read memoised in process for 5 min. Never writes to the cache.
-Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503.
+Sources, in order: `_session_meta.json` or the cached analysis (never the
+network), then OpenF1 (`sessions`, and `meetings` for the name when the cached
+calendar lacks it). The OpenF1 path is guarded: an in-memory memo (512 keys;
+an answer for 5 min, "no such session" for 1 min, failures not kept), one
+flight per session_key, and 20 cold lookups per IP per minute (memo hits and
+joins are free). Never writes to the cache.
+Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503,
+RATE_LIMITED 429 (details: `retry_after_seconds`, `scope` ip, `limit`, `window_seconds`).
 
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`
@@ -213,7 +218,7 @@ Every non-2xx response, whatever raised it, has the same body:
 | OPENF1_ERROR | 503 | /analysis, /races — details: `endpoint`, `attempts`, `upstream_status` when OpenF1 answered |
 | OPENF1_UNAUTHORIZED | 503 | /analysis, /races — token configured but rejected by OpenF1 (without a token the same 401 is SESSION_NOT_CACHED) |
 | LLM_RATE_LIMITED | 503 | /chat — the LLM provider (Groq) throttled the request; details: `provider`, `model`, `retry_after_seconds` |
-| RATE_LIMITED | 429 | /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
+| RATE_LIMITED | 429 | /sessions/{key}/meta — cold lookups per IP; /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
 | ANALYSIS_NOT_FOUND | 404 | /chat, /telemetry — run /analysis/{session_key} first |
 | ANALYSIS_FAILED | 500 | /analysis — cached file unreadable (discarded; retry recomputes) or the computation itself crashed; /chat — cached analysis no longer matches the schema |
 | TELEMETRY_RACE_ONLY | 400 | /telemetry — session is not a Race |
