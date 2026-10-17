@@ -26,6 +26,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical and og:image (Block 29).
+  metadataBase: new URL('https://pitwallengineer.com'),
   title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
   description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view.',
   openGraph: {
