@@ -3,112 +3,61 @@
 import { useState } from 'react'
 import type { CrossoverWindow } from '@/types'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
+import { Badge, toneClass, ui, type Tone } from '@/components/ui'
+import a from './analysis.module.css'
 
 type Props = {
   windows: CrossoverWindow[]
   sessionType: string
 }
 
-const CONDITION_STYLE: Record<string, { color: string; bg: string }> = {
-  DRY:  { color: '#23D18B', bg: 'rgba(35,209,139,0.12)' },
-  WET:  { color: '#4DA3FF', bg: 'rgba(77,163,255,0.12)' },
-}
-
-const IMPACT_STYLE: Record<string, { cls: string }> = {
-  High:   { cls: 'text-signal-red border-signal-red/30 bg-signal-red/10' },
-  Medium: { cls: 'text-signal-amber border-signal-amber/30 bg-signal-amber/10' },
-  Low:    { cls: 'text-text-muted border-border-subtle' },
-}
-
-const CONFIDENCE_STYLE: Record<string, string> = {
-  High:   'text-signal-green border-signal-green/30',
-  Medium: 'text-signal-amber border-signal-amber/30',
-  Low:    'text-text-muted border-border-subtle',
-}
-
-function ConditionBadge({ condition }: { condition: string }) {
-  const style = CONDITION_STYLE[condition] ?? { color: 'rgb(var(--c-text-secondary))', bg: 'rgba(138,148,166,0.12)' }
-  return (
-    <span
-      className="px-1.5 py-0.5 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.8px]"
-      style={{ color: style.color, background: style.bg, border: `1px solid ${style.color}44` }}
-    >
-      {condition}
-    </span>
-  )
-}
-
-function DriverChip({ code, tint }: { code: string; tint: 'green' | 'red' }) {
-  const cls = tint === 'green'
-    ? 'bg-signal-green/10 border-signal-green/30 text-signal-green'
-    : 'bg-signal-red/10 border-signal-red/30 text-signal-red'
-  return (
-    <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${cls}`}>
-      {code}
-    </span>
-  )
-}
+const CONDITION_TONE: Record<string, Tone> = { DRY: 'ok', WET: 'info' }
+const IMPACT_TONE: Record<string, Tone> = { High: 'accent', Medium: 'warn', Low: 'muted' }
 
 function WindowCard({ window: cw }: { window: CrossoverWindow }) {
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[3px] p-2.5 space-y-2">
+    <div className={a.subCard}>
       {/* Top row: transition + lap range + impact */}
-      <div className="flex items-center justify-between flex-wrap gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <ConditionBadge condition={cw.from_condition} />
-          <span className="font-mono text-[10px] text-text-muted">→</span>
-          <ConditionBadge condition={cw.to_condition} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[9px] text-text-muted">
-            Laps {cw.lap_start}–{cw.lap_end}
-          </span>
-          <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[7px] uppercase tracking-[0.5px] ${IMPACT_STYLE[cw.impact]?.cls ?? ''}`}>
-            {cw.impact}
-          </span>
-        </div>
+      <div className={`${a.between} ${a.wrap}`}>
+        <span className={a.row}>
+          <Badge tone={CONDITION_TONE[cw.from_condition] ?? 'muted'}>{cw.from_condition}</Badge>
+          <span className={a.muted} aria-hidden="true">→</span>
+          <Badge tone={CONDITION_TONE[cw.to_condition] ?? 'muted'}>{cw.to_condition}</Badge>
+        </span>
+        <span className={a.row}>
+          <span className={ui.sub}>Laps {cw.lap_start}–{cw.lap_end}</span>
+          <Badge tone={IMPACT_TONE[cw.impact] ?? 'muted'}>{cw.impact}</Badge>
+        </span>
       </div>
 
       {/* ⚠ Concurrent SC warning — ALWAYS visible when true */}
       {cw.concurrent_sc && (
-        <div className="flex items-start gap-1.5 px-2 py-1.5 bg-signal-amber/10 border border-signal-amber/30 rounded-[2px]">
-          <span className="text-signal-amber text-[10px] shrink-0 mt-0.5">⚠</span>
-          <span className="font-mono text-[9px] text-signal-amber leading-snug">
-            Concurrent SC — attribution mixed. Position gains may reflect SC timing, not tyre choice alone.
-          </span>
+        <div className={a.warnNote} role="note">
+          <span aria-hidden="true">⚠</span>
+          <span>Concurrent SC — attribution mixed. Position gains may reflect SC timing, not tyre choice alone.</span>
         </div>
       )}
 
       {/* Best-timed / late drivers */}
       {(cw.best_timed_drivers.length > 0 || cw.late_drivers.length > 0) && (
-        <div className="flex flex-wrap gap-2">
+        <div className={`${a.row} ${a.wrap}`} style={{ gap: 12 }}>
           {cw.best_timed_drivers.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="font-display font-bold text-[7px] uppercase tracking-[0.5px] text-signal-green">
-                Best timed
-              </span>
-              {cw.best_timed_drivers.map((code) => (
-                <DriverChip key={code} code={code} tint="green" />
-              ))}
-            </div>
+            <span className={`${a.row} ${a.wrap}`}>
+              <span className={`${ui.label} ${toneClass('ok')}`}>Best timed</span>
+              {cw.best_timed_drivers.map((code) => <Badge key={code} tone="ok">{code}</Badge>)}
+            </span>
           )}
           {cw.late_drivers.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="font-display font-bold text-[7px] uppercase tracking-[0.5px] text-signal-red">
-                Late
-              </span>
-              {cw.late_drivers.map((code) => (
-                <DriverChip key={code} code={code} tint="red" />
-              ))}
-            </div>
+            <span className={`${a.row} ${a.wrap}`}>
+              <span className={`${ui.label} ${toneClass('accent')}`}>Late</span>
+              {cw.late_drivers.map((code) => <Badge key={code} tone="accent">{code}</Badge>)}
+            </span>
           )}
         </div>
       )}
 
       {/* Summary */}
-      <p className="font-mono text-[9px] text-text-secondary leading-[1.55]">
-        {cw.summary}
-      </p>
+      <p className={a.para}>{cw.summary}</p>
     </div>
   )
 }
@@ -122,33 +71,26 @@ export function CrossoverWindowPanel({ windows, sessionType }: Props) {
   const hasMore = windows.length > 2
 
   return (
-    <div>
+    <div style={{ display: 'grid', gap: 10 }}>
       {/* Sub-header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">
-            Crossover Windows
-          </span>
+      <div className={a.between}>
+        <span className={a.row}>
+          <h4 className={ui.h6}>Crossover Windows</h4>
           <MethodologyBadge module="crossover" />
-        </div>
-        <span className="font-mono text-[8px] text-text-muted">
-          {windows.length} window{windows.length !== 1 ? 's' : ''} detected
         </span>
+        <span className={ui.sub}>{windows.length} window{windows.length !== 1 ? 's' : ''} detected</span>
       </div>
 
-      <div className="space-y-2">
-        {shown.map((cw, i) => (
-          <WindowCard key={i} window={cw} />
-        ))}
+      <div style={{ display: 'grid', gap: 8 }}>
+        {shown.map((cw, i) => <WindowCard key={i} window={cw} />)}
       </div>
 
       {hasMore && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 font-mono text-[9px] text-text-muted hover:text-text-secondary transition-colors"
-        >
-          {expanded ? '▲ Show fewer' : `▼ Show ${windows.length - 2} more window${windows.length - 2 !== 1 ? 's' : ''}`}
-        </button>
+        <div>
+          <button type="button" onClick={() => setExpanded((v) => !v)} className={a.linkBtn} aria-expanded={expanded}>
+            {expanded ? '▲ Show fewer' : `▼ Show ${windows.length - 2} more window${windows.length - 2 !== 1 ? 's' : ''}`}
+          </button>
+        </div>
       )}
     </div>
   )
