@@ -126,7 +126,8 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
             return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
           })
           setSessions(sorted)
-          const raceSession = sorted.find((s) => s.session_type === 'Race')
+          // A cancelled race (only is_cancelled === true) is never the default.
+          const raceSession = sorted.find((s) => s.session_type === 'Race' && s.is_cancelled !== true)
           if (raceSession) setSelectedSessionKey(raceSession.session_key)
         })
         .catch((err) => {
@@ -196,6 +197,17 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
               {sessions.length > 0 ? (
                 sessions.map((s) => {
                   const isSelected = selectedSessionKey === s.session_key
+                  const label = s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')
+                  if (s.is_cancelled === true) {
+                    // Nothing to open and nothing to put in a calendar.
+                    return (
+                      <span key={s.session_key} className={l.pill} data-cancelled="true">
+                        <button type="button" disabled className={buttonClass()} aria-label={`${s.session_name} — cancelled`}>
+                          {label} · Cancelled
+                        </button>
+                      </span>
+                    )
+                  }
                   const isFuture = Boolean(s.date_start && new Date(s.date_start).getTime() > Date.now())
                   const selectedMeeting = races.find((r) => r.meeting_key === selectedMeetingKey)
                   return (
@@ -220,7 +232,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                         }}
                         className={`${buttonClass()} ${isSelected ? l.pillOn : ''}`}
                       >
-                        {s.session_name.replace('Practice ', 'FP').replace('Qualifying', 'QUALI')}
+                        {label}
                       </button>
                       {isFuture && s.date_start && s.date_end && selectedMeeting && (
                         <AddToCalendarButton
