@@ -1,5 +1,8 @@
 'use client'
 
+import { buttonClass, ui } from '@/components/ui'
+import r from './radio.module.css'
+
 type EngineerOfflineStateProps = {
   onCheckConnection: () => void
   onContinueAnyway: () => void
@@ -10,52 +13,29 @@ export function EngineerOfflineState({
   onContinueAnyway,
 }: EngineerOfflineStateProps) {
   return (
-    <div className="flex flex-col px-6 py-8 gap-5">
-      {/* Amber accent bar at top of panel */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-signal-amber" />
-
+    <div className={r.offline} role="alert">
       {/* Title */}
       <div>
-        <div className="font-display font-black text-[14px] uppercase tracking-[1.5px] text-signal-amber mb-2">
+        <h2 className={ui.h6} style={{ color: 'var(--pw-amber)', fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
           Engineer Radio Offline
-        </div>
-        <p className="font-mono text-[11px] text-text-secondary leading-relaxed">
+        </h2>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--pw-muted)' }}>
           The local race engineer model is not running.
           Start Ollama to enable race engineer answers.
         </p>
       </div>
 
       {/* Commands */}
-      <div className="flex flex-col gap-2">
-        <p className="font-mono text-[10px] text-text-muted uppercase tracking-[1px] mb-1">
-          Run in terminal:
-        </p>
-        <code
-          className="block font-mono text-[11px] text-signal-green bg-bg-primary border border-border-default rounded-[3px] px-3 py-2"
-        >
-          ollama serve
-        </code>
-        <code
-          className="block font-mono text-[11px] text-signal-green bg-bg-primary border border-border-default rounded-[3px] px-3 py-2"
-        >
-          ollama pull llama3.1:8b
-        </code>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <p className={ui.label} style={{ margin: 0 }}>Run in terminal:</p>
+        <code className={r.code}>ollama serve</code>
+        <code className={r.code}>ollama pull llama3.1:8b</code>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 pt-1">
-        <button
-          onClick={onCheckConnection}
-          className="px-4 py-2 bg-bg-elevated border border-border-default text-text-secondary font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:text-text-primary hover:border-text-muted transition-colors"
-        >
-          Check connection
-        </button>
-        <button
-          onClick={onContinueAnyway}
-          className="px-4 py-2 border border-border-subtle text-text-muted font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:text-text-secondary transition-colors"
-        >
-          Continue anyway
-        </button>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onCheckConnection} className={buttonClass('ink')}>Check connection</button>
+        <button type="button" onClick={onContinueAnyway} className={buttonClass()}>Continue anyway</button>
       </div>
     </div>
   )
