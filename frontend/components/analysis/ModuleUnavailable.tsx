@@ -1,4 +1,6 @@
 import type { FullRaceAnalysis, ModuleState } from '@/types'
+import { StatusBadge, ui } from '@/components/ui'
+import a from './analysis.module.css'
 
 /**
  * Card shown in place of a V4 module that has no content.
@@ -20,27 +22,16 @@ export function ModuleUnavailable({ title, analysis, field }: Props) {
   const reason = status?.reason ?? null
 
   return (
-    <div
-      className="bg-bg-elevated rounded-[4px] px-4 py-3"
-      style={{ border: failed ? '1px dashed rgba(232,0,29,0.45)' : '1px dashed #252D3A' }}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-text-muted">
-          {title}
-        </span>
-        <span
-          className={`px-1.5 py-0.5 border border-dashed rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${
-            failed ? 'border-signal-red/50 text-signal-red' : 'border-border-default text-text-muted'
-          }`}
-        >
-          {failed ? 'Failed' : 'Not applicable'}
-        </span>
+    <section className={`${a.unavailable} ${failed ? a.unavailableFailed : a.unavailableNa}`} aria-label={`${title}: ${failed ? 'failed' : 'not applicable'}`}>
+      <div className={a.between}>
+        <h3 className={ui.h6}>{title}</h3>
+        <StatusBadge state={failed ? 'failed' : 'not_applicable'} />
       </div>
-      <p className="font-mono text-[10px] text-text-muted">
+      <p className={a.para}>
         {failed
           ? `This module could not be computed for this session.${reason ? ` (${reason})` : ''}`
           : reason ?? 'Nothing to show for this race.'}
       </p>
-    </div>
+    </section>
   )
 }
