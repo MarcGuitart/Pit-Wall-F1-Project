@@ -1,4 +1,4 @@
-import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
+import type { FullRaceAnalysis, RaceListItem, SessionInfo, SessionMeta } from '@/types'
 import type { TelemetryData } from '@/types/telemetry'
 import { ApiError, type ErrorDetails } from '@/lib/errors'
 import {
@@ -204,6 +204,11 @@ export async function fetchSessions(
   signal?: AbortSignal,
 ): Promise<SessionInfo[]> {
   return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
+}
+
+/** Public, light: the facts the loader and the blocked pages show before /analysis answers. */
+export async function fetchSessionMeta(sessionKey: number, signal?: AbortSignal): Promise<SessionMeta> {
+  return apiFetch<SessionMeta>(`/sessions/${sessionKey}/meta`, signal ? { signal } : undefined)
 }
 
 export async function fetchAnalysis(sessionKey: number, signal?: AbortSignal): Promise<FullRaceAnalysis> {

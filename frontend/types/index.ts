@@ -379,6 +379,27 @@ export type RaceListItem = {
   is_cancelled?: boolean | null
 }
 
+/** GET /sessions/{key}/meta (ops/loading-meta, docs/api-contract.md): what a
+ *  page can say about a session before its analysis exists. */
+export type SessionMeta = {
+  session_key: number
+  meeting_key: number | null
+  meeting_name: string | null
+  /** Host city — prefer it to country_name to name the GP. */
+  location: string | null
+  circuit_short_name: string | null
+  country_name: string | null
+  year: number | null
+  session_name: string | null
+  session_type: string | null
+  date_start: string | null
+  date_end: string | null
+  is_cancelled: boolean
+  analysis_cached: boolean
+  /** The historical guard's unlock instant: the earliest /analysis can compute it. */
+  earliest_at: string | null
+}
+
 export type SessionInfo = {
   session_key: number
   session_name: string
