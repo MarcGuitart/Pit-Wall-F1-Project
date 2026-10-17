@@ -31,7 +31,7 @@ const D = {
 }
 
 const Q = [
-  { key: 'pace', label: 'Q1 · True pace', title: 'Who was really fast?', body: 'Pace from clean laps only. Pit, safety-car and outlier laps are removed before anything is compared.' },
+  { key: 'pace', label: 'Q1 · True pace', title: 'Who was really fast?', body: 'Pace from clean laps only. Pit, safety-car, outlier and untimed laps are removed before anything is compared.' },
   { key: 'tyre', label: 'Q2 · Tyre degradation', title: 'Who destroyed their tyres?', body: 'Lap time against tyre age for each stint. The slope is the degradation.' },
   { key: 'pit', label: 'Q3 · Pit cycles', title: 'Who gained from the pit cycle?', body: 'Position before and after each stop, so the effect of the timing of a stop is visible.' },
   { key: 'chaos', label: 'Q4 · Chaos index', title: 'How chaotic was it?', body: 'One score from 0 to 100 for how disrupted the race was.' },

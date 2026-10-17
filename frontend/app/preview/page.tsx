@@ -91,12 +91,7 @@ export default function PreviewHome() {
         </div>
       </header>
 
-      <section className={`${s.cells} ${s.ruled}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-        {([['50K+', 'Data points per session', 'positions · intervals · car data · weather'], ['12', 'Analysis modules', 'pace · tyres · pits · chaos · DRS · DNA'],
-          ['40+', 'Strategic signals', 'engineer notes · decisions · phases'], ['Live', 'During every session', 'timing · telemetry · predictions · AI engineer']] as const).map(([v, l, sub]) => (
-          <div key={l} className={s.cell}><div className={s.label}>{l}</div><div className={s.big}>{v}</div><div className={s.sub}>{sub}</div></div>
-        ))}
-      </section>
+      {/* The 50K+ / 12 / 40+ figures were never computed from anything (Block 29): removed. */}
 
       <section className={`${s.cells} ${s.section}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
         {([['01', 'Select a session', 'Season, race and session type'], ['02', 'Decode the strategy', 'Pace, tyres, pit cycles, chaos'], ['03', 'Ask the race engineer', 'Grounded answers from session data']] as const).map(([n, t, sub]) => (

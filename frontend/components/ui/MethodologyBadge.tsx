@@ -7,7 +7,7 @@ type Module = 'pace' | 'degradation' | 'pit' | 'chaos' | 'notes' | 'traffic' | '
 
 const COPY: Record<Module, string> = {
   pace:
-    'Median of clean lap durations. Excludes pit in/out, SC/VSC laps, and statistical outliers (>2.5× IQR). Min 5 clean laps required.',
+    'Median of clean lap durations. Excludes pit in/out, SC/VSC, statistical outliers (>2.5× IQR) and laps with no timing. One clean lap is enough to be ranked; confidence is High from 12 clean laps, Medium from 6, Low below.',
   degradation:
     'Linear regression slope (s/lap) fitted to clean lap times within each stint. SC/VSC and pit-out laps excluded. Slope ≥ 0.08 = High cliff.',
   pit:

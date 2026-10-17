@@ -66,7 +66,7 @@ export function SampleAnalysis() {
           <span className={h.noteNum} aria-hidden="true">1</span>
           <h3 className={h.h3}>Exclusion log</h3>
           <p className={h.p}>
-            Pit, safety-car and outlier laps are removed from the pace figure, and the log gives the number of laps
+            Pit, safety-car, outlier and untimed laps are removed from the pace figure, and the log gives the number of laps
             removed, by reason. The figure comes from the laps that remain, and their number is shown as n.
           </p>
         </div>

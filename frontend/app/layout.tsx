@@ -27,7 +27,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
-  description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view. 50K+ data points per session.',
+  description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view.',
   openGraph: {
     title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
     description: 'Past F1 races analysed into strategy-grade and telemetry insights.',

@@ -33,7 +33,7 @@ export function Method() {
         <div className={h.cell} data-reveal>
           <h3 className={h.h3}>Exclusion logs</h3>
           <p className={h.p}>
-            Pit laps, safety-car laps and outlier laps are removed from pace. The number of laps removed, by reason,
+            Pit laps, safety-car laps, outlier laps and laps with no timing are removed from pace. The number of laps removed, by reason,
             is shown next to the figure, so it can be checked.
           </p>
         </div>
