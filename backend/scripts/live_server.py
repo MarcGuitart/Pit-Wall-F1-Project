@@ -127,6 +127,26 @@ def origin_regex(allowed: tuple[str, ...]) -> str:
     return any_of(LOCAL_ORIGIN_RE, netlify_preview_origin_regex(allowed))
 
 STARTED_AT = time.time()
+# /live/state: a session is "live" while its messages are this fresh.
+LIVE_FRESH_S = 180.0
+
+
+def public_state(state: RaceState) -> dict:
+    """
+    What the public landing may know (Block 29): whether a session is on air
+    and which one — nothing else. No times, positions, drivers or message
+    counts: those are the PRO stream's, behind the gate. "live" means messages
+    for a session arrived in the last LIVE_FRESH_S and its chequered flag has
+    not fallen; anything else is "no_session" (the page works out "under an
+    hour" from the calendar).
+    """
+    with state.lock:
+        key = state.session_key
+        last = state.last_message_at
+        done = state.chequered
+    fresh = last is not None and (state.clock() - last) < LIVE_FRESH_S
+    live = key is not None and fresh and not done
+    return {"state": "live" if live else "no_session", "session_key": key if live else None}
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
 RENEW_BEFORE_S = 420.0
 HERE = Path(__file__).resolve().parent
@@ -462,6 +482,9 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
     async def snapshot_json(request: Request) -> Response:
         return JSONResponse(snapshot_payload(state, hub, feed))
 
+    async def live_state(request: Request) -> Response:
+        return JSONResponse(public_state(state), headers={"Cache-Control": "no-store"})
+
     async def health(request: Request) -> Response:
         return JSONResponse({
             "ok": True,
@@ -529,6 +552,7 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
         Route("/live/{session_key:int}/snapshot", snapshot_route),
         Route("/live/{session_key:int}/stream", stream_route),
         Route("/health", health),
+        Route("/live/state", live_state),
     ]
     if dev_routes:
         # Unauthenticated. Only ever reachable from this machine — see the
