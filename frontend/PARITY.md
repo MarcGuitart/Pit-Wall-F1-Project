@@ -439,9 +439,11 @@ Revisadas a mano las 44 restantes:
    La línea base marca esos 9 pasos como fallidos en móvil. El shell nuevo no debe desbordar.
 7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
    (se conserva tal cual).
-8. EngineerSignalSummary ordena por severidad **en su sitio** el array de notas que recibe
-   (`base.sort` sobre la prop): tras visitar Race Control cambia el orden de las notas en el resto de
-   la página. Se conserva tal cual.
+8. ~~EngineerSignalSummary ordenaba por severidad **en su sitio** el array de notas que recibe~~ —
+   **arreglado (26d)**: ordena una copia; test que falla con el código anterior. Las citas del chat
+   **no dependían del orden**: los ids `S1…Sn` los asigna el backend sobre su propio análisis en
+   caché y la respuesta trae `title` y `lap_number`, que el chat pinta tal cual; nada del frontend
+   busca una cita por posición en `engineer_notes`.
 9. **Colores de equipo**: el backend da `team_colour` sin `#` ("3671C6") y la UI vieja lo usaba tal
    cual en CSS, así que ningún swatch de equipo se pintaba. Las piezas migradas normalizan con `#` y
    ahora sí se ven. Es un cambio visible respecto a la base, hecho por necesidad del restilado;

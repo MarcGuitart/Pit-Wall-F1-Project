@@ -32,7 +32,9 @@ export function EngineerSignalSummary({ notes, onViewAll }: Props) {
   const filtered = (() => {
     const f = FILTER_TYPES.find((t) => t.key === active)
     const base = f?.noteTypes ? notes.filter((n) => f.noteTypes!.includes(n.type)) : notes
-    return base.sort((a, b) => ({ High: 0, Medium: 1, Low: 2 }[a.severity] - { High: 0, Medium: 1, Low: 2 }[b.severity])).slice(0, 5)
+    // Sort a copy: `notes` is the page's own array (analysis.engineer_notes), shared with
+    // every other panel. Sorting it in place reordered the notes everywhere.
+    return [...base].sort((a, b) => ({ High: 0, Medium: 1, Low: 2 }[a.severity] - { High: 0, Medium: 1, Low: 2 }[b.severity])).slice(0, 5)
   })()
 
   return (
