@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import type { FullRaceAnalysis } from '@/types'
+import type { FullRaceAnalysis, SessionMeta } from '@/types'
 import { useRaceStore } from '@/stores/raceStore'
 import { getSessionType } from '@/lib/utils'
 import { chaosLevel, CHAOS_LEVEL_TONE } from '@/lib/chaos'
+import { headerFacts } from '@/lib/sessionFacts'
 import { Badge, PageHeader, toneClass, ui } from '@/components/ui'
 import a from './analysis.module.css'
 
@@ -28,6 +29,10 @@ type Props = {
   analysis: FullRaceAnalysis
   /** The /preview redesign draws its own race header above this page. */
   hideHeader?: boolean
+  /** /sessions/{key}/meta: the header uses the same facts as the loader (city, date). */
+  meta?: SessionMeta | null
+  /** Block 27: arriving after the loader — modules fade in, staggered (analysis.module.css). */
+  arriving?: boolean
 }
 
 function inferTotalLaps(analysis: FullRaceAnalysis): number {
@@ -38,7 +43,7 @@ function inferTotalLaps(analysis: FullRaceAnalysis): number {
   return 70
 }
 
-export function AnalysisPage({ analysis, hideHeader = false }: Props) {
+export function AnalysisPage({ analysis, hideHeader = false, meta = null, arriving = false }: Props) {
   const {
     radioOpen, setRadioOpen,
     analysisMode, setAnalysisMode,
@@ -79,28 +84,30 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
   const level = analysis.chaos.level
   const levelTone = CHAOS_LEVEL_TONE[level as keyof typeof CHAOS_LEVEL_TONE] ?? CHAOS_LEVEL_TONE[chaosLevel(analysis.chaos.score)]
 
+  const facts = meta ? headerFacts(analysis.race.session_key, meta) : null
+
   return (
-    <div className={a.page}>
+    <div className={`${a.page} ${arriving ? a.arrive : ''}`}>
       {/* Race header */}
       {!hideHeader && (
         <PageHeader
           kicker={<>Race analysis · OpenF1 · Session {analysis.race.session_key}</>}
           title={analysis.race.meeting_name}
-          meta={<span>{analysis.race.circuit_short_name} · {analysis.race.year} · {analysis.race.session_name}</span>}
+          meta={<span>{facts?.line ?? `${analysis.race.circuit_short_name} · ${analysis.race.year} · ${analysis.race.session_name}`}</span>}
           right={
-            <>
+            <div data-arrive="0" className={a.headRightIn}>
               <div className={a.headStats}>
                 <div><div className={`${ui.mid} ${toneClass('accent')}`}>{analysis.chaos.score}</div><div className={ui.label}>Chaos</div></div>
                 <div><div className={ui.mid}>{analysis.true_pace.length}</div><div className={ui.label}>Drivers</div></div>
                 <div><div className={ui.mid}>{analysis.tyre_degradation.length}</div><div className={ui.label}>Stints</div></div>
               </div>
               <Badge tone={levelTone} solid={level === 'Extreme'}>{analysis.chaos.level} Chaos</Badge>
-            </>
+            </div>
           }
         />
       )}
 
-      <div className={a.stack} style={{ borderTop: hideHeader ? undefined : '2px solid var(--pw-divider)' }}>
+      <div className={a.stack} data-arrive="1" style={{ borderTop: hideHeader ? undefined : '2px solid var(--pw-divider)' }}>
       {/* Phase timeline — always visible above tabs */}
       {sessionType === 'Race' && analysis.modules?.race_phases?.status === 'failed' && (
         <ModuleUnavailable title="Race Phase Timeline" analysis={analysis} field="race_phases" />
@@ -129,12 +136,14 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
       </div>
 
       {/* Tab navigation */}
+      <div data-arrive="2">
       <TabNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
         sessionType={sessionType}
         analysis={analysis}
       />
+      </div>
 
       {/* Driver focus strip — always visible when a driver is focused */}
       <DriverFocusStrip

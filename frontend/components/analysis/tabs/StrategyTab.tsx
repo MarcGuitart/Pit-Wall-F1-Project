@@ -44,20 +44,25 @@ export function StrategyTab({
 
   return (
     <div className={a.stack}>
-      <AnalysisModeToggle
-        mode={analysisMode}
-        sessionType={sessionType}
-        lapCount={totalLaps}
-        onChange={onAnalysisModeChange}
-      />
+      <div data-arrive="3">
+        <AnalysisModeToggle
+          mode={analysisMode}
+          sessionType={sessionType}
+          lapCount={totalLaps}
+          onChange={onAnalysisModeChange}
+        />
+      </div>
 
       {analysisMode === 'strategy' ? (
           <div key="strategy" className={a.stack}>
-            <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
-            {analysis.race_dna
-              ? <RaceDNACard dna={analysis.race_dna} />
-              : <ModuleUnavailable title="Race DNA" analysis={analysis} field="race_dna" />
-            }
+            <div data-arrive="4"><RaceBrainV2 brain={race_brain} sessionType={sessionType} /></div>
+            <div data-arrive="5">
+              {analysis.race_dna
+                ? <RaceDNACard dna={analysis.race_dna} />
+                : <ModuleUnavailable title="Race DNA" analysis={analysis} field="race_dna" />
+              }
+            </div>
+            <div data-arrive="6">
             <Cells cols={2}>
               <TruePacePodium
                 rows={true_pace}
@@ -68,6 +73,7 @@ export function StrategyTab({
               />
               <KeyDecisionCards decisions={decisions} />
             </Cells>
+            </div>
           </div>
         ) : (
           <div key="data">

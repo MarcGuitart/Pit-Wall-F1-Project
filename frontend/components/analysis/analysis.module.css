@@ -122,3 +122,23 @@
 .phaseLaps > span { position: absolute; white-space: nowrap; }
 .marker { position: absolute; top: 0; bottom: 0; width: 14px; transform: translateX(-50%); display: flex; align-items: stretch; justify-content: center; outline-offset: 0; }
 .markTip { min-width: 150px; max-width: 240px; padding: 8px 10px; background: var(--pw-bg); border: 2px solid var(--pw-text); border-left-width: 4px; display: grid; gap: 2px; pointer-events: none; }
+
+/* ── Block 27: arrival after the loader. Each first-screen module fades in
+   rising 6 px, 160 ms, 20 ms × its index (data-arrive); the skeleton under
+   it fades out on the same clock (loader/skeleton.module.css). Heights are
+   never animated. Reduced motion: one 120 ms opacity swap for the page. ── */
+.headRightIn { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; min-width: 0; }
+.arrive { position: relative; z-index: 1; }
+.arrive [data-arrive] { animation: pwArrive 160ms var(--pw-ease-out) both; }
+.arrive [data-arrive='1'] { animation-delay: 20ms; }
+.arrive [data-arrive='2'] { animation-delay: 40ms; }
+.arrive [data-arrive='3'] { animation-delay: 60ms; }
+.arrive [data-arrive='4'] { animation-delay: 80ms; }
+.arrive [data-arrive='5'] { animation-delay: 100ms; }
+.arrive [data-arrive='6'] { animation-delay: 120ms; }
+@keyframes pwArrive { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .arrive [data-arrive] { animation: none; }
+  .arrive { animation: pwArriveFade 120ms linear both; }
+}
+@keyframes pwArriveFade { from { opacity: 0; } }
