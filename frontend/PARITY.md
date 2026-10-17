@@ -315,6 +315,49 @@ estados, textos y tiempos; colores, fuentes y px salen de los tokens de `compone
 
 Con PRO activo "/" sigue siendo la landing. Logo → "/"; Historical → "/races".
 
+### Resultados del 29
+
+| Tarea | Commit |
+|---|---|
+| 1 Rutas `/` y `/races` | a326f54 |
+| 2 Datos reales (islas, muestra, planes) | 1f5c8f3 · backend `ops/landing-meta`: 6772def (`/stats`), 0a6dd92 (`/live/state`) |
+| 3 Copy | 8b1186d |
+| 4 Accesibilidad | 209f277 |
+| 5 Reveal | 7524e8d |
+| 6 Metadata y og:image | 662bd33 |
+| 7 Tests y medidas | (este commit) |
+
+- **Endpoints nuevos** (contrato en `docs/api-contract.md`):
+  - `GET /stats` (API, público): `sessions`, `driver_laps`, `seasons`, `modules`/`module_names`,
+    cada uno definido desde los `_analysis.json` de la versión actual; caché en memoria invalidada por
+    `ANALYSIS_VERSION` o mtime/tamaño. Hoy: 28 sesiones, 27.303 vueltas-piloto, 2023/2024/2026, 17 módulos.
+  - `GET /live/state` (live server, público): `{state: live | no_session, session_key}` y nada más.
+    **No mergear antes del lunes 26 de octubre**: toca `scripts/live_server.py`, que reinicia el live.
+- **Islas** (siguiente sesión, cifras, estado live): timeout 3 s, una sola altura fija para cargando,
+  dato y "unavailable". `landing29.mjs geom`, con dato y con todas caídas: **0 px** de desplazamiento
+  en todo el documento a 1440 y 390. La tarjeta live, si `/live/state` falla, muestra "unavailable" a la
+  misma altura en lugar de ocultarse: ocultarla movía todo lo de debajo (adenda: nada > 2 px). La
+  captura es una imagen con `width`/`height` (aspect-ratio reservado).
+- **Medidas**: LCP de "/" 232 → 184 ms (CPU ×4); CLS 0 → 0. Bundle de "/" 121 → 121 kB (First Load);
+  `/races` 120 kB. axe 1440/390 en "/" y "/races": 0 contraste, 0 serios, foco visible 39/39.
+- **Capturas**: `~/.pitwall-ui-baseline/shots29/` — página entera 1440/390, todo caído a los 3 s, y la
+  tarjeta live en directo.
+- **Tipografía frente al prototipo**: todo en Archivo con cifras tabulares (el prototipo usa
+  JetBrains Mono en cifras, etiquetas y líneas de datos); titular `clamp(44px, 8.4vw, 128px)` en vez de
+  128 px fijos; títulos de sección `clamp(28px, 4.2vw, 56px)`; etiquetas 12 px en mayúsculas con
+  tracking 0,08em; marcador del código `PW-…` (el de Settings), no `XXXX-XXXX`; sin marca "PW", nav ni
+  pie propios: los del AppShell.
+- **Quitado por falta de datos (o por norma)**:
+  1. Estado live C completo (tabla de tiempos y sectores, vuelta rápida, contador de mensajes,
+     estado del stream y bandera): prohibido en la landing y es dato PRO.
+  2. Estado live B: casillas "Fastest / Track / Progress" vacías.
+  3. Tira "una celda por vuelta" del exclusion log: el backend solo guarda recuentos por motivo →
+     barra proporcional "by reason".
+  4. "Get notified" y su formulario: no existe lista de avisos.
+  5. Chips DATA y SAMPLE y "ILLUSTRATIVE VALUES": la muestra es real.
+  6. "Laps processed" con un número sin definición → "Driver laps examined", definida.
+  7. Cifras de la home vieja y de `/preview` (50K+ / 12 / 40+) y "50K+ data points" de la descripción.
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
