@@ -12,6 +12,7 @@ from app.api.admin import router as admin_router
 from app.api.chat import router as chat_router
 from app.api.telemetry import router as telemetry_router
 from app.api.laps import router as laps_router
+from app.api.session_meta import router as session_meta_router
 from app.utils.origins import netlify_preview_origin_regex
 
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +46,7 @@ app.include_router(admin_router)
 app.include_router(chat_router)
 app.include_router(telemetry_router)
 app.include_router(laps_router)
+app.include_router(session_meta_router)
 
 
 @app.on_event("startup")

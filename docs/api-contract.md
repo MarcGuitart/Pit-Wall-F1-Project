@@ -35,6 +35,19 @@ and (since Block 26d, additive) `location`, `is_cancelled`.
   `is_cancelled: false` and the exclusion file still applied.
 - Clients that ignore the two fields keep working unchanged.
 
+### GET /sessions/{session_key}/meta
+Public (no PRO), light (Block 27). What a page can say about a session before
+its analysis exists — the loader's header and the pages with no analysis:
+`session_key`, `meeting_key`, `meeting_name`, `location` (host city; prefer it
+to `country_name`), `circuit_short_name`, `country_name`, `year`,
+`session_name`, `session_type`, `date_start`, `date_end`, `is_cancelled`
+(same reading as /races), `analysis_cached` (an analysis file is on this
+server), `earliest_at` (the historical guard's unlock instant: the earliest
+/analysis can compute it, not a publication time; null without a date).
+Sources, in order: `_session_meta.json` or the cached analysis, then one
+uncached OpenF1 read memoised in process for 5 min. Never writes to the cache.
+Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503.
+
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`
 and `frontend/types/index.ts`).
@@ -194,6 +207,7 @@ Every non-2xx response, whatever raised it, has the same body:
 |---|---|---|
 | SESSION_NOT_CACHED | 404 | /analysis (demo mode, session not in cache); /races/{meeting}/sessions (needs token) |
 | SESSION_NOT_HISTORICAL_YET | 425 | /analysis — details: `unlock_at_utc`, `retry_after_minutes` |
+| SESSION_NOT_FOUND | 404 | /sessions/{session_key}/meta — OpenF1 has no such session |
 | SESSION_CANCELLED | 410 | /analysis — the session did not take place: in `backend/excluded_sessions.json` or OpenF1 `is_cancelled` is the boolean `true` (same reading as /races). Checked before the PRO gate, without computing or caching anything. details: `session_key`, `source` (`excluded_sessions.json` \| `openf1`) |
 | OPENF1_RATE_LIMIT | 429 | /analysis, /races — details: `endpoint`, `attempts` |
 | OPENF1_ERROR | 503 | /analysis, /races — details: `endpoint`, `attempts`, `upstream_status` when OpenF1 answered |
