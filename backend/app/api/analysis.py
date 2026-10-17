@@ -34,6 +34,9 @@ from app.services.autopublish import is_cancelled, parse_exclusions
 from app.utils.time import is_session_historical
 
 router = APIRouter(tags=["analysis"])
+
+# What OPENF1_RATE_LIMIT tells the reader to wait before retrying.
+RATE_LIMIT_RETRY_S = 60
 logger = logging.getLogger(__name__)
 
 # ── Single-flight lock per session_key ────────────────────────────────────
@@ -395,7 +398,10 @@ async def _build(session_key: int, session_meta: dict, force_refresh: bool) -> F
                 f"OpenF1 is rate-limiting requests (while fetching {exc.endpoint}). "
                 "Endpoints already fetched are cached; retry in a minute to resume.",
                 status=429,
-                details=exc.details(),
+                # retry_after_seconds: the page's countdown (Block 27). OpenF1's own
+                # Retry-After is consumed by the client's retries; a minute is what
+                # the message promises.
+                details={**exc.details(), "retry_after_seconds": RATE_LIMIT_RETRY_S},
             ) from exc
         except OpenF1Error as exc:
             raise AppError(
