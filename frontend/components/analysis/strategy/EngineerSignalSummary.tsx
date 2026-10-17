@@ -4,7 +4,8 @@ import { useState } from 'react'
 import type { EngineerNote } from '@/types'
 import { NOTE_TYPE_LABELS } from '@/lib/constants'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
-import { Badge, Panel, buttonClass, type Tone } from '@/components/ui'
+import { Badge, Panel, buttonClass } from '@/components/ui'
+import { NOTE_TYPE_TONE } from '../noteTone'
 import a from '../analysis.module.css'
 
 type Props = { notes: EngineerNote[]; onViewAll: () => void }
@@ -19,17 +20,6 @@ const FILTER_TYPES: { key: FilterKey; label: string; noteTypes?: EngineerNote['t
   { key: 'pit',      label: 'Pit',      noteTypes: ['PIT_IMPACT'] },
   { key: 'weather',  label: 'Weather',  noteTypes: ['WEATHER'] },
 ]
-
-const TYPE_TONE: Record<EngineerNote['type'], Tone> = {
-  TYRE_DEGRADATION: 'warn',
-  UNDERCUT:         'purple',
-  PIT_IMPACT:       'info',
-  CHAOS:            'accent',
-  TRAFFIC:          'muted',
-  TRUE_PACE:        'ok',
-  WEATHER:          'info',
-  ANOMALY:          'purple',
-}
 
 export function EngineerSignalSummary({ notes, onViewAll }: Props) {
   const [active, setActive] = useState<FilterKey>('all')
@@ -84,7 +74,7 @@ export function EngineerSignalSummary({ notes, onViewAll }: Props) {
               </span>
               <div className={a.grow}>
                 <div className={a.row} style={{ marginBottom: 4 }}>
-                  <Badge tone={TYPE_TONE[note.type] ?? 'muted'}>{NOTE_TYPE_LABELS[note.type] ?? note.type}</Badge>
+                  <Badge tone={NOTE_TYPE_TONE[note.type] ?? 'muted'}>{NOTE_TYPE_LABELS[note.type] ?? note.type}</Badge>
                   <span className={`${a.itemTitle} ${a.ellipsis}`}>{note.title}</span>
                 </div>
                 <p className={`${a.para} ${a.clamp2}`}>{note.message}</p>
