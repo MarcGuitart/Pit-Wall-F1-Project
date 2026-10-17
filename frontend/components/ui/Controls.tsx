@@ -2,13 +2,11 @@
 
 import type { ButtonHTMLAttributes, KeyboardEvent, ReactNode } from 'react'
 import s from './ui.module.css'
+import { buttonClass, type ButtonVariant } from './buttonClass'
 
-type Variant = 'default' | 'primary' | 'ink' | 'ghost'
-const VARIANT: Record<Variant, string> = { default: '', primary: s.btnPrimary, ink: s.btnInk, ghost: s.btnGhost }
+export { buttonClass }
 
-export function buttonClass(variant: Variant = 'default', large = false) {
-  return `${s.btn} ${VARIANT[variant]} ${large ? s.btnLarge : ''}`
-}
+type Variant = ButtonVariant
 
 export function Button({ variant = 'default', large, className = '', type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; large?: boolean }) {
   return <button type={type} className={`${buttonClass(variant, large)} ${className}`} {...rest} />
