@@ -10,6 +10,7 @@ import { Plans } from '@/components/home/Plans'
 import { Method } from '@/components/home/Method'
 import { Faq } from '@/components/home/Faq'
 import { Closing } from '@/components/home/Closing'
+import { Reveal } from '@/components/home/Reveal'
 import h from '@/components/home/home.module.css'
 
 /**
@@ -33,6 +34,7 @@ export default function HomePage() {
         <Method />
         <Faq />
         <Closing />
+        <Reveal />
       </div>
     </AppShell>
   )
