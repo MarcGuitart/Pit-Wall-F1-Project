@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type { ErrorCode } from '@/lib/errors'
 import { NotifyButton } from '@/components/notify/NotifyButton'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
+import { buttonClass, ui } from '@/components/ui'
+import st from './states.module.css'
 
 type SessionUnavailableStateProps = {
   code: ErrorCode
@@ -21,32 +23,32 @@ const CONFIG: Record<
   { accentColor: string; icon: string; title: string }
 > = {
   SESSION_NOT_HISTORICAL_YET: {
-    accentColor: 'bg-signal-amber',
+    accentColor: 'var(--pw-amber)',
     icon: '○',
     title: 'SESSION STILL IN LIVE WINDOW',
   },
   SESSION_NOT_CACHED: {
-    accentColor: 'bg-signal-blue',
+    accentColor: 'var(--pw-blue)',
     icon: '○',
     title: 'NOT IN DEMO CACHE',
   },
   OPENF1_RATE_LIMIT: {
-    accentColor: 'bg-signal-amber',
+    accentColor: 'var(--pw-amber)',
     icon: '⏸',
     title: 'OPENF1 RATE LIMIT',
   },
   OPENF1_ERROR: {
-    accentColor: 'bg-signal-red',
+    accentColor: 'var(--pw-accent)',
     icon: '⚠',
     title: 'DATA UNAVAILABLE',
   },
   ANALYSIS_FAILED: {
-    accentColor: 'bg-signal-red',
+    accentColor: 'var(--pw-accent)',
     icon: '⚠',
     title: 'ANALYSIS INCOMPLETE',
   },
   UNKNOWN: {
-    accentColor: 'bg-signal-red',
+    accentColor: 'var(--pw-accent)',
     icon: '⚠',
     title: 'ERROR',
   },
@@ -96,72 +98,56 @@ export function SessionUnavailableState({
     : null
 
   return (
-    <div className="bg-bg-panel border border-border-default rounded-[4px] overflow-hidden max-w-lg w-full">
-      {/* Accent bar */}
-      <div className={`h-[2px] w-full ${cfg.accentColor}`} />
+    <section className={st.card} style={{ boxShadow: `inset 0 4px 0 ${cfg.accentColor}` }} aria-labelledby="unavailable-title">
+      {/* Icon */}
+      <div className={st.icon} aria-hidden="true">{cfg.icon}</div>
 
-      <div className="px-6 py-8">
-        {/* Icon */}
-        <div className="font-display text-[32px] text-text-muted mb-4 select-none">
-          {cfg.icon}
-        </div>
+      {/* Title */}
+      <h2 id="unavailable-title" className={st.title}>{cfg.title}</h2>
 
-        {/* Title */}
-        <h2 className="font-display font-black text-[16px] uppercase tracking-[1.5px] text-text-primary mb-3">
-          {cfg.title}
-        </h2>
+      {/* Message */}
+      <p className={st.message}>{message}</p>
 
-        {/* Message */}
-        <p
-          className="font-mono text-[12px] text-text-secondary leading-relaxed mb-4"
-        >
-          {message}
+      {/* Unlock time */}
+      {localTime && (
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pw-amber)' }}>
+          Approximately available at {localTime} (local time)
         </p>
+      )}
 
-        {/* Unlock time */}
-        {localTime && (
-          <p className="font-mono text-[11px] text-signal-amber mb-4">
-            Approximately available at {localTime} (local time)
-          </p>
-        )}
+      {/* Retry countdown */}
+      {countdown > 0 && (
+        <p className={ui.sub} style={{ margin: 0 }} role="status">Auto-retry in {countdown}s</p>
+      )}
 
-        {/* Retry countdown */}
-        {countdown > 0 && (
-          <p className="font-mono text-[11px] text-text-muted mb-4">
-            Auto-retry in {countdown}s
-          </p>
-        )}
+      {code === 'SESSION_NOT_HISTORICAL_YET' && sessionKey != null && (
+        <div style={{ display: 'grid', gap: 14 }}>
+          {liveHere && (
+            <Link href={`/live/${sessionKey}`} className={buttonClass('primary', true)} style={{ justifySelf: 'start' }}>
+              It is live now — open the pit wall
+            </Link>
+          )}
+          <NotifyButton
+            label="Notify me when the analysis is ready"
+            watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `Session ${sessionKey}`, sessionKey, readyAt: unlockAtUtc ?? null }}
+            className={buttonClass('ink')}
+          />
+        </div>
+      )}
 
-        {code === 'SESSION_NOT_HISTORICAL_YET' && sessionKey != null && (
-          <div className="mb-5 space-y-4">
-            {liveHere && (
-              <Link
-                href={`/live/${sessionKey}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-signal-red text-white font-display font-bold text-[11px] uppercase tracking-[1px] rounded-[3px] hover:bg-red-600"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
-                It is live now — open the pit wall
-              </Link>
-            )}
-            <NotifyButton
-              label="Notify me when the analysis is ready"
-              watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `Session ${sessionKey}`, sessionKey, readyAt: unlockAtUtc ?? null }}
-              className="px-4 py-2 bg-bg-elevated border border-signal-amber/40 text-signal-amber font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:border-signal-amber"
-            />
-          </div>
-        )}
-
-        {/* Button */}
+      {/* Button */}
+      <div>
         <button
+          type="button"
           onClick={() => {
             setCountdown(0)
             onRetry()
           }}
-          className="px-4 py-2 bg-bg-elevated border border-border-default text-text-secondary font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:text-text-primary hover:border-text-muted transition-colors"
+          className={buttonClass('ink')}
         >
           Check again
         </button>
       </div>
-    </div>
+    </section>
   )
 }
