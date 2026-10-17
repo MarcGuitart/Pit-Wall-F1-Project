@@ -29,6 +29,8 @@
   --pw-blue: #4da3ff;
   --pw-amber: oklch(0.78 0.16 70);
   --pw-gutter: 32px;
+  /* Block 27: the one easing for entries (loader, arrival, blocked panels, page transition). */
+  --pw-ease-out: cubic-bezier(0.2, 0, 0, 1);
   background: var(--pw-bg);
   color: var(--pw-text);
   font-variant-numeric: tabular-nums;

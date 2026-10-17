@@ -1,14 +1,5 @@
-/* The analysis loader (AnalysisLoadingScreen). Tokens from components/ui. */
+/* State 1 of the analysis loader (0 – 300 ms): nothing shown, the page's
+   height reserved so the footer does not jump. The loader itself is
+   components/analysis/loader/. */
 
-.reserve { min-height: calc(100vh - 56px); display: flex; align-items: flex-start; justify-content: center; }
-.wrap { width: min(560px, 100%); padding: 48px var(--pw-gutter); }
-.kicker { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
-.note { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--pw-muted); }
-.clock { font-size: 15px; font-weight: 800; color: var(--pw-text); }
-.steps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; color: var(--pw-muted); }
-.steps li { display: flex; align-items: center; gap: 10px; }
-.mark { width: 8px; height: 8px; border: 2px solid currentColor; flex: none; }
-.past { color: var(--pw-text); opacity: 0.7; }
-.past .mark { background: currentColor; }
-.on { color: var(--pw-text); font-weight: 700; }
-.on .mark { background: var(--pw-accent); border-color: var(--pw-accent); }
+.reserve { min-height: calc(100vh - 56px); }

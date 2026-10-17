@@ -5,9 +5,18 @@ import { usePathname } from 'next/navigation'
 import { TopBar } from './TopBar'
 import { SiteFooter } from './SiteFooter'
 import { PwRoot } from '@/components/ui'
-import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
+import dynamic from 'next/dynamic'
 import { usePendingRace } from '@/lib/raceNav'
+import { useSessionMeta } from '@/lib/sessionMeta'
+import { raceBreadcrumb } from '@/lib/sessionFacts'
 import s from './shell.module.css'
+
+// Loaded on demand: only a click on a race needs it, and every page renders
+// the shell. It has the 300 ms grace to arrive before anything is shown.
+const AnalysisLoadingScreen = dynamic(
+  () => import('@/components/analysis/AnalysisLoadingScreen').then((m) => m.AnalysisLoadingScreen),
+  { ssr: false },
+)
 
 type BreadcrumbItem = {
   label: string
@@ -33,10 +42,11 @@ export function AppShell({ children, breadcrumb, footerAttribution = false }: Ap
   const clear = usePendingRace((st) => st.set)
   const waiting = pending != null && pathname !== pending.href
   useEffect(() => { if (pending && pathname === pending.href) clear(null) }, [pathname, pending, clear])
+  const { meta: pendingMeta } = useSessionMeta(waiting ? pending.key : null)
 
   return (
     <PwRoot className={s.shell}>
-      <TopBar breadcrumb={breadcrumb} />
+      <TopBar breadcrumb={waiting ? raceBreadcrumb(pendingMeta) : breadcrumb} />
       <main className={s.main}>
         {waiting ? <AnalysisLoadingScreen sessionKey={pending.key} /> : children}
       </main>

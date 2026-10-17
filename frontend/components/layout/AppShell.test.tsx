@@ -21,13 +21,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('AppShell while a clicked race is on its way', () => {
-  it('replaces the old page with the analysis loader (after the 300 ms grace)', () => {
+  it('replaces the old page with the analysis loader (after the 300 ms grace)', async () => {
     pathname = '/'
     render(<AppShell><p>landing content</p></AppShell>)
     act(() => { usePendingRace.getState().set({ href: '/race/9636', key: 9636 }) })
     expect(screen.queryByText('landing content')).toBeNull()
+    // The loader is loaded on demand (next/dynamic): let the import land.
+    await act(async () => { await vi.dynamicImportSettled() })
     act(() => { vi.advanceTimersByTime(300) })
-    expect(screen.getByText('Building the race report')).toBeTruthy()
+    expect(screen.getByText('Loading analysis')).toBeTruthy()
   })
 
   it('lets the race page through, and clears the pending state, once the route arrives', () => {

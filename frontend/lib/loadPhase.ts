@@ -37,6 +37,23 @@ export function progressAt(elapsedMs: number): number {
 }
 
 /**
+ * Where the time rule under the header points for the second now running
+ * (Block 27). The rule is a transform (scaleX) with a 1 s linear transition,
+ * retargeted once a second to the NEXT second's value, so it creeps without
+ * stopping and never completes. Reduced motion: 2 s steps, no transition, so
+ * the target is the value at the start of the current 2 s step.
+ */
+export function ruleTargetAt(elapsedMs: number, reduced = false): number {
+  if (reduced) return progressAt(Math.floor(elapsedMs / 2000) * 2000)
+  return progressAt((Math.floor(elapsedMs / 1000) + 1) * 1000)
+}
+
+/** Once the loader is on screen it stays at least this long: an answer at 350 ms must not flash it. */
+export const MIN_VISIBLE_MS = 300
+/** The arrival crossfade: 12 modules × 20 ms stagger + 160 ms, rounded up. */
+export const ARRIVAL_MS = 400
+
+/**
  * Re-renders at each phase boundary (timers, so fake timers can drive it) and,
  * when `tickMs` is set, on a steady tick for an elapsed-time readout.
  */

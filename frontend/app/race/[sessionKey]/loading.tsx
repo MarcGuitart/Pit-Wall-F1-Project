@@ -3,6 +3,8 @@
 import { useParams } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
+import { useSessionMeta } from '@/lib/sessionMeta'
+import { raceBreadcrumb } from '@/lib/sessionFacts'
 
 /**
  * Shown by Next while it fetches this dynamic route — on Netlify a serverless
@@ -12,10 +14,12 @@ import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScre
  * wait for /analysis, so the two read as one; under 300 ms it shows nothing.
  */
 export default function RaceLoading() {
-  const key = Number(useParams()?.sessionKey)
+  const raw = Number(useParams()?.sessionKey)
+  const key = Number.isInteger(raw) && raw > 0 ? raw : undefined
+  const { meta } = useSessionMeta(key ?? null)
   return (
-    <AppShell>
-      <AnalysisLoadingScreen sessionKey={Number.isNaN(key) ? undefined : key} />
+    <AppShell breadcrumb={raceBreadcrumb(meta)}>
+      <AnalysisLoadingScreen sessionKey={key} meta={meta} />
     </AppShell>
   )
 }

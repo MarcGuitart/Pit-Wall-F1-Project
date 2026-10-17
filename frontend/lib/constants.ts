@@ -107,13 +107,3 @@ export const DEMO_RACES = [
   },
 ] as const
 
-export const LOADING_STEPS = [
-  'Fetching timing data…',
-  'Loading stints and pit data…',
-  'Filtering clean laps…',
-  'Reconstructing race timeline…',
-  'Calculating tyre degradation slopes…',
-  'Detecting pit stop impact…',
-  'Computing chaos index…',
-  'Generating engineer notes…',
-] as const
