@@ -174,8 +174,16 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 
 | Módulo | Commit | Diferencias de texto |
 |---|---|---|
-| Marco (cabecera, pestañas, Strategy/Data, foco, contenedores) | (este) | `›` decorativo |
-| ModuleUnavailable | (este) | ninguna |
+| Marco (cabecera, pestañas, Strategy/Data, foco, contenedores) | 75dca06 | `›` decorativo |
+| ModuleUnavailable | 2010449 | ninguna |
+| Race Brain | ee04661 | ninguna |
+| Race DNA | d513c4c | ninguna (sin la celda vacía) |
+| True Pace podio + MethodologyBadge + EstimatedLabel | eaa7d3b | ninguna; confianza "High" → "High confidence" (contiene el texto) |
+| Key Decisions | fdbe490 | ninguna |
+| Tyre Cliff Map | (siguiente) | ninguna |
+| Pit Sequence | (siguiente) | ninguna |
+| DRS Train Detector | (siguiente) | ninguna |
+| Clean Air Value | (siguiente) | "estimated…" y "estimated from pace comparison…" ya no van pegados en una línea |
 
 ## Inventario (alcanzable desde app/ en main)
 
@@ -217,27 +225,27 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Pestañas (6, con badges) | analysis/TabNav | analysis/TabNav sobre ui/Tabs | S; T shallow | verificado |
 | Strategy / Data View | analysis/AnalysisModeToggle | ui/Segmented (role tablist) | S; T shallow | verificado |
 | Driver focus strip | analysis/DriverFocusStrip | | S driver-card | pendiente |
-| Race Brain | strategy/RaceBrainV2 | | S; T | pendiente |
-| Race DNA | analysis/RaceDNACard | | S; T; módulos failed/n.a. | pendiente |
-| True Pace (podio + clasificación modal) | strategy/TruePacePodium | | S; T expand | pendiente |
+| Race Brain | strategy/RaceBrainV2 | strategy/RaceBrainV2 (Panel, kv) | S; T shallow | verificado |
+| Race DNA | analysis/RaceDNACard | analysis/RaceDNACard (kv) | S; T shallow; módulos failed/n.a. | verificado |
+| True Pace (podio + clasificación modal) | strategy/TruePacePodium | strategy/TruePacePodium (botones; diálogo con Escape) | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
 | True Pace (tabla, traffic score) | analysis/TruePaceTable | | T data view | pendiente |
 | Clasificación | analysis/RaceClassificationPanel | | T data view | pendiente |
-| Degradación de neumáticos (cliff map) | strategy/TyreCliffMap | | S tyre-pit; T | pendiente |
+| Degradación de neumáticos (cliff map) | strategy/TyreCliffMap | strategy/TyreCliffMap (filas botón) | S tyre-pit 9636/9539; T shallow | verificado |
 | Degradación (tabla) | analysis/TyreDegradationPanel | | T data view | pendiente |
-| Pit impact (secuencia) | strategy/PitSequenceSummary | | S; T | pendiente |
+| Pit impact (secuencia) | strategy/PitSequenceSummary | strategy/PitSequenceSummary (filas botón) | S; T shallow | verificado |
 | Pit impact (tabla) | analysis/PitImpactPanel | | T data view | pendiente |
 | Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | | S; T | pendiente |
 | Engineer notes (resumen) | strategy/EngineerSignalSummary | | S; T | pendiente |
 | Engineer notes (lista) | analysis/EngineerNotes | | T data view / control-tables | pendiente |
-| Decisiones (tarjetas) | strategy/KeyDecisionCards | | S; T expand | pendiente |
+| Decisiones (tarjetas) | strategy/KeyDecisionCards | strategy/KeyDecisionCards | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
 | Decisiones (timeline) | analysis/DecisionsTimeline | | T data view | pendiente |
 | Exclusion log | data/ExclusionLogPanel | | T data view | pendiente |
 | Data View (índice y secciones) | data/DataViewTables | | S; T | pendiente |
 | Meteo | strategy/WeatherOverlay | | S weather; T | pendiente |
 | Crossovers | analysis/CrossoverWindowPanel | | S; T expand | pendiente |
 | Weather winners & losers | analysis/WeatherWinnersLosers | | T; módulos | pendiente |
-| Tren de DRS | strategy/DRSTrainDetector | | S tyre-pit; T expand | pendiente |
-| Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | | S; T | pendiente |
+| Tren de DRS | strategy/DRSTrainDetector | strategy/DRSTrainDetector | S tyre-pit; T shallow (expand en fase 9); módulos failed/n.a. | verificado (S, T shallow) |
+| Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | analysis/CleanAirValueCard | S; T shallow; módulos failed/n.a. | verificado |
 | Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | | S lap-charts; T svg | pendiente |
 | Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab, LapChartsTab | mismos archivos (stack con reglas, Cells de 2 columnas, sin framer-motion) | S; T shallow | verificado |
 | Tarjeta de piloto con radios | analysis/DriverCard | | T driver-card:* (todos los pilotos); I radios | pendiente |
@@ -349,6 +357,8 @@ Revisadas a mano las 44 restantes:
 3. No hay análisis de clasificación ni libres en caché: sus layouts no tienen cobertura visual.
 4. `/races` sin `is_cancelled` ni `location` (dependencia).
 5. 14 componentes inalcanzables (lista arriba) siguen en el repo.
+7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
+   (se conserva tal cual).
 6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce
    el zoom). El botón Engineer del TopBar queda tapado por la etiqueta PRO de Live, y
    "Open tables" (Race Control) por la fila de filtros de Engineer Signals: no se pueden pulsar.

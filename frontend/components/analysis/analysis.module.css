@@ -83,3 +83,8 @@
 .impact { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin: 4px 0; }
 .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 @media (max-width: 520px) { .podium { grid-template-columns: 1fr; } .podiumP1 { order: -1; } }
+
+/* ── column groups inside a panel (tyre cliff, pit sequence) ── */
+.colHead { padding: 10px 14px; border-bottom: 1px solid var(--pw-divider); }
+.colFoot { padding: 8px 14px; border-top: 1px solid var(--pw-divider); margin-top: auto; }
+.highlight { background: color-mix(in srgb, var(--pw-blue) 10%, transparent); box-shadow: inset 4px 0 0 var(--pw-blue); }
