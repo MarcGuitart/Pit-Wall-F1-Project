@@ -437,8 +437,8 @@ Revisadas a mano las 44 restantes:
    el zoom). El botón Engineer del TopBar queda tapado por la etiqueta PRO de Live, y
    "Open tables" (Race Control) por la fila de filtros de Engineer Signals: no se pueden pulsar.
    La línea base marca esos 9 pasos como fallidos en móvil. El shell nuevo no debe desbordar.
-7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
-   (se conserva tal cual).
+7. ~~Tyre Cliff Map escribía "+" delante de toda pendiente ("+-0.011")~~ — **arreglado (26d)**:
+   `formatSignedSlope` en `lib/format.ts`, usado también por `formatSlope`; tests.
 8. ~~EngineerSignalSummary ordenaba por severidad **en su sitio** el array de notas que recibe~~ —
    **arreglado (26d)**: ordena una copia; test que falla con el código anterior. Las citas del chat
    **no dependían del orden**: los ids `S1…Sn` los asigna el backend sobre su propio análisis en

@@ -36,8 +36,13 @@ export function formatPositionDelta(delta: number | null): string {
 }
 
 export function formatSlope(slope: number): string {
+  return `${formatSignedSlope(slope)}s/lap`
+}
+
+/** A degradation slope with its own sign: "+0.079", "-0.011", never "+-0.011". */
+export function formatSignedSlope(slope: number): string {
   const sign = slope >= 0 ? '+' : ''
-  return `${sign}${slope.toFixed(3)}s/lap`
+  return `${sign}${slope.toFixed(3)}`
 }
 
 export function formatLapNumber(lap: number | null): string {

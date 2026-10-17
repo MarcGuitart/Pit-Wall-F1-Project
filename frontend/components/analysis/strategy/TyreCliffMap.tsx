@@ -1,4 +1,5 @@
 import type { TyreDegradationRow } from '@/types'
+import { formatSignedSlope } from '@/lib/format'
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
 import { Panel, toneClass, ui, type Tone } from '@/components/ui'
@@ -75,7 +76,7 @@ export function TyreCliffMap({ degradationRows, onDriverClick, sessionType }: Pr
                   drivers.map((d) => (
                     <button key={d.code} type="button" onClick={() => onDriverClick(d.code)} className={`${a.itemBtn} ${a.between}`} style={{ display: 'flex', padding: '8px 14px' }}>
                       <span className={a.code}>{d.code}</span>
-                      <span className={`${a.num} ${toneClass(cfg.tone)}`}>+{d.slope.toFixed(3)}</span>
+                      <span className={`${a.num} ${toneClass(cfg.tone)}`}>{formatSignedSlope(d.slope)}</span>
                     </button>
                   ))
                 )}
