@@ -187,8 +187,17 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Meteo (WeatherOverlay) | 48541fe | ninguna (9636, 11377) |
 | Crossovers | e6bf1fe | ninguna; el aviso de SC concurrente sigue siempre visible |
 | Weather winners & losers | eb511e8 | ninguna (9636 lo tiene not_applicable) |
-| Chaos Profile | (siguiente) | ninguna |
-| Engineer Signals (resumen) | (siguiente) | ninguna |
+| Chaos Profile | 5eef952 | ninguna |
+| Engineer Signals (resumen) | f229b6d | ninguna |
+| Data View (índice, volver, secciones) | (siguiente) | ninguna |
+| True Pace (tabla) | (siguiente) | confianza abreviada `HIG`/`MED` → "High/Medium confidence" (más legible) |
+| Clasificación | (siguiente) | ninguna |
+| Degradación (tabla) | (siguiente) | ninguna |
+| Pit impact (tabla) | (siguiente) | "23.4slane" → "23.4s lane" (antes pegado por un margen CSS) |
+| Engineer notes (lista) | (siguiente) | ninguna |
+| Chaos Index | (siguiente) | ninguna |
+| Decisiones (timeline) | (siguiente) | confianza abreviada → palabra completa |
+| Exclusion log | (siguiente) | ninguna |
 
 ## Inventario (alcanzable desde app/ en main)
 
@@ -233,19 +242,19 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Race Brain | strategy/RaceBrainV2 | strategy/RaceBrainV2 (Panel, kv) | S; T shallow | verificado |
 | Race DNA | analysis/RaceDNACard | analysis/RaceDNACard (kv) | S; T shallow; módulos failed/n.a. | verificado |
 | True Pace (podio + clasificación modal) | strategy/TruePacePodium | strategy/TruePacePodium (botones; diálogo con Escape) | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
-| True Pace (tabla, traffic score) | analysis/TruePaceTable | | T data view | pendiente |
-| Clasificación | analysis/RaceClassificationPanel | | T data view | pendiente |
+| True Pace (tabla, traffic score) | analysis/TruePaceTable | analysis/TruePaceTable (DataTable, filas activables por teclado) | S/T data view 9636, 11240 | verificado |
+| Clasificación | analysis/RaceClassificationPanel | analysis/RaceClassificationPanel (DataTable) | T shallow; modal en fase 9 | verificado (T shallow) |
 | Degradación de neumáticos (cliff map) | strategy/TyreCliffMap | strategy/TyreCliffMap (filas botón) | S tyre-pit 9636/9539; T shallow | verificado |
-| Degradación (tabla) | analysis/TyreDegradationPanel | | T data view | pendiente |
+| Degradación (tabla) | analysis/TyreDegradationPanel | analysis/TyreDegradationPanel (filas botón) | S/T data view | verificado |
 | Pit impact (secuencia) | strategy/PitSequenceSummary | strategy/PitSequenceSummary (filas botón) | S; T shallow | verificado |
-| Pit impact (tabla) | analysis/PitImpactPanel | | T data view | pendiente |
-| Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | strategy/ChaosProfile (ChaosIndexCard: ver tablas) | S race-control 9636/9539; T shallow | verificado (ChaosProfile) |
+| Pit impact (tabla) | analysis/PitImpactPanel | analysis/PitImpactPanel (filas botón) | S/T data view | verificado |
+| Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | strategy/ChaosProfile + analysis/ChaosIndexCard | S race-control y data view; T shallow | verificado |
 | Engineer notes (resumen) | strategy/EngineerSignalSummary | strategy/EngineerSignalSummary (filtros con aria-pressed) | S; T shallow | verificado |
-| Engineer notes (lista) | analysis/EngineerNotes | | T data view / control-tables | pendiente |
+| Engineer notes (lista) | analysis/EngineerNotes | analysis/EngineerNotes | S/T data view, control-tables | verificado |
 | Decisiones (tarjetas) | strategy/KeyDecisionCards | strategy/KeyDecisionCards | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
-| Decisiones (timeline) | analysis/DecisionsTimeline | | T data view | pendiente |
-| Exclusion log | data/ExclusionLogPanel | | T data view | pendiente |
-| Data View (índice y secciones) | data/DataViewTables | | S; T | pendiente |
+| Decisiones (timeline) | analysis/DecisionsTimeline | analysis/DecisionsTimeline | S/T data view | verificado |
+| Exclusion log | data/ExclusionLogPanel | data/ExclusionLogPanel | S/T data view | verificado |
+| Data View (índice y secciones) | data/DataViewTables | data/DataViewTables (nav sticky bajo el TopBar en escritorio) | S; T shallow | verificado |
 | Meteo | strategy/WeatherOverlay | strategy/WeatherOverlay | S weather 9636/11377; T shallow; módulos failed/n.a. | verificado |
 | Crossovers | analysis/CrossoverWindowPanel | analysis/CrossoverWindowPanel | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
 | Weather winners & losers | analysis/WeatherWinnersLosers | analysis/WeatherWinnersLosers | T shallow 11377; módulos failed/n.a. | verificado |
