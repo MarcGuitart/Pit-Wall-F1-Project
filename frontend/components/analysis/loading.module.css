@@ -1,6 +1,6 @@
 /* The analysis loader (AnalysisLoadingScreen). Tokens from components/ui. */
 
-.reserve { min-height: calc(100vh - 160px); display: flex; align-items: flex-start; justify-content: center; }
+.reserve { min-height: calc(100vh - 56px); display: flex; align-items: flex-start; justify-content: center; }
 .wrap { width: min(560px, 100%); padding: 48px var(--pw-gutter); }
 .kicker { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
 .note { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--pw-muted); }
