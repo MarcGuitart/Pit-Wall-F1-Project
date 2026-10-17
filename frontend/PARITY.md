@@ -189,15 +189,18 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Weather winners & losers | eb511e8 | ninguna (9636 lo tiene not_applicable) |
 | Chaos Profile | 5eef952 | ninguna |
 | Engineer Signals (resumen) | f229b6d | ninguna |
-| Data View (índice, volver, secciones) | (siguiente) | ninguna |
-| True Pace (tabla) | (siguiente) | confianza abreviada `HIG`/`MED` → "High/Medium confidence" (más legible) |
-| Clasificación | (siguiente) | ninguna |
-| Degradación (tabla) | (siguiente) | ninguna |
-| Pit impact (tabla) | (siguiente) | "23.4slane" → "23.4s lane" (antes pegado por un margen CSS) |
-| Engineer notes (lista) | (siguiente) | ninguna |
-| Chaos Index | (siguiente) | ninguna |
-| Decisiones (timeline) | (siguiente) | confianza abreviada → palabra completa |
-| Exclusion log | (siguiente) | ninguna |
+| Data View (índice, volver, secciones) | 9f4d8fa | ninguna |
+| True Pace (tabla) | 17703f0 | confianza abreviada `HIG`/`MED` → "High/Medium confidence" (más legible) |
+| Clasificación | af2fab2 | ninguna |
+| Degradación (tabla) | 06ddffe | ninguna |
+| Pit impact (tabla) | 788ba53 | "23.4slane" → "23.4s lane" (antes pegado por un margen CSS) |
+| Engineer notes (lista) | 5adc33d | ninguna |
+| Chaos Index | 3d148b7 | ninguna |
+| Decisiones (timeline) | c28d12c | confianza abreviada → palabra completa |
+| Exclusion log | 213c5aa | ninguna |
+| Race Phase Timeline | (siguiente) | ninguna; segmentos enfocables por teclado (antes solo hover) |
+| Session / Race Timeline | (siguiente) | ninguna; marcadores enfocables por teclado |
+| Lap charts | — | `charts/LapCharts` lo comparte /live: no se restila; solo su contenedor (75dca06) |
 
 ## Inventario (alcanzable desde app/ en main)
 
@@ -233,8 +236,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
 | Cabecera de carrera (chaos, pilotos, stints, nivel) | analysis/AnalysisPage | analysis/AnalysisPage (PageHeader) | S race-9636*; T shallow: sin pérdidas | verificado |
-| Fases de carrera | analysis/RacePhaseTimeline | | S; T; módulos failed/n.a. | pendiente |
-| Barra de sesión (sin fases) | analysis/SessionTimelineBar | | S modules-*; T | pendiente |
+| Fases de carrera | analysis/RacePhaseTimeline | analysis/RacePhaseTimeline | S; T shallow; módulos failed/n.a. | verificado |
+| Barra de sesión (sin fases) | analysis/SessionTimelineBar | analysis/SessionTimelineBar | S modules-*; T shallow | verificado |
 | Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | | S; T expand; I un solo audio, clip muerto | pendiente |
 | Pestañas (6, con badges) | analysis/TabNav | analysis/TabNav sobre ui/Tabs | S; T shallow | verificado |
 | Strategy / Data View | analysis/AnalysisModeToggle | ui/Segmented (role tablist) | S; T shallow | verificado |
@@ -260,11 +263,11 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Weather winners & losers | analysis/WeatherWinnersLosers | analysis/WeatherWinnersLosers | T shallow 11377; módulos failed/n.a. | verificado |
 | Tren de DRS | strategy/DRSTrainDetector | strategy/DRSTrainDetector | S tyre-pit; T shallow (expand en fase 9); módulos failed/n.a. | verificado (S, T shallow) |
 | Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | analysis/CleanAirValueCard | S; T shallow; módulos failed/n.a. | verificado |
-| Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | | S lap-charts; T svg | pendiente |
+| Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | tabs/LapChartsTab (LapCharts sin cambios: compartido con /live) | S lap-charts; T shallow | verificado |
 | Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab, LapChartsTab | mismos archivos (stack con reglas, Cells de 2 columnas, sin framer-motion) | S; T shallow | verificado |
 | Tarjeta de piloto con radios | analysis/DriverCard | | T driver-card:* (todos los pilotos); I radios | pendiente |
 | ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | analysis/ModuleUnavailable (StatusBadge: failed sólido acento, n/a discontinuo) — adelantado de la fase 8 | S race-9636-modules-failed / -not_applicable; T shallow | verificado |
-| Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | | T aria; T expand methodology | pendiente |
+| Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | ui/ConfidenceBadge (ConfidenceChip queda para /live), EstimatedLabel, MethodologyBadge sobre Popover | T shallow; expand en fase 9 | verificado (T shallow) |
 | Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
 | SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | | S race-425, -425-no-unlock, -404, -429, -503 | pendiente |
 | Error genérico (500) y offline | app/race/[k]/page (inline) | | S race-500, race-offline | pendiente |
