@@ -449,5 +449,7 @@ Revisadas a mano las 44 restantes:
    ahora sí se ven. Es un cambio visible respecto a la base, hecho por necesidad del restilado;
    reversible si se prefiere conservar el aspecto anterior.
 10. El estado offline del chat dice "Start Ollama"; en producción el proveedor puede ser Groq.
-11. Las píldoras "Tyres loaded · Pit mapped · Race ctrl parsed" del chat se muestran siempre, sin
-    comprobar nada.
+11. ~~Las píldoras "Tyres loaded · Pit mapped · Race ctrl parsed" del chat se mostraban siempre~~ —
+    **arreglado (26d)**: "Tyres loaded" y "Pit mapped" solo aparecen si `tyre_degradation` /
+    `pit_impact` traen filas; "Race ctrl parsed" se quita (`/analysis` no expone race control con
+    que comprobarlo). `lib/chat/contextPills.ts` + test.

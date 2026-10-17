@@ -9,6 +9,7 @@ import { playRadioOpen, playRadioClose, playMessageReceived } from '@/lib/audio/
 import { AudioToggle } from './AudioToggle'
 import { EngineerOfflineState } from './EngineerOfflineState'
 import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
+import { contextPills } from '@/lib/chat/contextPills'
 import { Badge, ConfidenceBadge, buttonClass, ui } from '@/components/ui'
 import r from './radio.module.css'
 
@@ -269,7 +270,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
               <Badge tone="muted">{analysis.tyre_degradation.length} stints loaded</Badge>
               {/* Focused driver pill */}
               {focusedDriver && <Badge tone="info">{focusedDriver.code} focus</Badge>}
-              {['Tyres loaded', 'Pit mapped', 'Race ctrl parsed'].map((label) => (
+              {contextPills(analysis).map((label) => (
                 <Badge key={label} tone="ok">{label}</Badge>
               ))}
             </div>
