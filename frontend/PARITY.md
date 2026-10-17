@@ -501,15 +501,33 @@ Revisadas a mano las 44 restantes:
     que comprobarlo). `lib/chat/contextPills.ts` + test.
 12. (27) Las alturas por debajo de la primera pantalla cambian por carrera (Race Brain 252–272,
     celdas 378–418 en escritorio; DNA 270–289 en móvil): el skeleton reserva el mínimo, así que el
-    contenido bajo el pliegue puede crecer al llegar (fuera de la vista; el CLS medido es 0).
-13. (27) La banda mide 283 px con la línea de team radio. Una carrera sin clips (sin esa línea) la
-    tendría más baja y la llegada se movería; las tres carreras en caché tienen radio, no se ha medido.
-14. (27) La cabecera titula con `meeting_name`: Kuala Lumpur 2026 se titula "Bahrain Grand Prix"
-    (dato de OpenF1), aunque la línea de datos ya dice "Kuala Lumpur".
-15. (27) Del apartado de backend de la spec no se hace: ETag para el camino caliente, pre-warm y la
-    cabecera `Retry-After` expuesta (la cuenta atrás usa `details.retry_after_seconds`).
-16. (27) Movimiento reducido en la transición de página: la spec pide opacidad 120 ms; el bloque 26
+    contenido bajo el pliegue puede crecer al llegar (fuera de la vista; desfase medido ≤ 2 px en la
+    primera pantalla con `loading27.mjs geom`).
+13. ~~(27) Sin team radio la banda medía 162 px (192 en móvil) y la llegada subía la página 121 px
+    (145)~~ — **arreglado (27b)**: el hueco lo ocupa un panel "Team Radio" con el motivo del módulo, a
+    la altura del carril. El CLS no lo veía (la página es DOM nuevo sobre un skeleton absoluto): se
+    mide con `loading27.mjs geom --no-radio`, desfase ≤ 2 px.
+14. ~~(27) La cabecera titulaba con `meeting_name`: Kuala Lumpur 2026 salía "Bahrain Grand Prix"~~ —
+    **arreglado (27b)**: el titular es `location` (`lib/place.ts`) en loader, cabecera, miga, título
+    de pestaña, páginas bloqueadas, selector, `/preview` y textos de próxima sesión; `meeting_name`
+    solo se lee para reconocer los tests de pretemporada y `country_name` en ningún sitio.
+15. (27) Movimiento reducido en la transición de página: la spec pide opacidad 120 ms; el bloque 26
     la quitó del todo. Se deja como en el 26.
-17. (27) `/preview/race` sigue con `SessionUnavailableState` y el loader en modo antiguo de props.
-18. (26e) `render.yaml`: el live server importa `app/clients/openf1_client.py`, que no está en su
+16. (27) `/preview/race` sigue con `SessionUnavailableState` y el loader en modo antiguo de props.
+17. (26e) `render.yaml`: el live server importa `app/clients/openf1_client.py`, que no está en su
     filtro de build: un cambio solo ahí no lo redeploya.
+18. (27b) El skeleton reproduce la página de una carrera. Clasificación y libres dibujan
+    `SessionTimelineBar` en vez de las fases y no hay análisis suyos en caché (hallazgo 3): su
+    llegada no está medida.
+
+## Descartados (bloque 27, apartado de backend de la spec)
+
+- **ETag para el camino caliente**: el análisis en caché ya responde en < 200 ms sin él (LCP en
+  caliente 528–604 ms con CPU ×4, dominado por el render, no por la red); un ETag ahorra bytes,
+  no tiempo percibido, y obliga a versionar la respuesta con PRO (el token cambia lo que se sirve).
+- **Pre-calentamiento** (petición ligera al pasar por la lista): en Render Free despertar el
+  servidor consume horas de instancia cada vez que alguien pasa el ratón; el estado "waking" ya dice
+  la verdad sobre esa espera y el reintento seguro (`d82dfbd`) evita duplicar el cálculo.
+- **Cabecera `Retry-After` expuesta al navegador**: la cuenta atrás ya lee
+  `details.retry_after_seconds` del cuerpo del error (`6011ec4`); exponer la cabecera exigiría
+  `expose_headers` en CORS para el mismo número.
