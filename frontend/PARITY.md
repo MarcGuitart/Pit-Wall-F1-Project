@@ -17,8 +17,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 4 Landing, selector, popover | hecho | 9ddb3ba, 16726b8, 0c30de2, 0991bcb |
 | 5 Análisis módulo a módulo | pendiente | |
 | 6 Telemetría | hecho | db2002b…9184214 |
-| 7 Race Engineer | hecho | (estos commits) |
-| 8 Settings, Docs, ProWall, estados | pendiente | |
+| 7 Race Engineer | hecho | b85ed9c…19b371d |
+| 8 Settings, Docs, ProWall, estados | hecho | (estos commits) |
 | 9 Auditoría de paridad | pendiente | |
 
 ## Línea base (main @ 2bd9d6e)
@@ -216,7 +216,7 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Race-start loader (no montado: comentado en layout) | layout/RaceStartLoader (+ public/start-lights.mp3, public/loader-preview.html) | — | R: inalcanzable; grep cero refs | descartado: eliminado por el brief (era inalcanzable) |
 | Arranque de acceso PRO (estado del token) | access/AccessBootstrap | (lógica, se conserva) | U accessStore | pendiente |
 | Notify me when it starts (Notification API, decisión: **se conserva restilado**) | notify/NotifyButton + NotifyWatcher | | U notify; S race-425 | pendiente |
-| Página 404 de Next | (default de Next) | | S not-found | pendiente |
+| Página 404 de Next | (default de Next) | app/not-found.tsx dentro del shell, mismo texto "404 · This page could not be found." + enlace a la lista | S/T not-found (0 pérdidas) | verificado |
 
 ### Landing `/`
 
@@ -269,9 +269,9 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | analysis/ModuleUnavailable (StatusBadge: failed sólido acento, n/a discontinuo) — adelantado de la fase 8 | S race-9636-modules-failed / -not_applicable; T shallow | verificado |
 | Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | ui/ConfidenceBadge (ConfidenceChip queda para /live), EstimatedLabel, MethodologyBadge sobre Popover | T shallow; expand en fase 9 | verificado (T shallow) |
 | Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
-| SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | | S race-425, -425-no-unlock, -404, -429, -503 | pendiente |
-| Error genérico (500) y offline | app/race/[k]/page (inline) | | S race-500, race-offline | pendiente |
-| ProWall (402) | access/ProWall | | S race-402; I canje | pendiente |
+| SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | analysis/SessionUnavailableState + states.module.css | S/T race-425, -425-no-unlock, -404, -429, -503 (0 pérdidas) | verificado |
+| Error genérico (500) y offline | app/race/[k]/page (inline) | app/race/[k]/page (role=alert, Retry/Back) | S/T race-500, race-offline (0 pérdidas) | verificado |
+| ProWall (402) | access/ProWall | access/ProWall `variant="system"` en /race (el clásico sigue por defecto para /live) | S/T race-402 (0 pérdidas); I canje en fase 9 | verificado (S, T) |
 
 ### Telemetría (pestaña Telemetry)
 
@@ -300,8 +300,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Settings: canje de código, toggle de badge, sign out | app/settings/page | | S settings, settings-pro; I; U page.test | pendiente |
-| Docs | app/docs/page | | S docs; T | pendiente |
+| Settings: canje de código, toggle de badge, sign out | app/settings/page | app/settings/page (mismo switch y textos) | S/T settings, settings-pro (0 pérdidas); U page.test 9/9; I en fase 9 | verificado (S, T, U) |
+| Docs | app/docs/page | app/docs/page (PageHeader, prosa) | S/T docs (0 pérdidas) | verificado |
 
 ### Live `/live/[k]` (no se toca salvo shell y popover)
 
