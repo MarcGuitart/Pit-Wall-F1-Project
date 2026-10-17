@@ -18,8 +18,8 @@ Este archivo es también el **estado de trabajo**: si se corta el contexto, se r
 | 5 Análisis módulo a módulo | pendiente | |
 | 6 Telemetría | hecho | db2002b…9184214 |
 | 7 Race Engineer | hecho | b85ed9c…19b371d |
-| 8 Settings, Docs, ProWall, estados | hecho | (estos commits) |
-| 9 Auditoría de paridad | pendiente | |
+| 8 Settings, Docs, ProWall, estados | hecho | dfd3441…ed096ee |
+| 9 Auditoría de paridad | hecho | (estos commits) |
 
 ## Línea base (main @ 2bd9d6e)
 
@@ -202,6 +202,65 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Session / Race Timeline | be66c39 | ninguna; marcadores enfocables por teclado |
 | Lap charts | — | `charts/LapCharts` lo comparte /live: no se restila; solo su contenedor (75dca06) |
 
+## Fase 9 — auditoría de paridad
+
+**Textos** (`parity_diff`, base vs nuevo, mismas fixtures):
+- Volcado profundo de las 4 carreras (296 vistas base / 350 nuevas, con cada desplegable y cada
+  tarjeta de piloto, 79 tarjetas) más el superficial de todo lo demás (65 vistas).
+- Cero textos de datos perdidos. Diferencias, todas justificadas:
+  - `›` del breadcrumb → separador `/` dibujado por CSS.
+  - Glifos decorativos ⬤ ○ ◯ ● → cuadrados CSS.
+  - `HIG`/`MED`/`LOW` → confianza con la palabra completa ("High confidence").
+  - "23.4slane" y "estimated…estimated from pace…" → los mismos textos, ya no pegados por un margen CSS.
+  - Claves de vista "PRE 20"/"POST 14" → "Pre 20"/"Post 14" (la base las ponía en mayúsculas por CSS).
+  - "▼ Show N more trains" ausente en la vista "Show methodology" de Tyre & Pit: artefacto del
+    volcado (varias "Show methodology" comparten clave; en la nueva la última se captura con el tren
+    desplegado). El texto está en la vista base de la pestaña.
+- Arreglado en el script durante la auditoría: abrir un clip de radio añadía botones y desplazaba
+  los índices de los desplegables pendientes; ahora se reabre la página si cambia el número de
+  controles.
+
+**Capturas**: 135 en `~/.pitwall-ui-baseline/screens/after` (misma matriz que la base, 128 + chat con
+citas); 0 pasos fallidos (la base fallaba 9 en 390 px).
+
+**Interacciones** (`scripts/parity/interactions.mjs`): 31/31 — replay (play, pausa, scrub por teclado y
+puntero, velocidad, modo de vuelta, comparación), chat (respuesta, confianza, citas, rate-limit, Escape),
+radios (lista, un solo audio a la vez, clip muerto, Escape), selector (desplegables y cuadrícula),
+Settings (código malo, código bueno, toggle sin cerrar sesión, sign out), descarga del `.ics`.
+
+**Suites**: vitest 15 archivos / 139 tests (base: 9 / 99; −11 de la animación eliminada, listados en
+la fase 2); tsc limpio; `next build` limpio; backend **471 passed, 28 skipped**, idéntico a la base.
+
+**Bundle (First Load JS)**:
+
+| Ruta | Base | Nuevo |
+|---|---|---|
+| / | 157 kB | 120 kB |
+| /race/[sessionKey] | 201 kB | 162 kB |
+| /docs | 105 kB | 112 kB |
+| /settings | 107 kB | 114 kB |
+| /live/[sessionKey] | 152 kB | 158 kB |
+| /_not-found | 88.2 kB | 88.9 kB |
+| compartido | 87.3 kB | 87.3 kB |
+
+Las rutas de texto y /live suben 6-7 kB: el shell lleva el loader de análisis (navegación pendiente,
+fase 3) y el Popover. Cargarlo en diferido retrasaría el loader inmediato, que es lo que arregla la
+fase 3; se acepta.
+
+**LCP / CLS** (`scripts/parity/lcp.mjs`, CPU ×4, mediana de 5-7 cargas): landing 232 → 228 ms, CLS 0
+→ 0; /race/9636 924 → 528 ms, CLS 0 → 0. La auditoría encontró y corrigió tres regresiones antes de
+cerrar: la transición de entrada empezaba la primera página en opacidad 0 (LCP 460 ms; ahora no se
+aplica a la primera página del documento, sí a las navegaciones), la reserva del loader dejaba el pie
+a la vista (CLS 0,062) y la cuadrícula de temporada empujaba la sección siguiente al llegar (CLS
+0,051; ahora reserva altura mientras carga).
+
+**Teclado y contraste** (`scripts/parity/a11y.mjs`, axe-core 4.14 y 40 Tabs por página): en /, /race,
+/settings y /docs, a 1440 y 390 px — contraste base 34 / 71 / 6 / 10 fallos → 0 en todas; violaciones
+serias → 0; foco visible en todas las paradas (0 sin indicador). Para llegar a 0: el rojo de acento
+con texto blanco no llegaba a 4,5:1 → token nuevo `--pw-accent-strong` (#cc2810) solo para fondos
+sólidos; "Live · PRO" sin opacidad y con nombre accesible que contiene su texto; enlaces del pie
+subrayados; segmentos y marcadores de las líneas de tiempo con `role="img"`.
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
@@ -214,8 +273,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | AppShell (estructura, main) | layout/AppShell | layout/AppShell sobre `PwRoot` | S todas; scrollWidth 390 en /, /docs, /settings, /race (base: 492-530) | verificado |
 | Animación de apertura (coche) | brand/IntroAnimation + brand/CarSilhouette | app/template.tsx (transición de entrada) | grep cero refs en app/components/lib/hooks/stores/public/docs; U template.test (8) | descartado: eliminada por el brief; sustituta verificada |
 | Race-start loader (no montado: comentado en layout) | layout/RaceStartLoader (+ public/start-lights.mp3, public/loader-preview.html) | — | R: inalcanzable; grep cero refs | descartado: eliminado por el brief (era inalcanzable) |
-| Arranque de acceso PRO (estado del token) | access/AccessBootstrap | (lógica, se conserva) | U accessStore | pendiente |
-| Notify me when it starts (Notification API, decisión: **se conserva restilado**) | notify/NotifyButton + NotifyWatcher | | U notify; S race-425 | pendiente |
+| Arranque de acceso PRO (estado del token) | access/AccessBootstrap | (sin cambios) | U accessStore; I canje en Settings (badge aparece y desaparece) | verificado |
+| Notify me when it starts (Notification API, decisión: **se conserva restilado**) | notify/NotifyButton + NotifyWatcher | sin cambios en el componente (lo comparte /live); se estila por `className` desde el popover y el 425 | U notify; S race-425; U TopBar (sin promesas de push/e-mail) | verificado |
 | Página 404 de Next | (default de Next) | app/not-found.tsx dentro del shell, mismo texto "404 · This page could not be found." + enlace a la lista | S/T not-found (0 pérdidas) | verificado |
 
 ### Landing `/`
@@ -223,8 +282,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
 | Hero, stats, tres pasos | app/page | app/page (PageHeader, Cells, Metric) | S landing; T landing: mismos textos (solo faltan glifos decorativos ⬤ ○ ◯ ●) | verificado |
-| Selector temporada / GP / sesión, Analyze | landing/RaceSelector + ui/PitWallSelect | landing/RaceSelector ("Any session") + PitWallSelect restilado (misma lógica: teclado, búsqueda > 8, clic fuera) | S; T; I selector en fase 9 | verificado (S, T) |
-| Botón .ics en sesiones futuras del selector | ui/AddToCalendarButton | ui/AddToCalendarButton restilado (misma descarga, mismas etiquetas) | U ics + TopBar .ics; I descarga en fase 9 | verificado (U) |
+| Selector temporada / GP / sesión, Analyze | landing/RaceSelector + ui/PitWallSelect | landing/RaceSelector ("Any session") + PitWallSelect restilado (misma lógica: teclado, búsqueda > 8, clic fuera) | S; T; I selector en fase 9 | verificado |
+| Botón .ics en sesiones futuras del selector | ui/AddToCalendarButton | ui/AddToCalendarButton restilado (misma descarga, mismas etiquetas) | U ics + TopBar .ics; I descarga en fase 9 | verificado |
 | Tarjetas destacadas (chaos, telemetría, tags) | landing/RaceSelector | landing/RaceSelector (Badges, tono por nivel de chaos) | S; T | verificado |
 | Sección PRO informativa, con .ics de la próxima carrera | access/ProSection | access/ProSection restilado (mismos textos, bahías, .ics, enlace a Settings) | S landing / landing-pro; T | verificado |
 | Fondo (degradado; "video" no carga vídeo) | landing/LandingVideoBackground | — | era un degradado decorativo sin contenido | descartado: el fondo del sistema nuevo es liso (componente sin uso, se queda en el repo) |
@@ -238,15 +297,15 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Cabecera de carrera (chaos, pilotos, stints, nivel) | analysis/AnalysisPage | analysis/AnalysisPage (PageHeader) | S race-9636*; T shallow: sin pérdidas | verificado |
 | Fases de carrera | analysis/RacePhaseTimeline | analysis/RacePhaseTimeline | S; T shallow; módulos failed/n.a. | verificado |
 | Barra de sesión (sin fases) | analysis/SessionTimelineBar | analysis/SessionTimelineBar | S modules-*; T shallow | verificado |
-| Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | mismos (marcadores con aria-expanded; audioBus intacto) | S; T shallow; I un solo audio y clip muerto en fase 9 | verificado (S, T) |
+| Carril de radios por vuelta | teamradio/TeamRadioLane + RadioClipPlayer | mismos (marcadores con aria-expanded; audioBus intacto) | S; T shallow; I un solo audio y clip muerto en fase 9 | verificado |
 | Pestañas (6, con badges) | analysis/TabNav | analysis/TabNav sobre ui/Tabs | S; T shallow | verificado |
 | Strategy / Data View | analysis/AnalysisModeToggle | ui/Segmented (role tablist) | S; T shallow | verificado |
-| Driver focus strip | analysis/DriverFocusStrip | | S driver-card | pendiente |
+| Driver focus strip | analysis/DriverFocusStrip | analysis/DriverFocusStrip | S/T driver-card-9636 ("Focused on: …" y "✕ Clear focus" presentes) | verificado |
 | Race Brain | strategy/RaceBrainV2 | strategy/RaceBrainV2 (Panel, kv) | S; T shallow | verificado |
 | Race DNA | analysis/RaceDNACard | analysis/RaceDNACard (kv) | S; T shallow; módulos failed/n.a. | verificado |
-| True Pace (podio + clasificación modal) | strategy/TruePacePodium | strategy/TruePacePodium (botones; diálogo con Escape) | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
+| True Pace (podio + clasificación modal) | strategy/TruePacePodium | strategy/TruePacePodium (botones; diálogo con Escape) | S; T shallow (expand en fase 9) | verificado |
 | True Pace (tabla, traffic score) | analysis/TruePaceTable | analysis/TruePaceTable (DataTable, filas activables por teclado) | S/T data view 9636, 11240 | verificado |
-| Clasificación | analysis/RaceClassificationPanel | analysis/RaceClassificationPanel (DataTable) | T shallow; modal en fase 9 | verificado (T shallow) |
+| Clasificación | analysis/RaceClassificationPanel | analysis/RaceClassificationPanel (DataTable) | T shallow; modal en fase 9 | verificado |
 | Degradación de neumáticos (cliff map) | strategy/TyreCliffMap | strategy/TyreCliffMap (filas botón) | S tyre-pit 9636/9539; T shallow | verificado |
 | Degradación (tabla) | analysis/TyreDegradationPanel | analysis/TyreDegradationPanel (filas botón) | S/T data view | verificado |
 | Pit impact (secuencia) | strategy/PitSequenceSummary | strategy/PitSequenceSummary (filas botón) | S; T shallow | verificado |
@@ -254,42 +313,42 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | strategy/ChaosProfile + analysis/ChaosIndexCard | S race-control y data view; T shallow | verificado |
 | Engineer notes (resumen) | strategy/EngineerSignalSummary | strategy/EngineerSignalSummary (filtros con aria-pressed) | S; T shallow | verificado |
 | Engineer notes (lista) | analysis/EngineerNotes | analysis/EngineerNotes | S/T data view, control-tables | verificado |
-| Decisiones (tarjetas) | strategy/KeyDecisionCards | strategy/KeyDecisionCards | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
+| Decisiones (tarjetas) | strategy/KeyDecisionCards | strategy/KeyDecisionCards | S; T shallow (expand en fase 9) | verificado |
 | Decisiones (timeline) | analysis/DecisionsTimeline | analysis/DecisionsTimeline | S/T data view | verificado |
 | Exclusion log | data/ExclusionLogPanel | data/ExclusionLogPanel | S/T data view | verificado |
 | Data View (índice y secciones) | data/DataViewTables | data/DataViewTables (nav sticky bajo el TopBar en escritorio) | S; T shallow | verificado |
 | Meteo | strategy/WeatherOverlay | strategy/WeatherOverlay | S weather 9636/11377; T shallow; módulos failed/n.a. | verificado |
-| Crossovers | analysis/CrossoverWindowPanel | analysis/CrossoverWindowPanel | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
+| Crossovers | analysis/CrossoverWindowPanel | analysis/CrossoverWindowPanel | S; T shallow (expand en fase 9) | verificado |
 | Weather winners & losers | analysis/WeatherWinnersLosers | analysis/WeatherWinnersLosers | T shallow 11377; módulos failed/n.a. | verificado |
-| Tren de DRS | strategy/DRSTrainDetector | strategy/DRSTrainDetector | S tyre-pit; T shallow (expand en fase 9); módulos failed/n.a. | verificado (S, T shallow) |
+| Tren de DRS | strategy/DRSTrainDetector | strategy/DRSTrainDetector | S tyre-pit; T shallow (expand en fase 9); módulos failed/n.a. | verificado |
 | Tráfico / dirty air (clean air value) | analysis/CleanAirValueCard | analysis/CleanAirValueCard | S; T shallow; módulos failed/n.a. | verificado |
 | Lap charts (4 gráficas) | tabs/LapChartsTab + charts/LapCharts | tabs/LapChartsTab (LapCharts sin cambios: compartido con /live) | S lap-charts; T shallow | verificado |
 | Pestañas contenedoras | tabs/StrategyTab, ManagementTab, WeatherTab, TelemetryTab, RaceControlTab, LapChartsTab | mismos archivos (stack con reglas, Cells de 2 columnas, sin framer-motion) | S; T shallow | verificado |
-| Tarjeta de piloto con radios | analysis/DriverCard | analysis/DriverCard (dialog modal, Escape, cerrar etiquetado) | S/T driver-card-9636; todas las tarjetas en fase 9 | verificado (S, T) |
+| Tarjeta de piloto con radios | analysis/DriverCard | analysis/DriverCard (dialog modal, Escape, cerrar etiquetado) | S/T driver-card-9636; todas las tarjetas en fase 9 | verificado |
 | ModuleUnavailable (ok / failed / not_applicable) | analysis/ModuleUnavailable | analysis/ModuleUnavailable (StatusBadge: failed sólido acento, n/a discontinuo) — adelantado de la fase 8 | S race-9636-modules-failed / -not_applicable; T shallow | verificado |
-| Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | ui/ConfidenceBadge (ConfidenceChip queda para /live), EstimatedLabel, MethodologyBadge sobre Popover | T shallow; expand en fase 9 | verificado (T shallow) |
+| Chips de confianza, "estimated", metodología | ui/ConfidenceChip, ui/EstimatedLabel, ui/MethodologyBadge | ui/ConfidenceBadge (ConfidenceChip queda para /live), EstimatedLabel, MethodologyBadge sobre Popover | T shallow; expand en fase 9 | verificado |
 | Pantalla de carga | analysis/AnalysisLoadingScreen | analysis/AnalysisLoadingScreen + lib/loadPhase + app/race/[k]/loading.tsx + lib/raceNav | S race-loading; diagnose_loading (navegador real); U fake timers (loadPhase 5, loader 7, hook 4, AppShell 3) | verificado |
 | SessionUnavailableState 425 (cuenta atrás), 404, 429, 503 | analysis/SessionUnavailableState | analysis/SessionUnavailableState + states.module.css | S/T race-425, -425-no-unlock, -404, -429, -503 (0 pérdidas) | verificado |
 | Error genérico (500) y offline | app/race/[k]/page (inline) | app/race/[k]/page (role=alert, Retry/Back) | S/T race-500, race-offline (0 pérdidas) | verificado |
-| ProWall (402) | access/ProWall | access/ProWall `variant="system"` en /race (el clásico sigue por defecto para /live) | S/T race-402 (0 pérdidas); I canje en fase 9 | verificado (S, T) |
+| ProWall (402) | access/ProWall | access/ProWall `variant="system"` en /race (el clásico sigue por defecto para /live) | S/T race-402 (0 pérdidas); I canje en fase 9 | verificado |
 
 ### Telemetría (pestaña Telemetry)
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Replay: mapa del circuito | CircuitTelemetryReplay/TrackReplayMap | mismo (marco, tipografía, botón 2D/3D con aria-pressed) | S tab-telemetry 9636; I en fase 9 | verificado (S) |
-| Canales (speed, throttle, brake…) | CircuitTelemetryReplay/TelemetryChannels | mismo (colores de serie intactos, marco y textos en tokens) | S; T shallow | verificado (S, T) |
-| G-force y diagrama GG | CircuitTelemetryReplay/GForceMeter, GGDiagram | mismos (Archivo, textos ≥11 px, sin redondeos, tokens) | S; T shallow | verificado (S, T) |
+| Replay: mapa del circuito | CircuitTelemetryReplay/TrackReplayMap | mismo (marco, tipografía, botón 2D/3D con aria-pressed) | S tab-telemetry 9636; I en fase 9 | verificado |
+| Canales (speed, throttle, brake…) | CircuitTelemetryReplay/TelemetryChannels | mismo (colores de serie intactos, marco y textos en tokens) | S; T shallow | verificado |
+| G-force y diagrama GG | CircuitTelemetryReplay/GForceMeter, GGDiagram | mismos (Archivo, textos ≥11 px, sin redondeos, tokens) | S; T shallow | verificado |
 | Sectores | CircuitTelemetryReplay/SectorCards | CircuitTelemetryReplay/SectorCards | S; T shallow | verificado |
-| Selector de pilotos y métricas (pestañas) | CircuitTelemetryReplay/DriverSelector, MetricSelector | chips con aria-pressed; métricas y modo de vuelta en ui/Segmented | S; T shallow; I comparación en fase 9 | verificado (S, T) |
-| Controles: play, pausa, scrub, velocidad, vuelta | CircuitTelemetryReplay/ReplayControls + index | ReplayControls: scrub como slider (flechas, Re/Av Pág, Inicio/Fin, puntero y táctil) | I en fase 9 | en curso (falta I) |
+| Selector de pilotos y métricas (pestañas) | CircuitTelemetryReplay/DriverSelector, MetricSelector | chips con aria-pressed; métricas y modo de vuelta en ui/Segmented | S; T shallow; I comparación en fase 9 | verificado |
+| Controles: play, pausa, scrub, velocidad, vuelta | CircuitTelemetryReplay/ReplayControls + index | ReplayControls: scrub como slider (flechas, Re/Av Pág, Inicio/Fin, puntero y táctil) | I interactions.mjs: play, pausa, End/Home/flechas, scrub con puntero, velocidad, modo de vuelta, comparación | verificado |
 | Sin telemetría (sesión sin precomputar / no race) | CircuitTelemetryReplay/index | mismo copy, estado del sistema | S race-11377-pro/tab-telemetry; T shallow | verificado |
 
 ### Race Engineer (chat)
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Overlay: apertura, preguntas sugeridas, envío | radio/RadioOverlay | radio/RadioOverlay (dialog modal con nombre, feed aria-live) | S/T chat-answer (0 pérdidas); en 390 px ya se abre (en la base no) | verificado (S, T); I en fase 9 |
+| Overlay: apertura, preguntas sugeridas, envío | radio/RadioOverlay | radio/RadioOverlay (dialog modal con nombre, feed aria-live) | S/T chat-answer (0 pérdidas); en 390 px ya se abre (en la base no) | verificado |
 | Citas (cited signals) y confianza | radio/RadioOverlay | ConfidenceBadge + citas | S/T chat-cited, chat-answer | verificado |
 | Rate-limit (cuenta atrás, input bloqueado) | radio/RadioOverlay | igual (mensaje con role=status) | S/T chat-rate-limited | verificado |
 | Offline (Ollama/Groq no listos) | radio/EngineerOfflineState | radio/EngineerOfflineState (role=alert) | S/T chat-offline | verificado |
@@ -300,14 +359,14 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Settings: canje de código, toggle de badge, sign out | app/settings/page | app/settings/page (mismo switch y textos) | S/T settings, settings-pro (0 pérdidas); U page.test 9/9; I en fase 9 | verificado (S, T, U) |
+| Settings: canje de código, toggle de badge, sign out | app/settings/page | app/settings/page (mismo switch y textos) | S/T settings, settings-pro (0 pérdidas); U page.test 9/9; I en fase 9 | verificado |
 | Docs | app/docs/page | app/docs/page (PageHeader, prosa) | S/T docs (0 pérdidas) | verificado |
 
 ### Live `/live/[k]` (no se toca salvo shell y popover)
 
 | Feature | Componente viejo | Componente nuevo | Cómo se verifica | Estado |
 |---|---|---|---|---|
-| Dashboard live, NotLiveYet, ConnectionBanner, vista clásica de reserva | live/** | (sin cambios) | replay de Bakú a 30x, t=20/45/75 s, 1440 y 390, antes y después del shell: mismo dashboard, cambian solo TopBar y footer (`~/.pitwall-ui-baseline/live-before` vs `live-after`) | verificado (shell) |
+| Dashboard live, NotLiveYet, ConnectionBanner, vista clásica de reserva | live/** | (sin cambios) | replay de Bakú a 30x, t=20/45/75 s, 1440 y 390, antes y después del shell: mismo dashboard, cambian solo TopBar y footer (`~/.pitwall-ui-baseline/live-before` vs `live-after`) | verificado |
 
 ### Fuera de la app migrada
 
