@@ -264,6 +264,44 @@ con texto blanco no llegaba a 4,5:1 → token nuevo `--pw-accent-strong` (#cc281
 sólidos; "Live · PRO" sin opacidad y con nombre accesible que contiene su texto; enlaces del pie
 subrayados; segmentos y marcadores de las líneas de tiempo con `role="img"`.
 
+## Bloque 27 — experiencia de carga
+
+Fuente: `design/Loading Experience.dc.html` (estados, textos, tiempos, tabla de movimiento) y
+`design/LoadFrame.dc.html` (referencia); `design/` está en `.gitignore`. De la maqueta se copian
+estados, textos y tiempos; colores, fuentes y px salen de los tokens de `components/ui/`.
+
+| Tarea | Estado | Commits |
+|---|---|---|
+| 1 Estados por tiempo (nada · loading · waking · error a 45 s) | hecho | 2a40165 |
+| 2 Skeleton, regla temporal, reloj, panel de método | hecho | 2a40165 |
+| 3 Meta ligera antes de /analysis | hecho | 420edd8 (front) · aa51ce8 (`ops/loading-meta`) |
+| 4 Llegada escalonada, 300 ms mínimos | hecho | 1137539, 58ec521 |
+| 5 Páginas sin análisis (+ SESSION_CANCELLED) | hecho | 5c16f13, 58ec521 · 60726b1, 6011ec4 (`ops/loading-meta`) |
+| 6 Reintento seguro | hecho | d82dfbd (`ops/loading-meta`); 58ec521 (test del front) |
+| 7 Transición de página | verificada, sin cambios | 76b853e (test) |
+| 8 Verificación | hecho | 76b853e (scripts) |
+
+- **Meta (tarea 3)**: el frontend solo conoce GP/temporada/sesión/fecha si llega desde la cuadrícula.
+  En visita directa, recarga o enlace compartido no: endpoint público `GET /sessions/{key}/meta` en
+  `ops/loading-meta` (no escribe en caché; `docs/api-contract.md`). El front lo consume por contrato,
+  con fixtures; sin desplegar, el skeleton deja barras en lugar de los datos de cabecera.
+- **Skeleton = la página real**: alturas medidas con `scripts/parity/measure_analysis.mjs`. Primera
+  pantalla (cabecera, banda de fases, pestañas, conmutador, Race Brain, DNA) igual a ±2 px en 1440 y
+  390. El estado va en la primera celda de la banda y no en la columna derecha de la cabecera (la
+  maqueta lo pone ahí): en la página real esa columna es el bloque de cifras (292 × 111), y una celda
+  de 520 px reflujaría el título y movería la cabecera al llegar. La miga de pan sale de la meta: en
+  móvil es una fila de 36 px y sin ella la llegada empujaba toda la página.
+- **CLS** con /analysis tardando 3,2 s (`loading27.mjs cls`, mediana de 5): escritorio 0,0000 →
+  0,0000; **móvil 0,0373 → 0,0000**. LCP en ese caso ~3,4 s antes y después (es el contenido).
+- **LCP en caliente** (CPU ×4): `/race/9636` 528 → 604 ms. Con la CPU frenada la respuesta llega
+  después de 300 ms, así que se aplican los 300 ms mínimos y el fundido de la spec. `/` 232 ms, igual.
+- **Bundle** (First Load, antes del 27 → después): `/race/[sessionKey]` 163 → 169 kB; `/`, `/docs`,
+  `/settings`, `/live` +1 kB (meta y miga en el shell; el loader del shell se carga bajo demanda).
+- **Capturas**: `~/.pitwall-ui-baseline/shots27/` — estados a t = 0,1 · 3,2 · 17 · 45 s, llegada a
+  60/180/400 ms y cada página bloqueada, en 1440 y 390 (24).
+- **Token nuevo**: `--pw-ease-out: cubic-bezier(0.2, 0, 0, 1)` (la curva de salida de la spec).
+- **Tests**: vitest 181 (antes 157); backend en `ops/loading-meta` 576 passed, 28 skipped.
+
 ## Inventario (alcanzable desde app/ en main)
 
 ### Shell y global
@@ -461,3 +499,17 @@ Revisadas a mano las 44 restantes:
     **arreglado (26d)**: "Tyres loaded" y "Pit mapped" solo aparecen si `tyre_degradation` /
     `pit_impact` traen filas; "Race ctrl parsed" se quita (`/analysis` no expone race control con
     que comprobarlo). `lib/chat/contextPills.ts` + test.
+12. (27) Las alturas por debajo de la primera pantalla cambian por carrera (Race Brain 252–272,
+    celdas 378–418 en escritorio; DNA 270–289 en móvil): el skeleton reserva el mínimo, así que el
+    contenido bajo el pliegue puede crecer al llegar (fuera de la vista; el CLS medido es 0).
+13. (27) La banda mide 283 px con la línea de team radio. Una carrera sin clips (sin esa línea) la
+    tendría más baja y la llegada se movería; las tres carreras en caché tienen radio, no se ha medido.
+14. (27) La cabecera titula con `meeting_name`: Kuala Lumpur 2026 se titula "Bahrain Grand Prix"
+    (dato de OpenF1), aunque la línea de datos ya dice "Kuala Lumpur".
+15. (27) Del apartado de backend de la spec no se hace: ETag para el camino caliente, pre-warm y la
+    cabecera `Retry-After` expuesta (la cuenta atrás usa `details.retry_after_seconds`).
+16. (27) Movimiento reducido en la transición de página: la spec pide opacidad 120 ms; el bloque 26
+    la quitó del todo. Se deja como en el 26.
+17. (27) `/preview/race` sigue con `SessionUnavailableState` y el loader en modo antiguo de props.
+18. (26e) `render.yaml`: el live server importa `app/clients/openf1_client.py`, que no está en su
+    filtro de build: un cambio solo ahí no lo redeploya.
