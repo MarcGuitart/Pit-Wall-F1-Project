@@ -9,12 +9,23 @@ vi.mock('next/navigation', () => ({ usePathname: () => pathname }))
 // CSS modules resolve to an identity map under vitest's default css handling
 vi.mock('@/components/layout/shell.module.css', () => ({ default: { enter: 'enter' } }))
 
-import Template from './template'
+import Template, { __resetTemplateForTests } from './template'
 
 afterEach(cleanup)
 
 describe('page-enter transition (app/template.tsx)', () => {
-  it('wraps a page so its <main> plays the entry animation', () => {
+  it('does not animate the first page of a document (LCP: nothing to transition from)', () => {
+    __resetTemplateForTests()
+    pathname = '/race/9636'
+    const { container } = render(<Template><main>race</main></Template>)
+    expect(container.querySelector('.enter')).toBeNull()
+  })
+
+  it('wraps every later page so its <main> plays the entry animation', () => {
+    __resetTemplateForTests()
+    pathname = '/'
+    render(<Template><main>landing</main></Template>)
+    cleanup()
     pathname = '/race/9636'
     const { container } = render(<Template><main>race</main></Template>)
     expect((container.firstChild as HTMLElement).className).toBe('enter')
@@ -27,6 +38,9 @@ describe('page-enter transition (app/template.tsx)', () => {
   })
 
   it('is not applied on /live', () => {
+    pathname = '/'
+    render(<Template><main>landing</main></Template>)
+    cleanup()
     pathname = '/live/11377'
     const { container } = render(<Template><main>live</main></Template>)
     expect(container.querySelector('.enter')).toBeNull()
