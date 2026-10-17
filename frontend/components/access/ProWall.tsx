@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 import { redeemAccessCode } from '@/lib/api'
 import { PRO_PRICE_LABEL } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
+import { Badge, buttonClass, ui } from '@/components/ui'
 
 const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
@@ -24,7 +25,12 @@ const REDEEM_ERROR: Record<string, string> = {
   PRO_ACCESS_UNAVAILABLE: 'Access codes are not switched on yet.',
 }
 
-export function ProWall({ year, onUnlocked }: { year?: number | null; onUnlocked: () => void }) {
+/**
+ * variant 'system' is the design system's wall (the migrated race page). The
+ * default keeps the original look, because /live renders this wall too and
+ * the live page is outside the migration. Both share the same exchange.
+ */
+export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: number | null; onUnlocked: () => void; variant?: 'classic' | 'system' }) {
   const router = useRouter()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +50,54 @@ export function ProWall({ year, onUnlocked }: { year?: number | null; onUnlocked
       setError(REDEEM_ERROR[apiCode] ?? 'Could not check that code. Try again.')
       setSubmitting(false)
     }
+  }
+
+  if (variant === 'system') {
+    return (
+      <section className={ui.panelBoxed} style={{ maxWidth: 560, width: '100%', background: 'var(--pw-bg)' }} aria-labelledby="wall-title">
+        {/* hazard strip: the pit lane is closed, not broken */}
+        <div style={{ height: 8, background: 'repeating-linear-gradient(45deg, var(--pw-amber) 0 8px, var(--pw-bg) 8px 16px)' }} aria-hidden="true" />
+        <div style={{ padding: 28, display: 'grid', gap: 14 }}>
+          <div><Badge tone="warn">Restricted — Pit Wall PRO</Badge></div>
+          <h1 id="wall-title" className={ui.h1} style={{ fontSize: 'clamp(32px, 6vw, 48px)', margin: 0 }}>
+            {year ? `The ${year} season` : 'This season'} is PRO
+          </h1>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55 }}>2023 and 2024 are free to read. {PRO_PRICE_LABEL}.</p>
+          <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet — €2.99/month is what it will cost.</p>
+
+          <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 6 }}>
+              <label htmlFor="wall-code" className={ui.label}>Access code</label>
+              <input
+                id="wall-code"
+                type="text"
+                value={code}
+                onChange={(e) => { setCode(e.target.value); setError(null) }}
+                placeholder="PW-…"
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={error !== null}
+                aria-describedby={error ? 'wall-code-error' : undefined}
+                className={ui.input}
+              />
+            </div>
+            <button type="submit" disabled={submitting || code.trim().length === 0} className={buttonClass('primary', true)}>
+              {submitting ? 'Checking…' : 'Unlock'}
+            </button>
+          </form>
+
+          <p id="wall-code-error" role="status" aria-live="polite" className={error ? ui.accent : ui.srOnly} style={{ margin: 0, fontSize: 13 }}>
+            {error ?? ''}
+          </p>
+
+          <div>
+            <button type="button" onClick={() => router.push('/')} className={buttonClass('ghost')} style={{ paddingLeft: 0, textDecoration: 'underline', textUnderlineOffset: 4 }}>
+              Back to the free seasons
+            </button>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (

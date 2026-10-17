@@ -9,6 +9,8 @@ import { AnalysisPage } from '@/components/analysis/AnalysisPage'
 import { SessionUnavailableState } from '@/components/analysis/SessionUnavailableState'
 import { ProWall } from '@/components/access/ProWall'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { buttonClass, ui } from '@/components/ui'
+import s from '@/components/analysis/states.module.css'
 
 export default function RacePage() {
   const params = useParams()
@@ -53,8 +55,8 @@ export default function RacePage() {
     if (error.code === 'PRO_REQUIRED') {
       return (
         <AppShell>
-          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-            <ProWall year={error.year ?? null} onUnlocked={() => retry()} />
+          <div className={s.center}>
+            <ProWall variant="system" year={error.year ?? null} onUnlocked={() => retry()} />
           </div>
         </AppShell>
       )
@@ -68,7 +70,7 @@ export default function RacePage() {
     ) {
       return (
         <AppShell>
-          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
+          <div className={s.center}>
             <SessionUnavailableState
               code={error.code}
               message={error.message}
@@ -85,29 +87,17 @@ export default function RacePage() {
     // ANALYSIS_FAILED, ANALYSIS_TIMEOUT (aborted at 45 s) or UNKNOWN — generic error with retry
     return (
       <AppShell>
-        <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-          <div className="bg-bg-panel border border-signal-red/30 rounded-[4px] p-8 max-w-lg w-full">
-            <div className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red mb-2">
+        <div className={s.center}>
+          <section className={s.card} style={{ boxShadow: 'inset 0 4px 0 var(--pw-accent)' }} role="alert">
+            <div className={ui.label} style={{ color: 'var(--pw-accent-text)', fontWeight: 800 }}>
               {error.code === 'ANALYSIS_TIMEOUT' ? 'No answer from the analysis server' : 'Analysis Failed'}
             </div>
-            <p className="font-mono text-[13px] text-text-secondary mb-4 leading-relaxed">
-              {error.message}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => retry()}
-                className="px-4 py-2 bg-signal-red text-white font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:bg-red-600 transition-colors"
-              >
-                Retry
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 bg-bg-elevated border border-border-default text-text-secondary font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:text-text-primary transition-colors"
-              >
-                Back
-              </button>
+            <p className={s.message}>{error.message}</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => retry()} className={buttonClass('primary')}>Retry</button>
+              <button type="button" onClick={() => router.push('/')} className={buttonClass()}>Back</button>
             </div>
-          </div>
+          </section>
         </div>
       </AppShell>
     )

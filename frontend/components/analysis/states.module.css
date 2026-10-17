@@ -1,0 +1,6 @@
+/* Page-level states on the race page: unavailable, PRO wall, failure. Tokens from components/ui. */
+.center { min-height: calc(100vh - 160px); display: flex; align-items: center; justify-content: center; padding: 32px var(--pw-gutter); }
+.card { width: min(560px, 100%); background: var(--pw-bg); border: 2px solid var(--pw-divider); padding: 28px; display: grid; gap: 14px; }
+.title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; text-transform: uppercase; }
+.message { margin: 0; font-size: 14px; line-height: 1.55; color: var(--pw-muted); }
+.icon { font-size: 32px; line-height: 1; color: var(--pw-muted); }
