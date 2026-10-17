@@ -1,0 +1,272 @@
+[
+ {
+  "meeting_key": 1302,
+  "meeting_name": "Abu Dhabi Grand Prix",
+  "country_name": "United Arab Emirates",
+  "circuit_short_name": "Yas Marina Circuit",
+  "date_start": "2026-12-04T09:30:00+00:00",
+  "year": 2026,
+  "location": "Yas Marina",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1301,
+  "meeting_name": "Qatar Grand Prix",
+  "country_name": "Qatar",
+  "circuit_short_name": "Lusail",
+  "date_start": "2026-11-27T13:30:00+00:00",
+  "year": 2026,
+  "location": "Lusail",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1300,
+  "meeting_name": "Las Vegas Grand Prix",
+  "country_name": "United States",
+  "circuit_short_name": "Las Vegas",
+  "date_start": "2026-11-20T00:30:00+00:00",
+  "year": 2026,
+  "location": "Las Vegas",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1299,
+  "meeting_name": "São Paulo Grand Prix",
+  "country_name": "Brazil",
+  "circuit_short_name": "Interlagos",
+  "date_start": "2026-11-06T15:30:00+00:00",
+  "year": 2026,
+  "location": "São Paulo",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1298,
+  "meeting_name": "Mexico City Grand Prix",
+  "country_name": "Mexico",
+  "circuit_short_name": "Mexico City",
+  "date_start": "2026-10-30T18:30:00+00:00",
+  "year": 2026,
+  "location": "Mexico City",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1297,
+  "meeting_name": "United States Grand Prix",
+  "country_name": "United States",
+  "circuit_short_name": "Austin",
+  "date_start": "2026-10-23T17:30:00+00:00",
+  "year": 2026,
+  "location": "Austin",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1296,
+  "meeting_name": "Singapore Grand Prix",
+  "country_name": "Singapore",
+  "circuit_short_name": "Singapore",
+  "date_start": "2026-10-09T08:30:00+00:00",
+  "year": 2026,
+  "location": "Marina Bay",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1308,
+  "meeting_name": "Bahrain Grand Prix",
+  "country_name": "Bahrain",
+  "circuit_short_name": "Kuala Lumpur",
+  "date_start": "2026-10-02T04:30:00+00:00",
+  "year": 2026,
+  "location": "Kuala Lumpur",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1295,
+  "meeting_name": "Azerbaijan Grand Prix",
+  "country_name": "Azerbaijan",
+  "circuit_short_name": "Baku",
+  "date_start": "2026-09-24T08:30:00+00:00",
+  "year": 2026,
+  "location": "Baku",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1294,
+  "meeting_name": "Spanish Grand Prix",
+  "country_name": "Spain",
+  "circuit_short_name": "Madring",
+  "date_start": "2026-09-11T11:30:00+00:00",
+  "year": 2026,
+  "location": "Madrid",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1293,
+  "meeting_name": "Italian Grand Prix",
+  "country_name": "Italy",
+  "circuit_short_name": "Monza",
+  "date_start": "2026-09-04T10:30:00+00:00",
+  "year": 2026,
+  "location": "Monza",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1292,
+  "meeting_name": "Dutch Grand Prix",
+  "country_name": "Netherlands",
+  "circuit_short_name": "Zandvoort",
+  "date_start": "2026-08-21T10:30:00+00:00",
+  "year": 2026,
+  "location": "Zandvoort",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1291,
+  "meeting_name": "Hungarian Grand Prix",
+  "country_name": "Hungary",
+  "circuit_short_name": "Hungaroring",
+  "date_start": "2026-07-24T11:30:00+00:00",
+  "year": 2026,
+  "location": "Budapest",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1290,
+  "meeting_name": "Belgian Grand Prix",
+  "country_name": "Belgium",
+  "circuit_short_name": "Spa-Francorchamps",
+  "date_start": "2026-07-17T11:30:00+00:00",
+  "year": 2026,
+  "location": "Spa-Francorchamps",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1289,
+  "meeting_name": "British Grand Prix",
+  "country_name": "United Kingdom",
+  "circuit_short_name": "Silverstone",
+  "date_start": "2026-07-03T11:30:00+00:00",
+  "year": 2026,
+  "location": "Silverstone",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1288,
+  "meeting_name": "Austrian Grand Prix",
+  "country_name": "Austria",
+  "circuit_short_name": "Spielberg",
+  "date_start": "2026-06-26T11:30:00+00:00",
+  "year": 2026,
+  "location": "Spielberg",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1287,
+  "meeting_name": "Barcelona Grand Prix",
+  "country_name": "Spain",
+  "circuit_short_name": "Catalunya",
+  "date_start": "2026-06-12T11:30:00+00:00",
+  "year": 2026,
+  "location": "Barcelona",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1286,
+  "meeting_name": "Monaco Grand Prix",
+  "country_name": "Monaco",
+  "circuit_short_name": "Monte Carlo",
+  "date_start": "2026-06-05T11:30:00+00:00",
+  "year": 2026,
+  "location": "Monte Carlo",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1285,
+  "meeting_name": "Canadian Grand Prix",
+  "country_name": "Canada",
+  "circuit_short_name": "Montreal",
+  "date_start": "2026-05-22T16:30:00+00:00",
+  "year": 2026,
+  "location": "Montréal",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1284,
+  "meeting_name": "Miami Grand Prix",
+  "country_name": "United States",
+  "circuit_short_name": "Miami",
+  "date_start": "2026-05-01T16:00:00+00:00",
+  "year": 2026,
+  "location": "Miami Gardens",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1283,
+  "meeting_name": "Saudi Arabian Grand Prix",
+  "country_name": "Saudi Arabia",
+  "circuit_short_name": "Jeddah",
+  "date_start": "2026-04-17T13:30:00+00:00",
+  "year": 2026,
+  "location": "Jeddah",
+  "is_cancelled": true
+ },
+ {
+  "meeting_key": 1282,
+  "meeting_name": "Bahrain Grand Prix",
+  "country_name": "Bahrain",
+  "circuit_short_name": "Sakhir",
+  "date_start": "2026-04-10T11:30:00+00:00",
+  "year": 2026,
+  "location": "Sakhir",
+  "is_cancelled": true
+ },
+ {
+  "meeting_key": 1281,
+  "meeting_name": "Japanese Grand Prix",
+  "country_name": "Japan",
+  "circuit_short_name": "Suzuka",
+  "date_start": "2026-03-27T02:30:00+00:00",
+  "year": 2026,
+  "location": "Suzuka",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1280,
+  "meeting_name": "Chinese Grand Prix",
+  "country_name": "China",
+  "circuit_short_name": "Shanghai",
+  "date_start": "2026-03-13T03:30:00+00:00",
+  "year": 2026,
+  "location": "Shanghai",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1279,
+  "meeting_name": "Australian Grand Prix",
+  "country_name": "Australia",
+  "circuit_short_name": "Melbourne",
+  "date_start": "2026-03-06T01:30:00+00:00",
+  "year": 2026,
+  "location": "Melbourne",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1305,
+  "meeting_name": "Pre-Season Testing",
+  "country_name": "Bahrain",
+  "circuit_short_name": "Sakhir",
+  "date_start": "2026-02-18T07:00:00+00:00",
+  "year": 2026,
+  "location": "Bahrain",
+  "is_cancelled": false
+ },
+ {
+  "meeting_key": 1304,
+  "meeting_name": "Pre-Season Testing",
+  "country_name": "Bahrain",
+  "circuit_short_name": "Sakhir",
+  "date_start": "2026-02-11T07:00:00+00:00",
+  "year": 2026,
+  "location": "Bahrain",
+  "is_cancelled": false
+ }
+]

@@ -156,10 +156,13 @@ espera artificial de 400 ms; `fetchAnalysis` acepta un `AbortSignal` (sin cambio
   - "N grands prix" sin los tests: **hecho** (2026: 25 en vez de 27; 2024: 24).
   - Nombre: OpenF1 da `meeting_name` "Bahrain Grand Prix" y `country_name` "Bahrain" para Kuala
     Lumpur. La celda usa `location ?? circuit_short_name` (hoy "Kuala Lumpur") y ya no muestra
-    ni el país ni el nombre del GP. **Dependencia**: `/races` no expone `location`.
-  - "Cancelled" sin enlace y ronda sin canceladas: **bloqueado** — `/races` no expone
-    `is_cancelled`. El código ya lo respeta si llega (`seasonGrid`, test incluido); hoy Sakhir y
-    Jeddah 2026 siguen como rondas 04 y 05 con "Analyse →". No se toca el backend.
+    ni el país ni el nombre del GP. `location` llega de `/races` desde `ops/races-meta` (26d).
+  - "Cancelled" sin enlace y ronda sin canceladas: **hecho (26d, parte C)** — `/races` expone
+    `is_cancelled` desde `ops/races-meta`. Sakhir y Jeddah 2026 son celdas sin botón ni enlace,
+    sin número de ronda; Miami Gardens pasa a ser la ronda 04. Cabecera: "N grands prix · 2
+    cancelled". Verificado con `test/fixtures/races_2026.json` (respuesta real del backend nuevo)
+    en `components/landing/SeasonGrid.test.tsx`. Con un backend antiguo (sin los campos) la vista
+    queda como antes.
 - First Load JS de `/`: 157 kB → 119 kB (sin framer-motion en la landing).
 - Corrección: `AddToCalendarButton` también lo pinta `/live` (NotLiveYet). El restilado de la fase 4
   cambiaba /live; ahora el aspecto clásico es el valor por defecto y las páginas migradas piden
@@ -405,10 +408,9 @@ Revisadas a mano las 44 restantes:
 
 ## Dependencias de backend (no se tocan en este bloque)
 
-- `/races` no expone `is_cancelled` ni `location` (`RaceListItem`: meeting_key, meeting_name,
-  country_name, circuit_short_name, date_start, year). Bloquea, de la tarea 3 del 26b:
-  "Cancelled" sin enlace y el nombre por `location`. Ronda ascendente sin pretemporada sí se
-  puede hacer en el frontend.
+- ~~`/races` no expone `is_cancelled` ni `location`~~ — resuelto en la rama `ops/races-meta`
+  (26d, parte B; contrato en `docs/api-contract.md`). El frontend de esta rama los usa (parte C)
+  y sigue funcionando con un backend que no los mande. Desplegar el backend antes o a la vez.
 
 ## Entorno (para retomar)
 
@@ -431,7 +433,7 @@ Revisadas a mano las 44 restantes:
 1. `pit_cycles` se calcula y nadie lo pinta en la UI clásica.
 2. Campos sin pintar listados arriba.
 3. No hay análisis de clasificación ni libres en caché: sus layouts no tienen cobertura visual.
-4. `/races` sin `is_cancelled` ni `location` (dependencia).
+4. `/races` sin `is_cancelled` ni `location` (dependencia) — resuelto en `ops/races-meta` (26d).
 5. 14 componentes inalcanzables (lista arriba) siguen en el repo.
 6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce
    el zoom). El botón Engineer del TopBar queda tapado por la etiqueta PRO de Live, y

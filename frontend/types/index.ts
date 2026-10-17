@@ -371,6 +371,12 @@ export type RaceListItem = {
   circuit_short_name: string
   date_start: string
   year: number
+  /** Host city as OpenF1 publishes it; can differ from the meeting name (2026
+   *  Kuala Lumpur is "Bahrain Grand Prix"). Optional: older backends omit it. */
+  location?: string | null
+  /** Only true is cancelled — the backend reads OpenF1's flag strictly and adds
+   *  excluded_sessions.json (docs/api-contract.md). Absent on older backends. */
+  is_cancelled?: boolean | null
 }
 
 export type SessionInfo = {
@@ -381,4 +387,6 @@ export type SessionInfo = {
   /** Scheduled end, as OpenF1 publishes it. Optional: a session cached before
    *  this field existed, or scheduled far enough out, may not have it yet. */
   date_end?: string | null
+  location?: string | null
+  is_cancelled?: boolean | null
 }

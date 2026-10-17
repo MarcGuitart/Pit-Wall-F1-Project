@@ -42,6 +42,8 @@ export function SeasonGrid() {
   const locked = !isFreeSeason(season) && !pro
   const now = Date.now()
   const cells = races ? seasonGrid(races) : []
+  const rounds = cells.filter((c) => !c.cancelled).length
+  const offCount = cells.length - rounds
 
   async function open(r: GridRace) {
     setOpening(r.meeting_key)
@@ -62,7 +64,7 @@ export function SeasonGrid() {
         <h2 className={ui.h6} id="season-title">{season} season</h2>
         <span className={ui.sub}>{locked ? 'PRO season — enter an access code in Settings to open these races' : 'Pick a race for the full analysis'}</span>
         <span className={ui.secAside}>
-          {races ? `${cells.length} grands prix` : ''}
+          {races ? `${rounds} grands prix${offCount ? ` · ${offCount} cancelled` : ''}` : ''}
           <Segmented
             small
             label="Season"
@@ -79,19 +81,30 @@ export function SeasonGrid() {
       {races && (
         <div className={l.grid}>
           {cells.map(({ race: r, round, place, cancelled }) => {
+            const date = new Date(r.date_start).toLocaleDateString([], { day: 'numeric', month: 'short' })
+            if (cancelled) {
+              // Nothing to open: not a button, not a link, no round number.
+              return (
+                <div key={r.meeting_key} className={`${l.raceCell} ${l.raceCellOff}`} data-cancelled="true">
+                  <span className={l.round}>{date}</span>
+                  <span className={l.place}>{place}</span>
+                  <span className={l.arrow}>Cancelled</span>
+                </div>
+              )
+            }
             const upcoming = new Date(r.date_start).getTime() > now
-            const status = cancelled ? 'Cancelled' : upcoming ? 'Not run yet' : locked ? 'PRO' : opening === r.meeting_key ? 'Opening…' : 'Analyse →'
+            const status = upcoming ? 'Not run yet' : locked ? 'PRO' : opening === r.meeting_key ? 'Opening…' : 'Analyse →'
             return (
               <button
                 key={r.meeting_key}
                 type="button"
                 className={l.raceCell}
-                disabled={cancelled || upcoming || locked || opening === r.meeting_key}
+                disabled={upcoming || locked || opening === r.meeting_key}
                 onClick={() => open(r)}
               >
                 <span className={l.round}>
                   {round ? `Round ${String(round).padStart(2, '0')} · ` : ''}
-                  {new Date(r.date_start).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                  {date}
                 </span>
                 <span className={l.place}>{place}</span>
                 <span className={l.arrow}>{status}</span>

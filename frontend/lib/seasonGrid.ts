@@ -8,15 +8,13 @@ import type { RaceListItem } from '@/types'
  * "Round 27", and counted the tests as Grands Prix. Rounds here are
  * chronological, ascending, and tests are not rounds.
  *
- * Two things this cannot do yet, both because /races does not carry the data
- * (a backend dependency, PARITY.md):
- *   - cancelled meetings (2026: Sakhir, Jeddah) are not marked, so they still
- *     count as rounds and still open;
- *   - `location` is not exposed. The place name falls back to the circuit,
- *     because OpenF1's meeting_name and country_name are wrong for at least
- *     one meeting (2026 Kuala Lumpur reads "Bahrain Grand Prix", "Bahrain").
+ * Cancelled meetings (2026: Sakhir, Jeddah) come from /races' is_cancelled —
+ * only true counts — and are not rounds. The place name is /races' location,
+ * falling back to the circuit on an older backend: OpenF1's meeting_name and
+ * country_name are wrong for at least one meeting (2026 Kuala Lumpur reads
+ * "Bahrain Grand Prix", "Bahrain").
  */
-export type GridRace = RaceListItem & { location?: string | null; is_cancelled?: boolean | null }
+export type GridRace = RaceListItem
 
 export type SeasonCell = {
   race: GridRace

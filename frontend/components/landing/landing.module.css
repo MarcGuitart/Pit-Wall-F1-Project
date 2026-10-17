@@ -19,6 +19,9 @@
 .raceCell:hover:not(:disabled) .arrow { color: var(--pw-accent-text); }
 .raceCell:disabled { cursor: default; }
 .raceCell:disabled .place, .raceCell:disabled .round { opacity: 0.55; }
+/* A cancelled meeting: not a control at all, nothing to open. */
+.raceCellOff { cursor: default; }
+.raceCellOff .place, .raceCellOff .round { opacity: 0.55; }
 .raceCell:focus-visible { outline: 2px solid var(--pw-accent); outline-offset: -2px; }
 .round { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pw-muted); }
 .place { font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; overflow-wrap: anywhere; }
