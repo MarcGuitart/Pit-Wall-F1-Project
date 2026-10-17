@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { Popover } from './Popover'
+import ui from './ui.module.css'
 
 type Module = 'pace' | 'degradation' | 'pit' | 'chaos' | 'notes' | 'traffic' | 'weather' | 'crossover' | 'drs'
 
@@ -29,49 +30,18 @@ type Props = {
   module: Module
 }
 
+/** "How this is calculated", one click away (Popover: click, keyboard, Escape, outside). */
 export function MethodologyBadge({ module }: Props) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
   return (
-    <div ref={ref} className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={[
-          'inline-flex items-center gap-1 px-[5px] py-[2px]',
-          'bg-bg-elevated border rounded-[2px]',
-          'font-mono text-[8px] transition-colors',
-          open
-            ? 'border-signal-blue text-signal-blue'
-            : 'border-border-subtle text-text-muted hover:border-signal-blue hover:text-signal-blue',
-        ].join(' ')}
-        title="Methodology"
-        aria-label="Show methodology"
-      >
-        <span>⚙</span>
-        <span>methodology</span>
-      </button>
-
-      {open && (
-        <div className="absolute bottom-[calc(100%+4px)] left-0 z-50 w-[280px] bg-bg-panel border border-border-default rounded-[3px] shadow-xl p-3">
-          <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted mb-1.5">
-            How this is calculated
-          </div>
-          <p className="font-mono text-[10px] text-text-secondary leading-relaxed">
-            {COPY[module]}
-          </p>
-        </div>
-      )}
-    </div>
+    <Popover
+      trigger={<><span aria-hidden="true">⚙</span><span>methodology</span></>}
+      triggerLabel="Show methodology"
+      triggerClassName={`${ui.btn} ${ui.btnGhost}`}
+      title="How this is calculated"
+    >
+      <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: 'var(--pw-muted)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
+        {COPY[module]}
+      </p>
+    </Popover>
   )
 }
