@@ -103,6 +103,7 @@ function Marker({ pct, barColor, barWidth = 2, zIndex = 2, dimmed = false, label
   return (
     <div
       tabIndex={0}
+      role="img"
       aria-label={label}
       className={a.marker}
       style={{ left: `${pct}%`, zIndex }}

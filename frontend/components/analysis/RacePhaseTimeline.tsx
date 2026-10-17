@@ -85,6 +85,7 @@ function PhaseSegment({
   return (
     <div
       tabIndex={0}
+      role="img"
       aria-label={`${phase.phase}: laps ${phase.lap_start}–${phase.lap_end} · ${phase.reason}`}
       className={a.phaseSeg}
       style={{ left: `${left}%`, width: `${width}%`, background: fill(token) }}

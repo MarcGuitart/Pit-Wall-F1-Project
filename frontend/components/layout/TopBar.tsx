@@ -127,9 +127,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
               onFocus={() => setShowLiveTip(true)}
               onBlur={() => setShowLiveTip(false)}
               className={`${s.navLink} ${s.navOff}`}
-              aria-label="Live mode — PRO, open Settings"
+              aria-label="Live PRO — live mode is part of PRO, open Settings"
             >
-              Live<span className={s.pro}>PRO</span>
+              Live <span className={s.pro}>PRO</span>
             </Link>
             {/* Information only, no controls: the link itself is the action. */}
             {showLiveTip && (

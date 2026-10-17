@@ -18,6 +18,9 @@
   --pw-accent: #ec3013;
   --pw-accent-text: #ff6a4f;
   --pw-accent-tint: color-mix(in srgb, #ec3013 16%, transparent);
+  /* Not in live's sheet: the accent darkened enough for white text on it to
+     reach 4.5:1 at small sizes (white on #ec3013 is 4.2:1). Solid fills only. */
+  --pw-accent-strong: #cc2810;
   --pw-purple: oklch(0.62 0.2 305);
   --pw-green: oklch(0.62 0.15 150);
   --pw-yellow: oklch(0.85 0.16 90);
@@ -116,7 +119,7 @@
 .toneInfo { color: var(--pw-blue); }
 .tonePurple { color: var(--pw-purple); }
 .badgeSolid.toneNeutral { background: var(--pw-text); color: var(--pw-bg); }
-.badgeSolid.toneAccent { background: var(--pw-accent); color: #fff; }
+.badgeSolid.toneAccent { background: var(--pw-accent-strong); color: #fff; }
 .badgeSolid.toneOk { background: var(--pw-green); color: #fff; }
 .badgeSolid.toneWarn { background: var(--pw-amber); color: #05060a; }
 .badgeSolid.toneInfo { background: var(--pw-blue); color: #05060a; }
@@ -154,9 +157,9 @@
 .btn:hover { background: color-mix(in srgb, var(--pw-text) 8%, transparent); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn:disabled:hover { background: transparent; }
-.btnPrimary { background: var(--pw-accent); border-color: var(--pw-accent); color: #fff; font-weight: 800; letter-spacing: 0.04em; }
-.btnPrimary:hover { background: color-mix(in srgb, var(--pw-accent) 85%, #000); }
-.btnPrimary:disabled:hover { background: var(--pw-accent); }
+.btnPrimary { background: var(--pw-accent-strong); border-color: var(--pw-accent-strong); color: #fff; font-weight: 800; letter-spacing: 0.04em; }
+.btnPrimary:hover { background: color-mix(in srgb, var(--pw-accent-strong) 85%, #000); }
+.btnPrimary:disabled:hover { background: var(--pw-accent-strong); }
 .btnInk { border-color: currentColor; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; }
 .btnGhost { border-color: transparent; }
 .btnLarge { font-size: 14px; padding: 10px 18px; min-height: 44px; }
@@ -169,7 +172,7 @@
 }
 .segOpt + .segOpt { border-left: 1px solid var(--pw-divider); }
 .segOpt:not(.segOn):hover { background: color-mix(in srgb, var(--pw-text) 7%, transparent); color: var(--pw-text); }
-.segOn { background: var(--pw-accent); color: #fff; }
+.segOn { background: var(--pw-accent-strong); color: #fff; }
 .segSmall .segOpt { font-size: 11px; padding: 5px 10px; }
 
 /* ── tabs ── */
@@ -187,7 +190,7 @@
 .tabOn { color: var(--pw-text); font-weight: 800; border-bottom-color: var(--pw-accent); }
 .tab:focus-visible { outline-offset: -2px; }
 .tabCount { font-size: 10px; letter-spacing: 0.04em; background: var(--pw-surface-2); color: var(--pw-muted); padding: 1px 5px; font-weight: 800; }
-.tabOn .tabCount { background: var(--pw-accent); color: #fff; }
+.tabOn .tabCount { background: var(--pw-accent-strong); color: #fff; }
 @media (max-width: 640px) { .tab { padding: 14px 12px 11px; font-size: 13px; } }
 
 /* ── tables: grid rows ── */

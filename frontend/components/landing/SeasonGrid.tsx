@@ -73,7 +73,9 @@ export function SeasonGrid() {
         </span>
       </div>
       {error && <div className={ui.empty} style={{ color: 'var(--pw-accent-text)' }} role="alert">{error}</div>}
-      {!races && !error && <div className={ui.empty}>Loading the calendar…</div>}
+      {/* Reserve about three rows of cells while the calendar loads, so the grid
+          arriving does not push the next section around (CLS). */}
+      {!races && !error && <div className={ui.empty} style={{ minHeight: 440 }} aria-busy="true">Loading the calendar…</div>}
       {races && (
         <div className={l.grid}>
           {cells.map(({ race: r, round, place, cancelled }) => {
@@ -86,7 +88,6 @@ export function SeasonGrid() {
                 className={l.raceCell}
                 disabled={cancelled || upcoming || locked || opening === r.meeting_key}
                 onClick={() => open(r)}
-                aria-label={`${round ? `Round ${round}, ` : ''}${place}, ${new Date(r.date_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}: ${status.replace(' →', '')}`}
               >
                 <span className={l.round}>
                   {round ? `Round ${String(round).padStart(2, '0')} · ` : ''}
