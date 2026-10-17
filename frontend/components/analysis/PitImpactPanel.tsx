@@ -1,5 +1,7 @@
 import type { PitImpactRow } from '@/types'
 import { formatLaneDuration, formatLapNumber } from '@/lib/format'
+import { Badge, Panel, toneClass, ui, type Tone } from '@/components/ui'
+import a from './analysis.module.css'
 
 type Props = {
   rows: PitImpactRow[]
@@ -8,19 +10,17 @@ type Props = {
 }
 
 function PositionDeltaBadge({ delta }: { delta: number | null }) {
-  if (delta == null) return <span className="font-mono text-[11px] text-text-muted">–</span>
-  if (delta === 0) return <span className="font-mono font-bold text-[16px] text-text-secondary">±0</span>
-  if (delta > 0)  return <span className="font-mono font-bold text-[16px] text-signal-green">+{delta}</span>
-  return <span className="font-mono font-bold text-[16px] text-signal-red">{delta}</span>
+  if (delta == null) return <span className={a.muted}>–</span>
+  if (delta === 0) return <span className={`${ui.small} ${a.muted}`}>±0</span>
+  if (delta > 0)  return <span className={`${ui.small} ${toneClass('ok')}`}>+{delta}</span>
+  return <span className={`${ui.small} ${toneClass('accent')}`}>{delta}</span>
 }
 
-const VERDICT_STYLE = (verdict: string) => {
+const VERDICT_TONE = (verdict: string): Tone => {
   const v = verdict.toLowerCase()
-  if (v.includes('optimal') || v.includes('clean') || v.includes('gained') || v.includes('sc winner'))
-    return 'text-signal-green border-signal-green/30 bg-signal-green/10'
-  if (v.includes('slow') || v.includes('costly') || v.includes('lost') || v.includes('failed'))
-    return 'text-signal-red border-signal-red/30 bg-signal-red/10'
-  return 'text-signal-blue border-signal-blue/30 bg-signal-blue/10'
+  if (v.includes('optimal') || v.includes('clean') || v.includes('gained') || v.includes('sc winner')) return 'ok'
+  if (v.includes('slow') || v.includes('costly') || v.includes('lost') || v.includes('failed')) return 'accent'
+  return 'info'
 }
 
 export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
@@ -29,95 +29,60 @@ export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
   const redFlagStops = rows.length - validRows.length
 
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-      <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
-          Pit Stop Impact
-        </span>
-        <span className="font-mono text-[10px] text-text-muted">
-          lane_duration · position delta
-        </span>
-      </div>
-
+    <Panel
+      title="Pit Stop Impact"
+      aside="lane_duration · position delta"
+      padded={false}
+      foot={
+        <ul className={a.footList} style={{ gap: 4 }}>
+          {validRows.slice(0, 8).map((row, i) => (
+            <li key={i}><b style={{ color: 'var(--pw-text)' }}>{row.driver_code}</b>{' '}{row.verdict}</li>
+          ))}
+        </ul>
+      }
+    >
       {redFlagStops > 0 && (
-        <div className="px-3 py-1.5 border-b border-border-subtle font-mono text-[9px] text-text-muted">
+        <p className={ui.sub} style={{ margin: 0, padding: '8px 20px', borderBottom: '1px solid var(--pw-divider)' }}>
           {redFlagStops} stop{redFlagStops === 1 ? '' : 's'} under red flag not shown — tyres changed during the suspension.
-        </div>
+        </p>
       )}
-      <div className="divide-y divide-border-subtle">
+      <div className={a.list}>
         {validRows.map((row, i) => {
           const isFocused = focusedDriver === row.driver_code
           const isDefocused = focusedDriver != null && !isFocused
+          const Tag = onDriverClick ? 'button' : 'div'
 
           return (
-            <div
+            <Tag
               key={i}
-              className={[
-                'px-3 py-3 flex items-center gap-4 transition-all',
-                onDriverClick ? 'cursor-pointer' : '',
-                isFocused ? 'bg-bg-elevated' : '',
-                isDefocused ? 'opacity-40' : '',
-                onDriverClick && !isDefocused ? 'hover:bg-bg-elevated' : '',
-              ].join(' ')}
-              onClick={() => onDriverClick?.(row.driver_code)}
+              {...(onDriverClick ? { type: 'button' as const, onClick: () => onDriverClick(row.driver_code) } : {})}
+              className={`${onDriverClick ? a.itemBtn : a.item} ${isFocused ? a.rowOn : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: isDefocused ? 0.4 : 1 }}
             >
-              <div className="w-12 shrink-0 text-center">
+              <span style={{ width: 56, flex: 'none', textAlign: 'center' }}>
                 <PositionDeltaBadge delta={row.net_position_change} />
-                <div className="font-display text-[7px] uppercase tracking-[1px] text-text-muted mt-0.5">
-                  Net pos
-                </div>
-              </div>
+                <span className={ui.label} style={{ display: 'block' }}>Net pos</span>
+              </span>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-display font-bold text-[11px] uppercase tracking-[0.5px] text-text-primary">
-                    {row.driver_code}
-                  </span>
-                  <span className="font-mono text-[9px] text-text-muted">
-                    {formatLapNumber(row.lap_number)}
-                  </span>
-                  {row.stop_type === 'safety_car' && (
-                    <span className="px-1 py-0.5 border border-signal-amber/40 text-signal-amber rounded-[2px] font-display font-bold text-[7px] uppercase tracking-[0.5px]">
-                      under SC
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div>
-                    <span className="font-mono text-[10px] text-text-secondary">
-                      {formatLaneDuration(row.lane_duration)}
-                    </span>
-                    <span className="font-display text-[8px] uppercase text-text-muted ml-1">lane</span>
-                  </div>
-                  {row.position_before != null && row.position_after != null && (
-                    <span className="font-mono text-[9px] text-text-muted">
-                      P{row.position_before} → P{row.position_after}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="shrink-0">
-                <span
-                  className={`px-2 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${VERDICT_STYLE(row.verdict)}`}
-                >
-                  {row.confidence} conf.
+              <span className={a.grow} style={{ display: 'grid', gap: 4 }}>
+                <span className={a.row}>
+                  <span className={a.code}>{row.driver_code}</span>
+                  <span className={ui.sub}>{formatLapNumber(row.lap_number)}</span>
+                  {row.stop_type === 'safety_car' && <Badge tone="warn">under SC</Badge>}
                 </span>
-              </div>
-            </div>
+                <span className={`${a.row} ${ui.sub}`} style={{ gap: 12 }}>
+                  <span><b style={{ color: 'var(--pw-text)' }}>{formatLaneDuration(row.lane_duration)}</b> lane</span>
+                  {row.position_before != null && row.position_after != null && (
+                    <span>P{row.position_before} → P{row.position_after}</span>
+                  )}
+                </span>
+              </span>
+
+              <Badge tone={VERDICT_TONE(row.verdict)}>{row.confidence} conf.</Badge>
+            </Tag>
           )
         })}
       </div>
-
-      {/* Verdict footnotes */}
-      <div className="px-3 py-2 border-t border-border-subtle bg-bg-secondary space-y-1">
-        {validRows.slice(0, 8).map((row, i) => (
-          <div key={i} className="font-mono text-[9px] text-text-muted leading-relaxed">
-            <span className="text-text-secondary font-bold">{row.driver_code}</span>{' '}
-            {row.verdict}
-          </div>
-        ))}
-      </div>
-    </div>
+    </Panel>
   )
 }
