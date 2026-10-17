@@ -90,8 +90,10 @@ def build_message(report: dict, env: dict) -> str | None:
     errors = report.get("errors") or []
     deferred = report.get("deferred") or []
     failed_job = (env.get("JOB_STATUS") or "success") not in ("success", "")
+    stale = report.get("stale") or {}
+    stale_alert = bool(stale.get("alert")) and stale.get("count", 0) > 0
 
-    if not published and not stuck and not errors and not failed_job:
+    if not published and not stuck and not errors and not failed_job and not stale_alert:
         return None      # a quiet hourly run: say nothing
 
     run_url = env.get("RUN_URL")
@@ -121,6 +123,17 @@ def build_message(report: dict, env: dict) -> str | None:
 
     if failed_job and not (stuck or errors):
         out.append(f"<b>❌ The publication run failed</b> (status: {esc(env.get('JOB_STATUS'))})")
+        out.append("")
+
+    if stale_alert:
+        # Once per ANALYSIS_VERSION (scripts/autopublish.py): the cron does not
+        # regenerate stale analyses; a dispatch with their session_keys does,
+        # in one commit.
+        keys = ",".join(str(k) for k in stale.get("session_keys") or [])
+        out.append(f"<b>🔁 {stale['count']} sesiones obsoletas, lanza el backfill</b>")
+        out.append(f"Published before pipeline v{esc(stale.get('version'))}; the hourly run leaves them as they are.")
+        out.append("Run the workflow by hand with session_keys:")
+        out.append(f"<code>{esc(keys)}</code>")
         out.append("")
 
     if deferred:

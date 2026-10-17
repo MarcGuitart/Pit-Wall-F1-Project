@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       session_keys:
-        description: 'Session keys to consider (comma-separated). Empty = search the current season.'
+        description: 'Session keys to publish or regenerate (comma-separated), all in one commit. Empty = search the current season (stale analyses are only reported).'
         required: false
         default: ''
       dry_run:
