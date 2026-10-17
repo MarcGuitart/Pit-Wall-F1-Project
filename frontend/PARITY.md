@@ -444,10 +444,12 @@ Revisadas a mano las 44 restantes:
    **no dependían del orden**: los ids `S1…Sn` los asigna el backend sobre su propio análisis en
    caché y la respuesta trae `title` y `lap_number`, que el chat pinta tal cual; nada del frontend
    busca una cita por posición en `engineer_notes`.
-9. **Colores de equipo**: el backend da `team_colour` sin `#` ("3671C6") y la UI vieja lo usaba tal
-   cual en CSS, así que ningún swatch de equipo se pintaba. Las piezas migradas normalizan con `#` y
-   ahora sí se ven. Es un cambio visible respecto a la base, hecho por necesidad del restilado;
-   reversible si se prefiere conservar el aspecto anterior.
+9. **Colores de equipo — cambio visible intencionado (decisión tomada, se queda)**: el backend da
+   `team_colour` sin `#` ("3671C6") y la UI vieja lo pasaba tal cual al CSS, así que ningún swatch
+   de equipo se pintaba. Las piezas migradas lo normalizan (`teamColour()` en
+   `components/analysis/TruePaceTable.tsx`) y ahora sí se ven: barras de equipo en podio, tablas,
+   clasificación y tarjeta de piloto. Es la única diferencia visual buscada respecto a la base fuera
+   del propio cambio de diseño.
 10. ~~El estado offline del chat decía "Start Ollama"~~ — **arreglado (26d)**: copy neutral por
     categoría desde `/chat/health` (servidor que no responde / modelo no disponible), sin proveedor ni
     comandos (`lib/chat/engineerStatus.ts` + test). Además "Check connection" miraba
