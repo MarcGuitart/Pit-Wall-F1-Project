@@ -263,7 +263,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                 <span className={`${r.avatar} ${r.eng}`} aria-hidden="true">ENG</span>
                 <div>
                   <h2 className={ui.h6}>Race Wall Engineer</h2>
-                  <div className={ui.sub}>{analysis.race.meeting_name} · {analysis.race.session_name}</div>
+                  <div className={ui.sub}>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} · {analysis.race.session_name}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -293,7 +293,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                     <div className={ui.label} style={{ color: 'inherit', fontWeight: 800 }}>Race Engineer</div>
                     <p className={r.bubbleText}>
                       Ready. I have full context for{' '}
-                      <b>{analysis.race.meeting_name}</b> —
+                      <b>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`}</b> —
                       chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
                       analysed, {analysis.tyre_degradation.length} stints mapped.
                       {focusedDriver && (

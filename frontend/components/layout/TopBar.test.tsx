@@ -114,8 +114,9 @@ describe('the Live pill — PRO but nothing live right now', () => {
 
   it('shows the next scheduled session by name and date, reusing Block 19\'s lookup', async () => {
     vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue({
-      meetingName: 'Bahrain Grand Prix',
-      circuitShortName: 'Sakhir',
+      // The 2026 meeting OpenF1 calls "Bahrain Grand Prix": the place is Kuala Lumpur (Block 27b).
+      place: 'Kuala Lumpur',
+      circuitShortName: 'Kuala Lumpur',
       sessionName: 'Race',
       dateStart: '2026-10-02T04:30:00Z',
       dateEnd: '2026-10-02T06:30:00Z',
@@ -125,7 +126,7 @@ describe('the Live pill — PRO but nothing live right now', () => {
 
     const pill = await screen.findByLabelText(/no session live right now/i)
     fireEvent.click(pill)
-    expect(await screen.findByText(/Next live session: Bahrain Grand Prix Race/i)).toBeTruthy()
+    expect(await screen.findByText(/Next live session: Kuala Lumpur Race/i)).toBeTruthy()
   })
 
   it('says explicitly when nothing is scheduled, rather than going blank', async () => {
@@ -155,7 +156,7 @@ describe('the Live pill — no PRO access', () => {
  */
 describe('the next-session popover', () => {
   const next = {
-    meetingName: 'United States Grand Prix',
+    place: 'Austin',
     circuitShortName: 'Austin',
     sessionName: 'Practice 1',
     dateStart: '2026-10-23T17:30:00Z',
@@ -169,7 +170,7 @@ describe('the next-session popover', () => {
     const trigger = await screen.findByRole('button', { name: /no session live right now/i })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(trigger)
-    await screen.findByText(/Next live session: United States Grand Prix Practice 1/i)
+    await screen.findByText(/Next live session: Austin Practice 1/i)
     return trigger
   }
 
@@ -208,7 +209,7 @@ describe('the next-session popover', () => {
     const [filename, body] = download.mock.calls[0]
     expect(filename).toMatch(/\.ics$/)
     expect(body).toContain('BEGIN:VEVENT')
-    expect(body).toContain('United States Grand Prix Practice 1')
+    expect(body).toContain('Austin Practice 1')
     expect(body).toContain('DTSTART:20261023T173000Z')
   })
 

@@ -32,7 +32,7 @@ export function NotLiveYet() {
           <h1 className={s.h1}>Not live yet</h1>
           <div className={s.meta}>
             {next === undefined ? <span>Checking the calendar…</span>
-              : next ? <><b>{next.meetingName} · {next.sessionName}</b><span>{new Date(next.dateStart).toLocaleString([], { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} your time</span></>
+              : next ? <><b>{next.place} · {next.sessionName}</b><span>{new Date(next.dateStart).toLocaleString([], { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} your time</span></>
                 : <span>No upcoming session is scheduled.</span>}
           </div>
         </div>
@@ -49,7 +49,7 @@ export function NotLiveYet() {
           <div className={s.cell}>
             <div className={s.label} style={{ marginBottom: 10 }}>Tell me when it starts</div>
             <NotifyButton
-              watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.meetingName} ${next.sessionName}`, startsAt: next.dateStart }}
+              watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.place} ${next.sessionName}`, startsAt: next.dateStart }}
               className={s.btn}
             />
           </div>
@@ -57,7 +57,7 @@ export function NotLiveYet() {
             <div className={s.label} style={{ marginBottom: 10 }}>Or put it in your calendar</div>
             <AddToCalendarButton event={{
               uid: `pitwall-${next.dateStart}@pitwallengineer.com`,
-              summary: `${next.meetingName} — ${next.sessionName}`,
+              summary: `${next.place} — ${next.sessionName}`,
               description: 'Live on the pit wall: https://pitwallengineer.com',
               location: next.circuitShortName ?? undefined,
               dateStart: next.dateStart,

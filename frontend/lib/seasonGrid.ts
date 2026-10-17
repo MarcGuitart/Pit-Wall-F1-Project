@@ -1,4 +1,5 @@
 import type { RaceListItem } from '@/types'
+import { placeOf } from '@/lib/place'
 
 /**
  * A season as a grid of Grands Prix, for the selector.
@@ -29,7 +30,7 @@ export function isPreSeasonTest(r: Pick<RaceListItem, 'meeting_name'>): boolean 
 }
 
 export function placeName(r: GridRace): string {
-  return r.location?.trim() || r.circuit_short_name?.trim() || r.meeting_name.replace(/ Grand Prix$/, '')
+  return placeOf(r)
 }
 
 /** Grands Prix in calendar order with their rounds; tests dropped. */

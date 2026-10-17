@@ -7,6 +7,7 @@ import { redeemAccessCode } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
 import { buildSessionIcs, downloadIcs, icsFilename } from '@/lib/ics'
 import { formatUtcInstant } from '@/lib/sessionFacts'
+import { placeOf } from '@/lib/place'
 import { RACE_LIST_HREF } from '@/lib/routes'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
 import { REDEEM_ERROR } from '@/components/access/ProWall'
@@ -136,7 +137,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
       body = 'The analysis is published once the session results are final — normally within a few hours of the chequered flag.'
       const when = formatUtcInstant(earliest)
       extra = when ? <Info label="Earliest possible" value={when} /> : null
-      const gp = meta?.meeting_name ?? `Session ${sessionKey}`
+      const gp = meta ? placeOf(meta) : `Session ${sessionKey}`
       actions = (
         <>
           {earliest && (

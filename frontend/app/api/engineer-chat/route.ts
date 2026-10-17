@@ -62,10 +62,10 @@ function buildSystemPrompt(ctx: FullRaceAnalysis, focusedDriver?: string | null)
     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}pts`)
     .join(', ')
 
-  return `You are the race engineer for the ${race.meeting_name} ${race.year} ${race.session_name}.
+  return `You are the race engineer for the ${race.circuit_short_name ?? 'this'} ${race.year} ${race.session_name}.
 You have full access to the computed race analysis data below. Answer like a pit wall engineer: direct, technical, concise. Cite specific laps and data. 2–4 sentences max. Never invent data not present below. If asked about something not in the data, say so clearly.
 
-RACE: ${race.meeting_name} ${race.year} — ${race.circuit_short_name ?? 'unknown circuit'}
+RACE: ${race.circuit_short_name ?? 'unknown circuit'} ${race.year}
 CHAOS INDEX: ${chaos.score}/100 (${chaos.level})
 Peak chaos lap: ${chaos.peak_chaos_lap ?? 'N/A'}
 Components: ${chaosComponents}
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         answer:
           `[Demo mode — configure ANTHROPIC_API_KEY in .env.local to enable live answers.] ` +
-          `${ctx.race.meeting_name} ${ctx.race.year}: chaos ${ctx.chaos.score}/100 (${ctx.chaos.level}). ` +
+          `${ctx.race.circuit_short_name ?? 'This race'} ${ctx.race.year}: chaos ${ctx.chaos.score}/100 (${ctx.chaos.level}). ` +
           `${ctx.race_brain.summary.slice(0, 150)}`,
       })
     }

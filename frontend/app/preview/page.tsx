@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { placeOf } from '@/lib/place'
 import { useRouter } from 'next/navigation'
 import s from '@/components/live/dashboard/live.module.css'
 import p from '@/components/preview/preview.module.css'
@@ -46,7 +47,7 @@ export default function PreviewHome() {
     try {
       const race = findRaceSession(await fetchSessions(r.meeting_key))
       if (race) router.push(`/preview/race/${race.session_key}`)
-      else setError(`${r.meeting_name} has no race session yet.`)
+      else setError(`${placeOf(r)} has no race session yet.`)
     } catch (e) {
       setError((e as Error)?.message ?? 'Could not open the race.')
     } finally {
@@ -78,12 +79,12 @@ export default function PreviewHome() {
                 ? <button className={s.btn} style={{ marginTop: 6, background: 'var(--pw-accent)', borderColor: 'var(--pw-accent)', color: '#fff', fontWeight: 800 }} onClick={() => router.push(`/live/${liveSessionKey}`)}>Open the pit wall →</button>
                 : <>
                     <div className={s.mid} style={{ fontSize: 22 }}>{pro ? 'No session' : 'PRO only'}</div>
-                    {pro && next && <div style={{ marginTop: 8 }}><NotifyButton className={s.btn} watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.meetingName} ${next.sessionName}`, startsAt: next.dateStart }} /></div>}
+                    {pro && next && <div style={{ marginTop: 8 }}><NotifyButton className={s.btn} watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.place} ${next.sessionName}`, startsAt: next.dateStart }} /></div>}
                   </>}
             </div>
             <div className={`${s.cell} ${s.cellTight}`}>
               <div className={s.label}>Next session</div>
-              <div style={{ fontSize: 15, fontWeight: 800, marginTop: 4 }}>{next ? `${next.meetingName.replace(' Grand Prix', ' GP')} · ${next.sessionName}` : '—'}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, marginTop: 4 }}>{next ? `${next.place} · ${next.sessionName}` : '—'}</div>
               <div className={s.sub}>{next ? new Date(next.dateStart).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</div>
             </div>
           </div>
@@ -121,8 +122,8 @@ export default function PreviewHome() {
               return (
                 <button key={r.meeting_key} className={p.raceCell} disabled={upcoming || locked || opening === r.meeting_key} onClick={() => open(r)}>
                   <span className={p.round}>Round {String(i + 1).padStart(2, '0')} · {new Date(r.date_start).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
-                  <span className={p.raceName}>{r.meeting_name.replace(' Grand Prix', '')}</span>
-                  <span className={s.sub}>{r.circuit_short_name} · {r.country_name}</span>
+                  <span className={p.raceName}>{placeOf(r)}</span>
+                  <span className={s.sub}>{r.circuit_short_name}</span>
                   <span className={p.arrow}>{upcoming ? 'Not run yet' : locked ? 'PRO' : opening === r.meeting_key ? 'Opening…' : 'Analyse →'}</span>
                 </button>
               )

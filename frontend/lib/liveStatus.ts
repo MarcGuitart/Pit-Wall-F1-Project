@@ -19,6 +19,7 @@
  * right now", never as a broken link or a crash.
  */
 import { fetchRaces, fetchSessions } from '@/lib/api'
+import { placeOf } from '@/lib/place'
 import { candidateMeetings } from '@/lib/nextSession'
 import type { RaceListItem, SessionInfo } from '@/types'
 
@@ -65,7 +66,8 @@ export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date):
 }
 
 export type NextLiveSessionInfo = {
-  meetingName: string
+  /** The host city (lib/place.ts) — never OpenF1's meeting or country name. */
+  place: string
   circuitShortName: string | null
   sessionName: string
   dateStart: string
@@ -99,7 +101,7 @@ export async function fetchNextLiveSession(year: number, now: Date = new Date())
     const next = findEarliestUpcomingSession(sessions, now)
     if (!next) continue
     return {
-      meetingName: meeting.meeting_name,
+      place: placeOf(meeting),
       circuitShortName: meeting.circuit_short_name ?? null,
       sessionName: next.session_name,
       dateStart: next.date_start,

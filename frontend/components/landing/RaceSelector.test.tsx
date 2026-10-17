@@ -34,7 +34,7 @@ async function openJeddah() {
   const gp = await screen.findByRole('combobox', { name: /Grand Prix/ }, { timeout: 3000 })
   await vi.waitFor(() => expect(gp.hasAttribute('disabled')).toBe(false), { timeout: 3000 })
   fireEvent.click(gp)
-  fireEvent.click(await screen.findByRole('option', { name: /Saudi Arabian Grand Prix/ }))
+  fireEvent.click(await screen.findByRole('option', { name: /^Jeddah/ }))
   return screen.findByRole('group', { name: /Session/ }, { timeout: 3000 })
 }
 

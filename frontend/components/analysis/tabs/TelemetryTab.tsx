@@ -20,7 +20,7 @@ export function TelemetryTab({ sessionKey, analysis }: Props) {
           <div className={ui.sub}>Fastest clean lap · FastF1 · SVG replay</div>
         </div>
         <div className={ui.sub}>
-          {analysis.race.circuit_short_name ?? analysis.race.meeting_name} · {analysis.race.year}
+          {analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} · {analysis.race.year}
         </div>
       </div>
 

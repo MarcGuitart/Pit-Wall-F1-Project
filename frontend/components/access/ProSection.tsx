@@ -95,13 +95,13 @@ export function ProSection() {
             <p>
               {nextRace.status === 'processing' ? (
                 <>
-                  <b>{nextRace.meetingName}</b> has finished —
+                  <b>{nextRace.place}</b> has finished —
                   analysis processing. It publishes automatically once the data settles; no fixed time.
                 </>
               ) : (
                 <>
-                  Next: <b>{nextRace.meetingName}</b>
-                  {nextRace.circuitShortName ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
+                  Next: <b>{nextRace.place}</b>
+                  {nextRace.circuitShortName && nextRace.circuitShortName !== nextRace.place ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
                   <b>{formatLocalDateTime(nextRace.dateStart)}</b>
                   {nextRace.dateEnd && <> · race ends {formatUtcTime(nextRace.dateEnd)}</>}
                 </>
@@ -112,9 +112,9 @@ export function ProSection() {
                 variant="system"
                 event={{
                   uid: `pitwall-next-${currentSeasonYear}-race@pitwallengineer.com`,
-                  summary: `Pit Wall — ${nextRace.meetingName} Race`,
+                  summary: `Pit Wall — ${nextRace.place} Race`,
                   description: 'Full strategy analysis on pitwallengineer.com once published.',
-                  location: [nextRace.circuitShortName, nextRace.countryName].filter(Boolean).join(', '),
+                  location: nextRace.place,
                   dateStart: nextRace.dateStart,
                   dateEnd: nextRace.dateEnd,
                 }}
@@ -134,7 +134,7 @@ export function ProSection() {
               <>
                 No live session right now — next:{' '}
                 <b>
-                  {nextLive.meetingName} {nextLive.sessionName}
+                  {nextLive.place} {nextLive.sessionName}
                 </b>
                 , {formatLocalDateTime(nextLive.dateStart)}
               </>

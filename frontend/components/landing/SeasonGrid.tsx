@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { placeOf } from '@/lib/place'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { findRaceSession } from '@/lib/nextSession'
 import { FREE_SEASONS, isFreeSeason } from '@/lib/access'
@@ -50,7 +51,7 @@ export function SeasonGrid() {
     try {
       const race = findRaceSession(await fetchSessions(r.meeting_key))
       if (race) openRace(race.session_key)
-      else setError(`${r.meeting_name} has no race session yet.`)
+      else setError(`${placeOf(r)} has no race session yet.`)
     } catch (e) {
       setError((e as Error)?.message ?? 'Could not open the race.')
     } finally {

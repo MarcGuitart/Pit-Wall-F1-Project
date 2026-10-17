@@ -13,6 +13,7 @@ import { loadStartedAt } from '@/lib/loadPhase'
 import type { AnalysisError } from '@/lib/errors'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { raceBreadcrumb } from '@/lib/sessionFacts'
+import { placeOf } from '@/lib/place'
 
 /** Which no-analysis page an error is, or null for the loader's own state 4 / a generic failure. */
 function blockedKind(error: AnalysisError): BlockedKind {
@@ -43,9 +44,9 @@ export default function RacePage() {
   const stage = useArrival(startedAt, Boolean(analysis))
 
   useEffect(() => {
-    if (analysis) document.title = `${analysis.race.meeting_name} ${analysis.race.year} · ${PRODUCT_NAME}`
+    if (analysis) document.title = `${meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} ${analysis.race.year} · ${PRODUCT_NAME}`
     return () => { document.title = `${PRODUCT_NAME} — Race Strategy Intelligence` }
-  }, [analysis])
+  }, [analysis, meta])
 
   const again = () => {
     retry()
@@ -59,7 +60,7 @@ export default function RacePage() {
   if (analysis && (stage === 'done' || stage === 'arriving')) {
     const breadcrumb = [
       { label: String(analysis.race.year), href: '/' },
-      { label: analysis.race.meeting_name, href: '/' },
+      { label: meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`, href: '/' },
       { label: analysis.race.session_name },
     ]
     return (

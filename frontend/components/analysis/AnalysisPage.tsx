@@ -85,6 +85,8 @@ export function AnalysisPage({ analysis, hideHeader = false, meta = null, arrivi
   const levelTone = CHAOS_LEVEL_TONE[level as keyof typeof CHAOS_LEVEL_TONE] ?? CHAOS_LEVEL_TONE[chaosLevel(analysis.chaos.score)]
 
   const facts = meta ? headerFacts(analysis.race.session_key, meta) : null
+  // The headline is the place (Block 27b): /sessions/{key}/meta's location, else the circuit.
+  const place = facts?.title ?? analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`
 
   return (
     <div className={`${a.page} ${arriving ? a.arrive : ''}`}>
@@ -92,8 +94,8 @@ export function AnalysisPage({ analysis, hideHeader = false, meta = null, arrivi
       {!hideHeader && (
         <PageHeader
           kicker={<>Race analysis · OpenF1 · Session {analysis.race.session_key}</>}
-          title={analysis.race.meeting_name}
-          meta={<span>{facts?.line ?? `${analysis.race.circuit_short_name} · ${analysis.race.year} · ${analysis.race.session_name}`}</span>}
+          title={place}
+          meta={<span>{facts?.line ?? `${analysis.race.year} · ${analysis.race.session_name}`}</span>}
           right={
             <div data-arrive="0" className={a.headRightIn}>
               <div className={a.headStats}>
@@ -208,7 +210,7 @@ export function AnalysisPage({ analysis, hideHeader = false, meta = null, arrivi
           stints={analysis.tyre_degradation.filter((s) => s.driver_number === focusedDriverRow.driver_number)}
           pits={analysis.pit_impact.filter((p) => p.driver_number === focusedDriverRow.driver_number)}
           radios={(analysis.team_radio?.clips ?? []).filter((c) => c.driver_number === focusedDriverRow.driver_number)}
-          raceName={analysis.race.meeting_name}
+          raceName={place}
           onClose={handleCloseDriverCard}
           onAskEngineer={handleAskEngineerAboutDriver}
         />

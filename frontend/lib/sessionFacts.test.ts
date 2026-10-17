@@ -11,12 +11,13 @@ const base: SessionMeta = {
 describe('headerFacts', () => {
   it('names the place by location, never by OpenF1\'s country', () => {
     const f = headerFacts(11999, base)
-    expect(f.line).toBe('Kuala Lumpur · 2026 · Race · 04 Oct 2026')
-    expect(f.line).not.toContain('Bahrain')
+    expect(f.title).toBe('Kuala Lumpur')
+    expect(f.line).toBe('2026 · Race · 04 Oct 2026')
+    expect(JSON.stringify(f)).not.toContain('Bahrain')
     expect(f.kicker).toBe('Race analysis · OpenF1 · Session 11999')
   })
   it('falls back to the circuit when location is missing', () => {
-    expect(headerFacts(1, { ...base, location: null, circuit_short_name: 'Sepang' }).line).toBe('Sepang · 2026 · Race · 04 Oct 2026')
+    expect(headerFacts(1, { ...base, location: null, circuit_short_name: 'Sepang' }).title).toBe('Sepang')
   })
   it('no meta: no invented title or line', () => {
     expect(headerFacts(1, null)).toEqual({ kicker: 'Race analysis · OpenF1 · Session 1', title: null, line: null })

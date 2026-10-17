@@ -86,7 +86,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             >
               <div className={s.tipBody}>
                 {liveChecked && nextLive ? (
-                  <>Next live session: {nextLive.meetingName} {nextLive.sessionName}, {formatLocalDateTime(nextLive.dateStart)}</>
+                  <>Next live session: {nextLive.place} {nextLive.sessionName}, {formatLocalDateTime(nextLive.dateStart)}</>
                 ) : liveChecked ? (
                   <>No upcoming session is scheduled.</>
                 ) : (
@@ -100,7 +100,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                       variant="system"
                       event={{
                         uid: `pitwall-live-${nextLive.dateStart}@pitwallengineer.com`,
-                        summary: `Pit Wall — ${nextLive.meetingName} ${nextLive.sessionName}`,
+                        summary: `Pit Wall — ${nextLive.place} ${nextLive.sessionName}`,
                         description: 'Live mode on Pit Wall Engineer follows the session while it runs.',
                         location: nextLive.circuitShortName ?? '',
                         dateStart: nextLive.dateStart,
@@ -109,7 +109,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                     />
                   )}
                   <NotifyButton
-                    watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.meetingName} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
+                    watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.place} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
                     className={s.navLink}
                   />
                 </div>

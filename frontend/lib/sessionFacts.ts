@@ -1,4 +1,5 @@
 import type { SessionMeta } from '@/types'
+import { placeOf } from '@/lib/place'
 
 /**
  * The race header's facts — the same strings in the loader, the blocked pages
@@ -18,10 +19,10 @@ export function formatSessionDate(iso: string | null | undefined): string | null
 export function headerFacts(sessionKey: number, meta: SessionMeta | null): HeaderFacts {
   const kicker = `Race analysis · OpenF1 · Session ${sessionKey}`
   if (!meta) return { kicker, title: null, line: null }
-  const place = meta.location?.trim() || meta.circuit_short_name?.trim() || null
-  const parts = [place, meta.year != null ? String(meta.year) : null, meta.session_name, formatSessionDate(meta.date_start)]
+  // The place is the headline (Block 27b); the line carries the rest.
+  const parts = [meta.year != null ? String(meta.year) : null, meta.session_name, formatSessionDate(meta.date_start)]
   const line = parts.filter(Boolean).join(' · ') || null
-  return { kicker, title: meta.meeting_name?.trim() || place, line }
+  return { kicker, title: placeOf(meta), line }
 }
 
 /** "Sun 01 Jun 2025 · 19:00 UTC" — the blocked pages' times, in UTC like the spec. */
@@ -38,10 +39,10 @@ export function formatUtcInstant(iso: string | null | undefined): string | null 
  *  page's top bar (on mobile the breadcrumb is its own 36 px row: without it
  *  here, arrival pushed the whole page down). */
 export function raceBreadcrumb(meta: SessionMeta | null): { label: string; href?: string }[] | undefined {
-  if (!meta || meta.year == null || !meta.meeting_name || !meta.session_name) return undefined
+  if (!meta || meta.year == null || !meta.session_name) return undefined
   return [
     { label: String(meta.year), href: '/' },
-    { label: meta.meeting_name, href: '/' },
+    { label: placeOf(meta), href: '/' },
     { label: meta.session_name },
   ]
 }

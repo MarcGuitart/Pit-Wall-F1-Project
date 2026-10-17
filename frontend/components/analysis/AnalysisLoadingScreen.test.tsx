@@ -44,8 +44,8 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
   it('state 2: the real header facts, the clock and the method panel', () => {
     render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
     at(3_200)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Spanish Grand Prix')
-    expect(screen.getByText('Barcelona · 2024 · Race · 23 Jun 2024')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Barcelona')
+    expect(screen.getByText('2024 · Race · 23 Jun 2024')).toBeTruthy()
     expect(screen.getByLabelText('Elapsed 3 seconds').textContent).toBe('00:03')
     expect(screen.getByText('How this is measured')).toBeTruthy()
     expect(screen.getByText('Pit, safety-car, red/yellow-flag and outlier laps are excluded from pace.')).toBeTruthy()

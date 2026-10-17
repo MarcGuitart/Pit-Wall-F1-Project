@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { placeOf } from '@/lib/place'
 import { useOpenRace } from '@/lib/raceNav'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
@@ -157,7 +158,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
     },
     ...races.map((r) => ({
       value: String(r.meeting_key),
-      label: `${r.meeting_name} — ${r.circuit_short_name ?? ''}`,
+      label: r.circuit_short_name && r.circuit_short_name !== placeOf(r) ? `${placeOf(r)} — ${r.circuit_short_name}` : placeOf(r),
     })),
   ]
 
@@ -240,11 +241,9 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                           compact
                           event={{
                             uid: `pitwall-${s.session_key}@pitwallengineer.com`,
-                            summary: `Pit Wall — ${selectedMeeting.meeting_name} ${s.session_name}`,
+                            summary: `Pit Wall — ${placeOf(selectedMeeting)} ${s.session_name}`,
                             description: 'Full strategy analysis on pitwallengineer.com once published.',
-                            location: [selectedMeeting.circuit_short_name, selectedMeeting.country_name]
-                              .filter(Boolean)
-                              .join(', '),
+                            location: placeOf(selectedMeeting),
                             dateStart: s.date_start,
                             dateEnd: s.date_end,
                           }}
@@ -291,7 +290,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
             <button key={race.session_key} type="button" onClick={() => openRace(race.session_key)} className={l.card}>
               <div className={l.cardTop}>
                 <div style={{ minWidth: 0 }}>
-                  <div className={l.cardName}>{race.meeting_name}</div>
+                  <div className={l.cardName}>{race.location}</div>
                   <div className={ui.sub}>{race.circuit_short_name} · {race.year}</div>
                   {featured && <div className={ui.sub}>{featured.reason}</div>}
                   <div className={l.tags}>
