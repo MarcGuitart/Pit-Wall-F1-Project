@@ -35,6 +35,20 @@ and (since Block 26d, additive) `location`, `is_cancelled`.
   `is_cancelled: false` and the exclusion file still applied.
 - Clients that ignore the two fields keep working unchanged.
 
+### GET /stats
+Public (no PRO), counts only (Block 29) — the landing's proof strip. Read from
+the cached `_analysis.json` files with `analysis_version == ANALYSIS_VERSION`
+(an older or unreadable file is not counted):
+- `sessions`: how many such analyses exist;
+- `driver_laps`: Σ over those analyses and over True Pace rows of the clean
+  laps used (`sample_size`) plus the laps the exclusion log removed;
+- `seasons`: distinct `race.year` values;
+- `modules` / `module_names`: the fields of `FullRaceAnalysis` minus its
+  envelope (`race`, `analysis_version`, `modules`) — the pipeline's registry;
+- `analysis_version`, `definitions` (one sentence per figure, for footnotes).
+Cached in memory, recomputed when ANALYSIS_VERSION or any analysis file's
+mtime or size changes.
+
 ### GET /sessions/{session_key}/meta
 Public (no PRO), light (Block 27). What a page can say about a session before
 its analysis exists — the loader's header and the pages with no analysis:
