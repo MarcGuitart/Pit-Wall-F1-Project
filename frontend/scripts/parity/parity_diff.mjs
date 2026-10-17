@@ -129,14 +129,19 @@ async function expandAll(sc, i, key, views) {
       const label = ((await h.getAttribute('aria-label')) ?? (await h.innerText())).trim().replace(/\s+/g, ' ')
       const expanded = await h.getAttribute('aria-expanded')
       const isSummary = await h.evaluate((e) => e.tagName === 'SUMMARY')
-      if (!(expanded === 'false' || EXPANDER.test(label) || isSummary || (i === 0 && RADIO.test(label)))) continue
+      const isRadio = RADIO.test(label)
+      // The radio lane's markers report aria-expanded too: open them on the first view only
+      if (isRadio && i !== 0) continue
+      if (!(expanded === 'false' || EXPANDER.test(label) || isSummary || isRadio)) continue
       if (/back|close|clear|retry|redeem|sign out|remove|delete|^play|^pause/i.test(label)) continue
       await h.click({ timeout: 1500 })
       await page.waitForTimeout(350)
       views[`${key}+expand:${label.slice(0, 40)}`] = await capture(page)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(150)
-      if (await covered(page)) { await page.context().close(); page = await openAt(sc, i) }
+      // Something now covers the page, or the expansion added/removed controls (which
+      // would shift every later index): start again from a fresh page.
+      if (await covered(page) || (await page.locator(CLICKABLE).count()) !== count) { await page.context().close(); page = await openAt(sc, i) }
     } catch { /* not clickable in this state */ }
   }
   await page.context().close()
