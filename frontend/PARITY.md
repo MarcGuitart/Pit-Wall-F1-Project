@@ -184,9 +184,11 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Pit Sequence | 55fde5d | ninguna |
 | DRS Train Detector | ef640b7 | ninguna |
 | Clean Air Value | f39e00a | "estimated…" y "estimated from pace comparison…" ya no van pegados en una línea |
-| Meteo (WeatherOverlay) | (siguiente) | ninguna (9636, 11377) |
-| Crossovers | (siguiente) | ninguna; el aviso de SC concurrente sigue siempre visible |
-| Weather winners & losers | (siguiente) | ninguna (9636 lo tiene not_applicable) |
+| Meteo (WeatherOverlay) | 48541fe | ninguna (9636, 11377) |
+| Crossovers | e6bf1fe | ninguna; el aviso de SC concurrente sigue siempre visible |
+| Weather winners & losers | eb511e8 | ninguna (9636 lo tiene not_applicable) |
+| Chaos Profile | (siguiente) | ninguna |
+| Engineer Signals (resumen) | (siguiente) | ninguna |
 
 ## Inventario (alcanzable desde app/ en main)
 
@@ -237,8 +239,8 @@ fase 9). Diferencias aceptadas: el separador `›` del breadcrumb (ahora `/` por
 | Degradación (tabla) | analysis/TyreDegradationPanel | | T data view | pendiente |
 | Pit impact (secuencia) | strategy/PitSequenceSummary | strategy/PitSequenceSummary (filas botón) | S; T shallow | verificado |
 | Pit impact (tabla) | analysis/PitImpactPanel | | T data view | pendiente |
-| Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | | S; T | pendiente |
-| Engineer notes (resumen) | strategy/EngineerSignalSummary | | S; T | pendiente |
+| Chaos | strategy/ChaosProfile + analysis/ChaosIndexCard | strategy/ChaosProfile (ChaosIndexCard: ver tablas) | S race-control 9636/9539; T shallow | verificado (ChaosProfile) |
+| Engineer notes (resumen) | strategy/EngineerSignalSummary | strategy/EngineerSignalSummary (filtros con aria-pressed) | S; T shallow | verificado |
 | Engineer notes (lista) | analysis/EngineerNotes | | T data view / control-tables | pendiente |
 | Decisiones (tarjetas) | strategy/KeyDecisionCards | strategy/KeyDecisionCards | S; T shallow (expand en fase 9) | verificado (S, T shallow) |
 | Decisiones (timeline) | analysis/DecisionsTimeline | | T data view | pendiente |
@@ -360,6 +362,9 @@ Revisadas a mano las 44 restantes:
 3. No hay análisis de clasificación ni libres en caché: sus layouts no tienen cobertura visual.
 4. `/races` sin `is_cancelled` ni `location` (dependencia).
 5. 14 componentes inalcanzables (lista arriba) siguen en el repo.
+8. EngineerSignalSummary ordena por severidad **en su sitio** el array de notas que recibe
+   (`base.sort` sobre la prop): tras visitar Race Control cambia el orden de las notas en el resto de
+   la página. Se conserva tal cual.
 7. Tyre Cliff Map escribe "+" delante de toda pendiente: las negativas salen "+-0.011". Defecto heredado
    (se conserva tal cual).
 6. **Móvil (390 px) en la UI vieja**: la página se desborda a 524 px de ancho (Chrome móvil reduce

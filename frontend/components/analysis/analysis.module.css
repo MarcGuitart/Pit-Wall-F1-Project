@@ -94,3 +94,9 @@
 .warnNote { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; font-size: 12px; line-height: 1.45; color: var(--pw-amber); border: 2px solid currentColor; }
 .twoCol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 640px) { .twoCol { grid-template-columns: 1fr; } }
+
+/* ── chaos, signals ── */
+.chaosGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 520px) { .chaosGrid { grid-template-columns: 1fr; } }
+.chaosScore { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.chipOn { background: var(--pw-text) !important; color: var(--pw-bg) !important; border-color: var(--pw-text) !important; }
