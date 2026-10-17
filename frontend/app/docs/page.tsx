@@ -13,6 +13,8 @@ import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { FREE_SEASONS, PRO_PRICE_LABEL } from '@/lib/access'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { PageHeader, buttonClass } from '@/components/ui'
+import pg from '@/components/layout/page.module.css'
 
 export const metadata = {
   title: `Docs — ${PRODUCT_NAME}`,
@@ -21,13 +23,9 @@ export const metadata = {
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-16 py-8 border-b border-border-subtle last:border-b-0">
-      <h2 className="font-display font-black text-[20px] uppercase tracking-[-0.3px] text-text-primary mb-3">
-        {title}
-      </h2>
-      <div className="font-body text-[14px] text-text-secondary leading-relaxed space-y-3">
-        {children}
-      </div>
+    <section id={id} className={pg.section}>
+      <h2 className={pg.sectionTitle}>{title}</h2>
+      <div className={pg.prose}>{children}</div>
     </section>
   )
 }
@@ -44,22 +42,16 @@ const NAV = [
 export default function DocsPage() {
   return (
     <AppShell breadcrumb={[{ label: 'Docs' }]}>
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="font-display font-black text-[32px] md:text-[38px] leading-[0.95] uppercase tracking-[-0.5px] text-text-primary mb-2">
-          Docs
-        </h1>
-        <p className="font-mono text-[11px] text-text-muted mb-8">
-          What {PRODUCT_NAME} is, what is free, and what PRO adds.
-        </p>
+      <PageHeader kicker="Documentation" title="Docs" meta={<span>What {PRODUCT_NAME} is, what is free, and what PRO adds.</span>} />
+      <div className={pg.page}>
 
         {/* Section jump links */}
-        <nav aria-label="Sections" className="flex flex-wrap gap-2 mb-4">
+        <nav aria-label="Sections" className={pg.docNav}>
           {NAV.map((n) => (
             <a
               key={n.id}
               href={`#${n.id}`}
-              className="font-mono text-[10px] uppercase tracking-[0.5px] text-text-muted hover:text-signal-blue
-                         border border-border-default rounded-[3px] px-2 py-1 transition-colors"
+              className={buttonClass()}
             >
               {n.label}
             </a>
@@ -83,7 +75,7 @@ export default function DocsPage() {
         <Section id="free" title="Free">
           <p>
             Every race from{' '}
-            <strong className="text-text-primary">{FREE_SEASONS.join(' and ')}</strong> — full
+            <strong>{FREE_SEASONS.join(' and ')}</strong> — full
             analysis, every session type, no account and no code needed.
           </p>
         </Section>
@@ -94,7 +86,7 @@ export default function DocsPage() {
             PRO covers races from 2025 onwards, the current season as it is published (usually within a
             few hours of the chequered flag), and Live mode. Subscriptions are not open yet — access
             today is by a code, entered once in{' '}
-            <Link href="/settings" className="text-signal-blue hover:underline underline-offset-4">
+            <Link href="/settings">
               Settings
             </Link>.
           </p>
@@ -116,12 +108,10 @@ export default function DocsPage() {
           <p>
             Race and session data — laps, stints, pit stops, position, race control, weather — comes
             from{' '}
-            <a href="https://openf1.org" target="_blank" rel="noopener noreferrer"
-               className="text-signal-blue hover:underline underline-offset-4">
+            <a href="https://openf1.org" target="_blank" rel="noopener noreferrer">
               OpenF1
             </a>, an open, free timing feed. Circuit telemetry (speed, throttle, brake, gear) comes from{' '}
-            <a href="https://docs.fastf1.dev" target="_blank" rel="noopener noreferrer"
-               className="text-signal-blue hover:underline underline-offset-4">
+            <a href="https://docs.fastf1.dev" target="_blank" rel="noopener noreferrer">
               FastF1
             </a>. Team radio clips are linked from Formula&nbsp;1&apos;s own archive and are never
             copied or stored on this site.
