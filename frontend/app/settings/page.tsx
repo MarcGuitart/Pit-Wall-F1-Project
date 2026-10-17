@@ -8,20 +8,13 @@
  * page's PRO section is informational only now, and every page's TopBar shows
  * a small badge that links back to this one place.
  */
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { useAccessStore } from '@/stores/accessStore'
-import { redeemAccessCode } from '@/lib/api'
 import { formatExpiry } from '@/lib/format'
-import { ApiError } from '@/lib/errors'
-import { Badge, PageHeader, buttonClass, ui } from '@/components/ui'
+import { Badge, PageHeader } from '@/components/ui'
+import { AccessCodeForm } from '@/components/access/AccessCodeForm'
 import pg from '@/components/layout/page.module.css'
-
-const REDEEM_ERROR: Record<string, string> = {
-  INVALID_ACCESS_CODE: 'That code is not valid.',
-  RATE_LIMITED: 'Too many attempts. Wait a few minutes and try again.',
-  PRO_ACCESS_UNAVAILABLE: 'Access codes are not switched on yet.',
-}
 
 export default function SettingsPage() {
   const pro = useAccessStore((s) => s.pro)
@@ -35,36 +28,6 @@ export default function SettingsPage() {
   // yet is what reveals the code field. With a token, the toggle instead
   // controls showBadge directly (see the handler below) and this stays false.
   const [showCodeField, setShowCodeField] = useState(false)
-  const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (showCodeField) inputRef.current?.focus()
-  }, [showCodeField])
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const trimmed = code.trim()
-    if (!trimmed || submitting) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      await redeemAccessCode(trimmed)
-      setCode('')
-      setShowCodeField(false)
-      // useAccessStore updates itself: redeemAccessCode() fires
-      // ACCESS_CHANGED_EVENT, which AccessBootstrap (mounted in the root
-      // layout) is already listening for.
-    } catch (err) {
-      const apiCode = err instanceof ApiError ? err.code : ''
-      setError(REDEEM_ERROR[apiCode] ?? 'Could not check that code. Try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   function handleToggle() {
     if (pro) {
       // Display preference only — the token is untouched either way. Made
@@ -134,38 +97,7 @@ export default function SettingsPage() {
               {!showCodeField ? (
                 <p className={pg.small}>Turn this on to enter an access code.</p>
               ) : (
-                <>
-                  <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 220, display: 'grid', gap: 6 }}>
-                      <label htmlFor="settings-pro-code" className={ui.label}>Access code</label>
-                      <input
-                        ref={inputRef}
-                        id="settings-pro-code"
-                        type="text"
-                        value={code}
-                        onChange={(e) => { setCode(e.target.value); setError(null) }}
-                        placeholder="PW-…"
-                        autoComplete="off"
-                        spellCheck={false}
-                        aria-invalid={error !== null}
-                        aria-describedby={error ? 'settings-pro-code-error' : undefined}
-                        className={ui.input}
-                      />
-                    </div>
-                    <button type="submit" disabled={submitting || code.trim().length === 0} className={buttonClass('primary', true)}>
-                      {submitting ? 'Checking…' : 'Unlock'}
-                    </button>
-                  </form>
-                  <p
-                    id="settings-pro-code-error"
-                    role="status"
-                    aria-live="polite"
-                    className={error ? ui.accent : ui.srOnly}
-                    style={{ margin: 0, fontSize: 13 }}
-                  >
-                    {error ?? ''}
-                  </p>
-                </>
+                <AccessCodeForm id="settings-pro-code" autoFocus onRedeemed={() => setShowCodeField(false)} />
               )}
             </div>
           )}

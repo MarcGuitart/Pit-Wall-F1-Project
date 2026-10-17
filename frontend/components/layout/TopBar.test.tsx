@@ -117,6 +117,7 @@ describe('the Live pill — PRO but nothing live right now', () => {
       // The 2026 meeting OpenF1 calls "Bahrain Grand Prix": the place is Kuala Lumpur (Block 27b).
       place: 'Kuala Lumpur',
       circuitShortName: 'Kuala Lumpur',
+      sessionKey: 11731,
       sessionName: 'Race',
       dateStart: '2026-10-02T04:30:00Z',
       dateEnd: '2026-10-02T06:30:00Z',
@@ -158,6 +159,7 @@ describe('the next-session popover', () => {
   const next = {
     place: 'Austin',
     circuitShortName: 'Austin',
+    sessionKey: 11740,
     sessionName: 'Practice 1',
     dateStart: '2026-10-23T17:30:00Z',
     dateEnd: '2026-10-23T18:30:00Z',

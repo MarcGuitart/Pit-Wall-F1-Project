@@ -206,6 +206,21 @@ export async function fetchSessions(
   return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
 }
 
+/** GET /stats (ops/landing-meta): the landing's proof strip, counts only. */
+export type SiteStats = {
+  sessions: number
+  driver_laps: number
+  seasons: number[]
+  modules: number
+  module_names: string[]
+  analysis_version: string
+  definitions: Record<string, string>
+}
+
+export async function fetchStats(signal?: AbortSignal): Promise<SiteStats> {
+  return apiFetch<SiteStats>('/stats', signal ? { signal } : undefined)
+}
+
 /** Public, light: the facts the loader and the blocked pages show before /analysis answers. */
 export async function fetchSessionMeta(sessionKey: number, signal?: AbortSignal): Promise<SessionMeta> {
   return apiFetch<SessionMeta>(`/sessions/${sessionKey}/meta`, signal ? { signal } : undefined)

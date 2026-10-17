@@ -82,3 +82,70 @@
   color: var(--pw-accent-strong); background: #fff; text-decoration: none;
 }
 .closingLink:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* ── islands: one fixed height for loading, data and unavailable, so a
+   figure arriving — or failing — moves nothing (Block 29 addendum) ── */
+.bar { display: block; height: 12px; background: var(--pw-surface-2); }
+.unavailable { margin: 0; font-size: 14px; line-height: 1.5; color: var(--pw-muted); }
+.cardLabel { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; color: var(--pw-muted); }
+
+/* next session (hero aside) */
+.nextCard { border: 2px solid var(--pw-divider); padding: 20px; height: 312px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 10px; overflow: hidden; }
+.nextPlace { margin: 0; font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.nextWhen { font-size: 14px; color: var(--pw-muted); }
+.countdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; background: var(--pw-divider); border: 2px solid var(--pw-divider); align-self: start; }
+.countdown > div { background: var(--pw-bg); padding: 8px 10px; }
+.cdValue { display: block; font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cdUnit { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pw-muted); }
+
+/* proof strip */
+.tile { background: var(--pw-bg); padding: 20px 24px; height: 148px; display: grid; align-content: start; gap: 6px; min-width: 0; }
+.tileValue { font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tileSub { font-size: 13px; color: var(--pw-muted); }
+.fn { font-size: 11px; vertical-align: super; margin-left: 2px; color: var(--pw-muted); }
+.footList { margin: 0; padding: 0 0 0 18px; display: grid; gap: 4px; list-style: decimal; }
+
+/* sample analysis */
+.sampleHead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 0 var(--pw-gutter) 20px; }
+.samplePlace { font-size: 24px; font-weight: 800; }
+.chaosValue { font-size: 72px; line-height: 1; font-weight: 800; color: var(--pw-accent-text); font-variant-numeric: tabular-nums; }
+.scale { position: relative; height: 8px; background: var(--pw-surface-2); margin: 16px 0 6px; }
+.scale > span { position: absolute; inset: 0 auto 0 0; background: var(--pw-accent); }
+.scaleTicks { display: flex; justify-content: space-between; font-size: 11px; color: var(--pw-muted); }
+.paceRow { display: grid; grid-template-columns: 28px 4px 48px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--pw-divider); font-size: 14px; }
+.paceRow:first-of-type { border-top: 0; }
+.paceTeam { width: 4px; height: 28px; }
+.paceCode { font-weight: 800; }
+.paceSub { font-size: 12px; color: var(--pw-muted); }
+.paceVal { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.byReason { display: flex; height: 18px; gap: 2px; margin: 14px 0; }
+.byReason > span { display: block; min-width: 4px; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.legend li { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: center; }
+.swatch { width: 12px; height: 12px; }
+.noteNum { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border: 2px solid var(--pw-divider); font-size: 12px; font-weight: 800; margin-bottom: 10px; }
+
+/* live */
+.liveCard { border: 2px solid var(--pw-divider); padding: 24px; height: 276px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 10px; overflow: hidden; }
+.livePill { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; }
+.liveDot { width: 8px; height: 8px; border-radius: 50%; background: var(--pw-muted); }
+.liveDotOn { background: var(--pw-accent); }
+.liveDotSoon { background: var(--pw-amber); }
+.liveTitle { margin: 0; font-size: 32px; line-height: 1.05; font-weight: 800; }
+.liveBig { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.capture { margin: 0; border-top: 2px solid var(--pw-divider); }
+.capture img { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; background: var(--pw-surface); }
+.capture figcaption { padding: 12px var(--pw-gutter); font-size: 13px; color: var(--pw-muted); border-top: 2px solid var(--pw-divider); }
+
+/* plans */
+.plan { background: var(--pw-bg); padding: 28px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.planName { margin: 0; font-size: 28px; font-weight: 800; }
+.planPrice { font-size: 48px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.planList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 15px; }
+.planList li::before { content: '·'; margin-right: 8px; color: var(--pw-accent-text); font-weight: 800; }
+/* The four figures stay two by two on a phone: one per row was four mostly empty bands. */
+@media (max-width: 520px) {
+  .proof { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proof .tile { height: 128px; padding: 16px; }
+  .proof .tileValue { font-size: 34px; }
+}
