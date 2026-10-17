@@ -328,6 +328,36 @@ async def get_analysis(
                     },
                 )
 
+    # 4. One build per session at a time, shared. The build runs as its own
+    #    task: a client that gives up (the page aborts at 45 s) does not cancel
+    #    it, and the retry that follows awaits the same task instead of
+    #    starting a second computation (Block 27).
+    return await _shared_build(session_key, session_meta, force_refresh)
+
+
+_builds: dict[int, asyncio.Task] = {}
+
+
+def _forget_build(session_key: int, task: asyncio.Task) -> None:
+    if _builds.get(session_key) is task:
+        del _builds[session_key]
+    if not task.cancelled():
+        task.exception()  # retrieved: an unawaited failure must not log as "never retrieved"
+
+
+async def _shared_build(session_key: int, session_meta: dict, force_refresh: bool) -> FullRaceAnalysis:
+    task = _builds.get(session_key)
+    if task is None or task.done():
+        task = asyncio.ensure_future(_build(session_key, session_meta, force_refresh))
+        _builds[session_key] = task
+        task.add_done_callback(lambda t, k=session_key: _forget_build(k, t))
+    else:
+        logger.info("[ANALYSIS] %s — joining the build already in progress", session_key)
+    # shield: cancelling this request (client gone) leaves the build running.
+    return await asyncio.shield(task)
+
+
+async def _build(session_key: int, session_meta: dict, force_refresh: bool) -> FullRaceAnalysis:
     # 4. Acquire per-session lock — prevents concurrent duplicate computation
     lock = await _get_analysis_lock(session_key)
     async with lock:
