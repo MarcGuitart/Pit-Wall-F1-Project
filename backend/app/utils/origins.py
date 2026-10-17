@@ -1,9 +1,11 @@
 """
-CORS origin patterns for the API (app/main.py).
+CORS origin patterns shared by the API (app/main.py) and the live server
+(scripts/live_server.py) — one implementation, one test matrix
+(tests/test_cors_netlify_previews.py).
 
-It lives in app/utils/ rather than app/core/config.py on purpose: render.yaml's
-recorder build filter admits config.py, and a change here must never restart
-the recorder.
+It lives in app/utils/ on purpose: render.yaml's live-server build filter
+admits app/utils/**, so a change here redeploys the live server that uses it,
+and the recorder's filter does not, so it never restarts the recorder.
 """
 from __future__ import annotations
 
@@ -30,3 +32,11 @@ def netlify_preview_origin_regex(origins: Iterable[str]) -> str | None:
         return None
     return r"^https://[a-z0-9]+(?:-[a-z0-9]+)*--(?:" + "|".join(sorted(set(sites))) + r")\.netlify\.app$"
 
+
+def any_of(*patterns: str | None) -> str | None:
+    """One regex for CORSMiddleware's single allow_origin_regex: the given
+    patterns, each in its own group, None ignored; None if none is left."""
+    kept = [p for p in patterns if p]
+    if not kept:
+        return None
+    return "|".join(f"(?:{p})" for p in kept)

@@ -1,30 +1,46 @@
 """
-CORS for Netlify deploy previews (Block 26d).
+CORS for Netlify deploy previews — the API and the live server (Blocks 26d, 26e).
 
-Derived from the production Netlify origin already in cors_origins:
-https://<site>.netlify.app allows https://<prefix>--<site>.netlify.app and
-nothing else. Checked twice — the regex on its own, and through Starlette's
-CORSMiddleware, the thing that actually answers the browser.
+One implementation (app/utils/origins.py) and this one matrix of origins, run
+against both servers. Derived from the production Netlify origin each server
+already allows: https://<site>.netlify.app allows
+https://<prefix>--<site>.netlify.app and nothing else. Checked on the regex
+itself and through the CORSMiddleware each server actually builds, which is
+the thing that answers the browser.
 """
 from __future__ import annotations
 
+import importlib.util
 import re
+import sys
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
-from app.utils.origins import netlify_preview_origin_regex
 from app.main import app as real_app
+from app.utils.origins import any_of, netlify_preview_origin_regex
 
-PRODUCTION = [
-    "https://pitwallengineer.com",
-    "https://www.pitwallengineer.com",
-    "https://pit-wall-f1-project.netlify.app",
-]
+BACKEND = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND / "scripts"))
+if "live_server" in sys.modules:
+    live_server = sys.modules["live_server"]
+else:
+    spec = importlib.util.spec_from_file_location("live_server", BACKEND / "scripts" / "live_server.py")
+    live_server = importlib.util.module_from_spec(spec)
+    sys.modules["live_server"] = live_server
+    spec.loader.exec_module(live_server)
 
-ALLOWED = [
+from live_state import RaceState  # noqa: E402
+
+SITE = "https://pit-wall-f1-project.netlify.app"
+PRODUCTION = ["https://pitwallengineer.com", "https://www.pitwallengineer.com", SITE]
+
+# ── the matrix ───────────────────────────────────────────────────────────────
+
+PREVIEWS = [
     "https://deploy-preview-42--pit-wall-f1-project.netlify.app",
     "https://ui-migration--pit-wall-f1-project.netlify.app",
     "https://65f1c0ffee12ab--pit-wall-f1-project.netlify.app",
@@ -51,8 +67,20 @@ REFUSED = [
     "https://Deploy-Preview-42--pit-wall-f1-project.netlify.app",
     "https://x.y--pit-wall-f1-project.netlify.app",
     "https://netlify.app",
+    # the local-dev allowance stays exactly what it was
+    "http://localhost.evil.com",
+    "http://127.0.0.1.evil.com",
+    "https://localhost:3000",
 ]
 
+# Origins each server allowed before previews existed; they must still pass.
+ALREADY_ALLOWED = {
+    "api": PRODUCTION,
+    "live": PRODUCTION + ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3001", "http://localhost"],
+}
+
+
+# ── the regex on its own ─────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
 def regex() -> str:
@@ -61,13 +89,13 @@ def regex() -> str:
     return r
 
 
-@pytest.mark.parametrize("origin", ALLOWED)
+@pytest.mark.parametrize("origin", PREVIEWS)
 def test_previews_of_the_production_site_match(regex, origin):
     assert re.fullmatch(regex, origin)
-    assert re.match(regex, origin)  # anchored either way Starlette calls it
+    assert re.match(regex, origin)  # anchored however it is called
 
 
-@pytest.mark.parametrize("origin", REFUSED)
+@pytest.mark.parametrize("origin", [o for o in REFUSED if "netlify" in o])
 def test_anything_else_does_not(regex, origin):
     assert not re.match(regex, origin)
     assert not re.fullmatch(regex, origin)
@@ -87,17 +115,21 @@ def test_never_a_wildcard_over_netlify_app():
 
 def test_trailing_slash_and_whitespace_in_env_are_tolerated():
     r = netlify_preview_origin_regex([" https://pit-wall-f1-project.netlify.app/ "])
-    assert r and re.match(r, ALLOWED[0])
+    assert r and re.match(r, PREVIEWS[0])
 
 
-def preflight(client: TestClient, origin: str):
-    return client.options("/health", headers={
-        "Origin": origin, "Access-Control-Request-Method": "GET",
-    })
+def test_any_of_keeps_each_pattern_whole():
+    assert any_of(None, None) is None
+    assert any_of("a", None) == "(?:a)"
+    combined = any_of(r"http://x(:\d+)?", netlify_preview_origin_regex([SITE]))
+    assert re.fullmatch(combined, "http://x:1") and re.fullmatch(combined, PREVIEWS[0])
+    assert not re.fullmatch(combined, "http://x:1" + PREVIEWS[0])
 
 
-@pytest.fixture(scope="module")
-def cors_client() -> TestClient:
+# ── through each server's middleware ─────────────────────────────────────────
+
+def api_client() -> TestClient:
+    """The API's CORSMiddleware, configured exactly as app/main.py does."""
     app = FastAPI()
     app.add_middleware(
         CORSMiddleware,
@@ -115,25 +147,60 @@ def cors_client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.parametrize("origin", ALLOWED + PRODUCTION)
-def test_the_middleware_answers_previews_and_production(cors_client, origin):
-    r = preflight(cors_client, origin)
+def live_client(monkeypatch) -> TestClient:
+    """The live server's real build_app, with the Netlify site in
+    LIVE_ALLOWED_ORIGINS as production sets it."""
+    allowed = live_server.PRODUCTION_ORIGINS + (SITE,)
+    monkeypatch.setattr(live_server, "ALLOWED_ORIGINS", allowed)
+    return TestClient(live_server.build_app(RaceState(session_key=11377), live_server.Hub(), None))
+
+
+@pytest.fixture(params=["api", "live"])
+def server(request, monkeypatch):
+    client = api_client() if request.param == "api" else live_client(monkeypatch)
+    return request.param, client
+
+
+def preflight(client: TestClient, origin: str):
+    return client.options("/health", headers={"Origin": origin, "Access-Control-Request-Method": "GET"})
+
+
+@pytest.mark.parametrize("origin", PREVIEWS)
+def test_both_servers_answer_previews(server, origin):
+    _, client = server
+    r = preflight(client, origin)
     assert r.status_code == 200
     assert r.headers.get("access-control-allow-origin") == origin
-    r = cors_client.get("/health", headers={"Origin": origin})
-    assert r.headers.get("access-control-allow-origin") == origin
+    assert client.get("/health", headers={"Origin": origin}).headers.get("access-control-allow-origin") == origin
 
 
 @pytest.mark.parametrize("origin", REFUSED)
-def test_the_middleware_refuses_the_rest(cors_client, origin):
-    r = preflight(cors_client, origin)
+def test_both_servers_refuse_the_rest(server, origin):
+    _, client = server
+    r = preflight(client, origin)
     assert r.status_code == 400
     assert "access-control-allow-origin" not in r.headers
-    r = cors_client.get("/health", headers={"Origin": origin})
-    assert "access-control-allow-origin" not in r.headers
+    assert "access-control-allow-origin" not in client.get("/health", headers={"Origin": origin}).headers
 
 
-def test_the_real_app_wires_the_derived_regex():
+def test_origins_already_allowed_still_are(server):
+    name, client = server
+    for origin in ALREADY_ALLOWED[name]:
+        r = preflight(client, origin)
+        assert r.status_code == 200, (name, origin)
+        assert r.headers.get("access-control-allow-origin") == origin, (name, origin)
+
+
+def test_live_without_a_netlify_origin_is_unchanged(monkeypatch):
+    """No Netlify site configured: the regex is the old local-dev one, alone."""
+    monkeypatch.setattr(live_server, "ALLOWED_ORIGINS", live_server.PRODUCTION_ORIGINS)
+    assert live_server.origin_regex(live_server.PRODUCTION_ORIGINS) == f"(?:{live_server.LOCAL_ORIGIN_RE})"
+    client = TestClient(live_server.build_app(RaceState(session_key=11377), live_server.Hub(), None))
+    assert preflight(client, PREVIEWS[0]).status_code == 400
+    assert preflight(client, "http://localhost:3000").status_code == 200
+
+
+def test_the_real_api_wires_the_shared_function():
     from app.core.config import settings
     cors = [m for m in real_app.user_middleware if m.cls is CORSMiddleware]
     assert len(cors) == 1
