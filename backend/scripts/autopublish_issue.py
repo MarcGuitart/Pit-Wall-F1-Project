@@ -40,10 +40,33 @@ def gh(*args: str) -> tuple[int, str]:
 
 
 def title_for(s: dict) -> str:
+    if s.get("kind") == "failed":
+        return f"autopublish: {s.get('label') or 'session'} (session {s.get('session_key')}) could not be computed"
     return f"autopublish: {s.get('label')} (session {s.get('session_key')}) will not settle"
 
 
+def failed_body(s: dict, run_url: str) -> str:
+    """A session the pipeline could not complete (Block 30a): the analysis was
+    not written — discard_incomplete_session() removed any partial files — and
+    the reason is here instead of in a half-finished page."""
+    return "\n".join([
+        "`scripts/autopublish.py` was ready to publish this session and computing it failed.",
+        "Nothing was committed: a failed computation leaves no files behind.",
+        "",
+        f"- **session_key**: {s.get('session_key')}",
+        f"- **error**: {s.get('error')}",
+        "",
+        f"Run log: {run_url}" if run_url else "",
+        "",
+        "Re-run it by hand with the workflow's session_keys input once the cause is fixed,",
+        "or add it to `backend/excluded_sessions.json` with the reason if there is nothing",
+        "to publish.",
+    ])
+
+
 def body_for(s: dict, run_url: str) -> str:
+    if s.get("kind") == "failed":
+        return failed_body(s, run_url)
     return "\n".join([
         "`scripts/autopublish.py` has refused to publish this session for more than six hours",
         "past its end, so this is a data problem rather than something to wait for.",
@@ -134,11 +157,14 @@ def main() -> int:
         print("REPORT is not valid JSON")
         return 0
     stuck = report.get("stuck") or []
-    if not stuck:
-        print("no stuck session")
+    # A session that could not be computed is an issue too, not a line in a
+    # chat message; errors with no session_key (listing the season) are not.
+    failed = [{**e, "kind": "failed"} for e in report.get("errors") or [] if isinstance(e.get("session_key"), int)]
+    if not stuck and not failed:
+        print("no stuck or failed session")
         return 0
     run_url = os.environ.get("RUN_URL", "")
-    for s in stuck:
+    for s in [*stuck, *failed]:
         upsert(s, run_url)
     return 0
 

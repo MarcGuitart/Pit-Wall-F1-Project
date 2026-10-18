@@ -156,3 +156,24 @@ def test_no_stuck_session_files_nothing(monkeypatch):
     monkeypatch.setenv("REPORT", '{"published": [], "stuck": []}')
     monkeypatch.setattr(issue, "gh", lambda *a: pytest.fail("gh must not be called"))
     assert issue.main() == 0
+
+
+# ── Block 30a: a session the pipeline could not compute is an issue too ─────
+
+def test_a_failed_computation_opens_its_own_issue(monkeypatch):
+    import json
+    seen = []
+    monkeypatch.setattr(issue, "upsert", lambda s, run_url: seen.append(s))
+    monkeypatch.setenv("REPORT", json.dumps({"stuck": [], "errors": [
+        {"session_key": 9086, "label": "Imola 2023 · Race", "error": "/analysis returned 503 OPENF1_ERROR"},
+        {"error": "could not list 2026 sessions"},          # no session: not an issue
+    ]}))
+    issue.main()
+    assert [(s["session_key"], s["kind"]) for s in seen] == [(9086, "failed")]
+    assert issue.title_for(seen[0]) == "autopublish: Imola 2023 · Race (session 9086) could not be computed"
+    assert "503 OPENF1_ERROR" in issue.body_for(seen[0], "") and "Nothing was committed" in issue.body_for(seen[0], "")
+
+
+def test_stuck_titles_are_unchanged():
+    assert issue.title_for({"label": "Baku 2026 · Race", "session_key": 11377}) == \
+        "autopublish: Baku 2026 · Race (session 11377) will not settle"
