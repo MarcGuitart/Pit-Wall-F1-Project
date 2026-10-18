@@ -72,7 +72,9 @@
   .right { gap: 14px; }
 }
 @media (max-width: 520px) {
-  .right { order: 2; flex-basis: 100%; justify-content: space-between; border-top: 1px solid var(--pw-divider); min-height: 48px; margin-left: 0; }
+  /* Wraps rather than widening the page when it does not fit (320 px, or the
+     engineer reading "Ask about VER →"). */
+  .right { order: 2; flex-basis: 100%; flex-wrap: wrap; row-gap: 0; justify-content: space-between; border-top: 1px solid var(--pw-divider); min-height: 48px; margin-left: 0; }
   .brand { font-size: 15px; }
 }
 
