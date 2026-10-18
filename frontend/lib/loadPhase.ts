@@ -86,8 +86,13 @@ const starts = new Map<number, number>()
 const STALE_MS = TIMEOUT_AFTER_MS + 5_000
 
 export function loadStartedAt(sessionKey: number): number {
-  const t = starts.get(sessionKey)
   const now = Date.now()
+  // On the server this module lives as long as the Next process and is shared
+  // by every request: a map here gave a new reader the clock of whoever opened
+  // the race before (server-rendered "waking, 00:20"), and broke hydration.
+  // There, every render starts its own wait.
+  if (typeof window === 'undefined') return now
+  const t = starts.get(sessionKey)
   if (t != null && now - t < STALE_MS) return t
   starts.set(sessionKey, now)
   return now
