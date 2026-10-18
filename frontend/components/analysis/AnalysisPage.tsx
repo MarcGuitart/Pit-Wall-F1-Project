@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { FullRaceAnalysis, SessionMeta } from '@/types'
+import { useShallow } from 'zustand/react/shallow'
 import { useRaceStore } from '@/stores/raceStore'
 import { getSessionType } from '@/lib/utils'
 import { chaosLevel, CHAOS_LEVEL_TONE } from '@/lib/chaos'
@@ -44,12 +45,20 @@ function inferTotalLaps(analysis: FullRaceAnalysis): number {
 }
 
 export function AnalysisPage({ analysis, hideHeader = false, meta = null, arriving = false }: Props) {
+  // Only what the page renders from: opening the race engineer (radioOpen)
+  // must not re-render every chart and table — that click measured INP
+  // 200–216 ms with the CPU throttled four times (Block 31, C4).
   const {
-    radioOpen, setRadioOpen,
+    setRadioOpen,
     analysisMode, setAnalysisMode,
     focusedDriver, setFocusedDriver, clearFocusedDriver,
     activeTab, setActiveTab,
-  } = useRaceStore()
+  } = useRaceStore(useShallow((st) => ({
+    setRadioOpen: st.setRadioOpen,
+    analysisMode: st.analysisMode, setAnalysisMode: st.setAnalysisMode,
+    focusedDriver: st.focusedDriver, setFocusedDriver: st.setFocusedDriver, clearFocusedDriver: st.clearFocusedDriver,
+    activeTab: st.activeTab, setActiveTab: st.setActiveTab,
+  })))
 
   const [driverCardOpen, setDriverCardOpen] = useState(false)
 
@@ -226,7 +235,14 @@ export function AnalysisPage({ analysis, hideHeader = false, meta = null, arrivi
         />
       )}
 
-      {radioOpen && <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} />}
+      <RadioOverlayHost analysis={analysis} />
     </div>
   )
+}
+
+/** The race engineer overlay, subscribed to radioOpen on its own. */
+function RadioOverlayHost({ analysis }: { analysis: FullRaceAnalysis }) {
+  const radioOpen = useRaceStore((st) => st.radioOpen)
+  const setRadioOpen = useRaceStore((st) => st.setRadioOpen)
+  return radioOpen ? <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} /> : null
 }
