@@ -5,6 +5,8 @@ import { useRaceStore } from '@/stores/raceStore'
 import sh from '@/components/layout/shell.module.css'
 
 const NUM_BARS = 9
+/** The bars' full height — .wave in shell.module.css. */
+const WAVE_PX = 14
 
 export function RadioTrigger() {
   const { setRadioOpen, analysis, focusedDriver } = useRaceStore()
@@ -29,9 +31,10 @@ export function RadioTrigger() {
       className={sh.engineer}
       title={analysis ? 'Talk to Race Engineer' : 'Load a race first'}
     >
-      {/* Animated waveform bars */}
+      {/* Animated waveform bars: full-height bars scaled from the bottom, so the
+          movement is a transform (composited) rather than a height (layout). */}
       <span className={sh.wave} aria-hidden="true">
-        {heights.map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
+        {heights.map((h, i) => <span key={i} style={{ transform: `scaleY(${(h / WAVE_PX).toFixed(3)})` }} />)}
       </span>
       <span>{label}</span>
     </button>

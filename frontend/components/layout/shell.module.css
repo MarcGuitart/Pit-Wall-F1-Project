@@ -61,7 +61,7 @@
 .engineer:hover:not(:disabled) { background: var(--pw-text); color: var(--pw-bg); }
 .engineer:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--pw-divider); }
 .wave { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
-.wave span { width: 2px; background: var(--pw-green); transition: height 280ms; }
+.wave span { width: 2px; height: 100%; background: var(--pw-green); transform-origin: bottom; transition: transform 280ms; }
 .engineer:disabled .wave span { background: var(--pw-divider); }
 @media (prefers-reduced-motion: reduce) { .wave span { transition: none; } }
 
