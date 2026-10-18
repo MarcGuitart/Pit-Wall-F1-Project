@@ -128,7 +128,9 @@ export function GForceMeter({ driver, progress }: Props) {
             />
           )}
 
-          {/* ── Brake arc (right side, red when braking) ── */}
+          {/* ── Brake arc (right side, red when braking). Colours switch, they do
+              not fade: a 60 ms fade is three frames, and only transform and
+              opacity animate on this site. ── */}
           <path
             d={arcPath(CX, CY, R_ARC, 30, 150)}
             fill="none"
@@ -136,7 +138,7 @@ export function GForceMeter({ driver, progress }: Props) {
             strokeWidth={STROKE}
             strokeLinecap="round"
             opacity={brake ? 0.95 : 0.45}
-            style={{ transition: 'stroke 0.06s, opacity 0.06s' }}
+            style={{ transition: 'opacity 0.06s' }}
           />
 
           {/* ── Brake fill bar (right side, fills proportionally — not used for binary but ready) ── */}
@@ -192,8 +194,7 @@ export function GForceMeter({ driver, progress }: Props) {
             THROTTLE
           </text>
           <text x={CX + R_ARC - 50} y={CY - 6} fill={brake ? '#E8001D' : 'var(--pw-muted)'} fontSize="7"
-            fontFamily="var(--font-archivo), sans-serif" fontWeight="700" letterSpacing="1"
-            style={{ transition: 'fill 0.06s' }}>
+            fontFamily="var(--font-archivo), sans-serif" fontWeight="700" letterSpacing="1">
             BRAKE
           </text>
 
@@ -207,7 +208,6 @@ export function GForceMeter({ driver, progress }: Props) {
             fontFamily="var(--font-archivo), sans-serif"
             fontWeight="900"
             letterSpacing="-0.5"
-            style={{ transition: 'fill 0.08s' }}
           >
             {gMag.toFixed(1)}G
           </text>
@@ -238,9 +238,10 @@ export function GForceMeter({ driver, progress }: Props) {
           <span className="font-bold text-[11px] uppercase tracking-[0.8px] text-text-muted whitespace-nowrap">Peak G</span>
           <div className="flex-1 h-1 bg-bg-panel overflow-hidden">
             <div
-              className="h-full transition-all duration-300"
+              data-peak-g-bar
+              className="h-full w-full origin-left transition-transform duration-300"
               style={{
-                width: `${Math.min(100, (peakMag / gScale) * 100)}%`,
+                transform: `scaleX(${Math.min(1, peakMag / gScale).toFixed(3)})`,
                 backgroundColor: driver.team_colour,
               }}
             />
