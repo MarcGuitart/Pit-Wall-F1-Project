@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { TruePaceRow, TyreDegradationRow, PitImpactRow, TeamRadioClip } from '@/types'
 import { RadioClipPlayer } from './teamradio/RadioClipPlayer'
 import { formatLapTime, formatDelta, formatSlope, formatLaneDuration } from '@/lib/format'
@@ -21,13 +21,35 @@ type Props = {
 }
 
 export function DriverCard({ driver, stints, pits, radios = [], raceName, onClose, onAskEngineer }: Props) {
+  // A modal dialog (decision of 18 Oct, Block 31): focus moves into it on
+  // open, Tab and Shift+Tab stay inside it, Escape closes it, and on close
+  // focus goes back to what opened it. onClose is read through a ref so a
+  // parent re-render does not re-run this (and steal focus back).
+  const cardRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const card = cardRef.current
+    card?.focus()
+    const focusables = () => Array.from(card?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+    ) ?? [])
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') { closeRef.current(); return }
+      if (e.key !== 'Tab' || !card) return
+      const f = focusables()
+      if (!f.length) { e.preventDefault(); card.focus(); return }
+      const first = f[0], last = f[f.length - 1], active = document.activeElement
+      if (e.shiftKey && (active === first || active === card || !card.contains(active))) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && (active === last || !card.contains(active))) { e.preventDefault(); first.focus() }
     }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+    return () => {
+      window.removeEventListener('keydown', handler)
+      if (opener && opener.isConnected) opener.focus()
+    }
+  }, [])
 
   const teamColor = teamColour(driver.team_colour)
   const gainTone = (n: number) => (n > 0 ? toneClass('ok') : n < 0 ? toneClass('accent') : a.muted)
@@ -35,6 +57,8 @@ export function DriverCard({ driver, stints, pits, radios = [], raceName, onClos
   return (
     <div className={ui.backdrop} onClick={onClose}>
       <div
+        ref={cardRef}
+        tabIndex={-1}
         className={d.card}
         role="dialog"
         aria-modal="true"
