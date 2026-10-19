@@ -44,7 +44,7 @@ WORKFLOW = BACKEND_ROOT.parent / ".github" / "workflows" / "publish-race.yml"
 ACCESS_SOURCE = (BACKEND_ROOT / "app" / "core" / "access.py").read_text()
 SCRIPT_SOURCE = (BACKEND_ROOT / "scripts" / "autopublish.py").read_text()
 
-PRO_SESSION_KEY = 11377  # Baku 2026 — full raw + _analysis.json cached, no network needed
+PRO_SESSION_KEY = 11377  # Baku 2026 — PRO season; its published _analysis.json is versioned
 
 
 def _load_autopublish_script():
@@ -143,6 +143,38 @@ def isolated_cache(monkeypatch, tmp_path):
     shutil.copytree(BACKEND_ROOT / "cache" / str(PRO_SESSION_KEY), tmp_path / str(PRO_SESSION_KEY))
     monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def no_network_behind_the_gate(monkeypatch, isolated_cache):
+    """
+    Hermetic (Block 31, decision of 18 Oct). compute() asks for
+    force_refresh, and the real pipeline behind the gate rebuilds the analysis
+    from OpenF1's raw endpoints, which the repo does not version: offline the
+    test failed after four connection attempts. What this file checks is the
+    gate, so everything in front of it stays real (compute(), the FastAPI app,
+    the header, require_season_access) and only the build behind it answers
+    from the published analysis. Any call to OpenF1 fails the test.
+    """
+    import json
+    from app.api import analysis as route
+
+    published = json.loads((isolated_cache / str(PRO_SESSION_KEY) / "_analysis.json").read_text())
+    meta = json.loads((isolated_cache / str(PRO_SESSION_KEY) / "_session_meta.json").read_text())
+
+    async def no_openf1(*args, **kwargs):
+        raise AssertionError(f"OpenF1 was called: {args} {kwargs}")
+
+    async def fetch_meta(session_key):
+        return meta
+
+    async def build(session_key, session_meta, force_refresh):
+        assert force_refresh, "compute() is meant to rebuild, not read the cache"
+        return published
+
+    monkeypatch.setattr(route, "fetch_json", no_openf1)
+    monkeypatch.setattr(route, "_fetch_session_meta", fetch_meta)
+    monkeypatch.setattr(route, "_shared_build", build)
 
 
 @pytest.fixture
