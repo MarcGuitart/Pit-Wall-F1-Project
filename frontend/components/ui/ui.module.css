@@ -109,7 +109,7 @@
 
 /* ── badges ── */
 .badge {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  display: inline-flex; align-items: center; gap: 6px; font-size: var(--pw-text-xs); font-weight: 800; letter-spacing: 0.08em;
   text-transform: uppercase; padding: 2px 6px; line-height: 1.35; white-space: nowrap; border: 2px solid transparent;
 }
 .badgeOutline { border-color: currentColor; background: transparent; }
@@ -191,7 +191,7 @@
 .tab:hover { color: var(--pw-text); }
 .tabOn { color: var(--pw-text); font-weight: 800; border-bottom-color: var(--pw-accent); }
 .tab:focus-visible { outline-offset: -2px; }
-.tabCount { font-size: 10px; letter-spacing: 0.04em; background: var(--pw-surface-2); color: var(--pw-muted); padding: 1px 5px; font-weight: 800; }
+.tabCount { font-size: var(--pw-text-xs); letter-spacing: 0.04em; background: var(--pw-surface-2); color: var(--pw-muted); padding: 1px 5px; font-weight: 800; }
 .tabOn .tabCount { background: var(--pw-accent-strong); color: #fff; }
 @media (max-width: 640px) { .tab { padding: 14px 12px 11px; font-size: 13px; } }
 

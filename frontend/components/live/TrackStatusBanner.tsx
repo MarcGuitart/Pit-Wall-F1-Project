@@ -32,7 +32,7 @@ export function TrackStatusBanner({
             <div className={`font-display font-black text-[20px] uppercase tracking-[1px] leading-none ${style.text}`}>
               {chequered ? 'Chequered flag' : style.label}
             </div>
-            <div className="font-mono text-[10px] text-text-muted mt-1 truncate">
+            <div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1 truncate">
               {chequered ? 'Session finished' : `Race control: “${status.source}”`}
             </div>
           </div>
@@ -41,10 +41,10 @@ export function TrackStatusBanner({
             <Stat label="Lap" value={raceDistance ? `${currentLap} / ${raceDistance}` : String(currentLap)} />
             {!raceDistance && (
               <div className="max-w-[240px]">
-                <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
+                <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted">
                   Race distance
                 </div>
-                <div className="font-mono text-[10px] text-text-secondary leading-snug">
+                <div className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-snug">
                   not published live — {raceDistanceSource}
                 </div>
               </div>
@@ -63,7 +63,7 @@ export function TrackStatusBanner({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
+      <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted">
         {label}
       </div>
       <div className="font-mono font-bold text-[16px] text-text-primary tabular-nums leading-tight">

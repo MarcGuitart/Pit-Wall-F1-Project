@@ -40,11 +40,11 @@ export function ChaosDensityMeter({ chaos }: Props) {
       title={chaos.final ? 'Chaos Index' : 'Chaos density'}
       right={
         chaos.final && chaos.level ? (
-          <span className="font-display font-bold text-[10px] uppercase tracking-[1px]" style={{ color }}>
+          <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px]" style={{ color }}>
             {chaos.level}
           </span>
         ) : (
-          <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-text-muted">
+          <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted">
             provisional
           </span>
         )
@@ -56,17 +56,17 @@ export function ChaosDensityMeter({ chaos }: Props) {
             <div className="font-display font-black text-[56px] leading-none tabular-nums" style={{ color }}>
               {chaos.score}
             </div>
-            <div className="font-display font-bold text-[9px] uppercase tracking-[2px] text-text-muted">
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[2px] text-text-muted">
               / 100
             </div>
           </div>
           <div className="mb-1.5 flex-1">
             {!chaos.final && (
-              <div className="inline-flex items-center px-1.5 py-0.5 mb-1.5 border border-signal-blue/40 bg-signal-blue/10 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] text-signal-blue">
+              <div className="inline-flex items-center px-1.5 py-0.5 mb-1.5 border border-signal-blue/40 bg-signal-blue/10 rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px] text-signal-blue">
                 No level until the flag
               </div>
             )}
-            <p className="font-mono text-[10px] text-text-secondary leading-relaxed">
+            <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-relaxed">
               Over {chaos.denominator_laps} lap{chaos.denominator_laps === 1 ? '' : 's'} run so far.
             </p>
           </div>
@@ -78,10 +78,10 @@ export function ChaosDensityMeter({ chaos }: Props) {
             return (
               <div key={row.component} title={row.note ?? undefined}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-text-muted">
+                  <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted">
                     {COMPONENT_LABEL[row.component] ?? row.component}
                   </span>
-                  <span className="font-mono text-[9px] text-text-secondary tabular-nums">
+                  <span className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary tabular-nums">
                     {row.points}/{row.weight}
                   </span>
                 </div>
@@ -98,7 +98,7 @@ export function ChaosDensityMeter({ chaos }: Props) {
 
         {chaos.peak_chaos_lap != null && (
           <div className="flex items-center justify-between px-3 py-2 mb-3 bg-bg-elevated border border-border-default rounded-[3px]">
-            <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">
+            <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted">
               Busiest lap so far
             </span>
             <span className="font-mono font-bold text-[14px] tabular-nums" style={{ color }}>
@@ -107,7 +107,7 @@ export function ChaosDensityMeter({ chaos }: Props) {
           </div>
         )}
 
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed">
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
           {chaos.caveat} Method {chaos.method_version}.
         </p>
       </div>
@@ -119,7 +119,7 @@ function Panel({ title, right, children }: { title: string; right?: React.ReactN
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           {title}
         </span>
         {right}

@@ -31,10 +31,10 @@ export function ConnectionBanner({
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-panel border border-border-subtle rounded-[3px]">
         <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
-        <span className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-signal-green">
+        <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-signal-green">
           Live
         </span>
-        <span className="font-mono text-[10px] text-text-muted">
+        <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
           {feed?.mode === 'replay' ? 'capture replay' : 'OpenF1 MQTT'}
           {generatedAt ? ` · updated ${generatedAt.slice(11, 19)}Z` : ''}
           {feed ? ` · ${feed.messages_total.toLocaleString()} messages` : ''}
@@ -52,10 +52,10 @@ export function ConnectionBanner({
     <div className={`flex items-start gap-3 px-3 py-2.5 border rounded-[3px] ${tone}`}>
       <span className={`mt-[3px] w-1.5 h-1.5 rounded-full shrink-0 ${red ? 'bg-signal-red' : 'bg-signal-amber'} animate-pulse`} />
       <div className="min-w-0 flex-1">
-        <div className="font-display font-bold text-[10px] uppercase tracking-[1.5px]">
+        <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px]">
           {red ? 'Connection lost' : 'Feed has gone quiet'}
         </div>
-        <p className="font-mono text-[10px] text-text-secondary leading-relaxed mt-0.5">
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-relaxed mt-0.5">
           {red ? (
             <>
               {error ?? 'This page is no longer receiving updates from the live server.'}{' '}
@@ -76,7 +76,7 @@ export function ConnectionBanner({
       {red && (
         <button
           onClick={onRetry}
-          className="shrink-0 px-2.5 py-1 bg-bg-elevated border border-border-default rounded-[3px] font-display font-bold text-[9px] uppercase tracking-[1px] text-text-secondary hover:text-text-primary transition-colors"
+          className="shrink-0 px-2.5 py-1 bg-bg-elevated border border-border-default rounded-[3px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-secondary hover:text-text-primary transition-colors"
         >
           Retry
         </button>

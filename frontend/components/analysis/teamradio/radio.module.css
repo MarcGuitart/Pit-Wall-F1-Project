@@ -4,7 +4,7 @@
 .mark { position: absolute; top: 0; bottom: 0; width: 12px; transform: translateX(-50%); background: transparent; border: 0; padding: 0; cursor: pointer; }
 .mark > span { display: block; width: 3px; height: 100%; margin: 0 auto; background: color-mix(in srgb, var(--pw-blue) 65%, transparent); }
 .mark:hover > span, .markOn > span { background: var(--pw-blue); }
-.mark > i { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; font-weight: 800; color: var(--pw-blue); }
+.mark > i { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: var(--pw-text-xs); font-weight: 800; color: var(--pw-blue); }
 .openHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .clips > * + * { border-top: 1px solid var(--pw-divider); }
 .clip { display: flex; align-items: center; gap: 10px; padding: 8px 0; }

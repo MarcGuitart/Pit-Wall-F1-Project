@@ -6,7 +6,7 @@
 .wave { display: flex; align-items: flex-end; gap: 2px; height: 48px; }
 .wave span { width: 3px; background: var(--pw-green); }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 2px solid var(--pw-divider); flex-wrap: wrap; }
-.avatar { width: 30px; height: 30px; display: grid; place-items: center; font-size: 10px; font-weight: 800; flex: none; border: 2px solid currentColor; }
+.avatar { width: 30px; height: 30px; display: grid; place-items: center; font-size: var(--pw-text-xs); font-weight: 800; flex: none; border: 2px solid currentColor; }
 .eng { color: var(--pw-green); }
 .you { color: var(--pw-accent-text); }
 .pills { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--pw-divider); background: var(--pw-surface); }

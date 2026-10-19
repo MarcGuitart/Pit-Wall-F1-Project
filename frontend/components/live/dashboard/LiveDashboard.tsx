@@ -558,7 +558,7 @@ function TrackMap({ dash, order, selected, onSelect }: { dash: Dash; order: Orde
               <path d={d} fill="none" stroke="color-mix(in srgb, var(--pw-text) 75%, transparent)" strokeWidth="1.5" strokeLinejoin="round" />
             </svg>
           )}
-          {sf && <div style={{ position: 'absolute', left: `${sf[0] / W * 100}%`, top: `${sf[1] / H * 100}%`, transform: 'translate(-50%,-50%)', fontSize: 10, fontWeight: 800, background: 'var(--pw-text)', color: 'var(--pw-bg)', padding: '1px 5px', letterSpacing: '0.06em' }}>S/F</div>}
+          {sf && <div style={{ position: 'absolute', left: `${sf[0] / W * 100}%`, top: `${sf[1] / H * 100}%`, transform: 'translate(-50%,-50%)', fontSize: 'var(--pw-text-xs)', fontWeight: 800, background: 'var(--pw-text)', color: 'var(--pw-bg)', padding: '1px 5px', letterSpacing: '0.06em' }}>S/F</div>}
           {proj && cars.map(c => {
             const [px, py] = proj(c.x as number, c.y as number)
             const p = posOf.get(c.driver_number) ?? 99
@@ -901,7 +901,7 @@ function TyreStrategy({ dash, order, currentLap }: { dash: Dash; order: OrderRow
                   return (
                     <div key={st.stint_number} title={`${c} · laps ${from}–${to}${st.tyre_age_at_start ? ` · ${st.tyre_age_at_start} laps old at fitting` : ''}`}
                       style={{ position: 'absolute', top: 0, bottom: 0, left: `${(from - 1) / max * 100}%`, width: `${Math.max(1, to - from + 1) / max * 100}%`,
-                        background: COMPOUND[c] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)', border: '2px solid var(--pw-bg)', fontSize: 10, fontWeight: 800,
+                        background: COMPOUND[c] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)', border: '2px solid var(--pw-bg)', fontSize: 'var(--pw-text-xs)', fontWeight: 800,
                         color: light ? '#05060a' : '#fff', display: 'flex', alignItems: 'center', paddingLeft: 5, whiteSpace: 'nowrap', overflow: 'hidden', boxSizing: 'border-box' }}>
                       {c[0]} {to - from + 1}
                     </div>

@@ -31,11 +31,11 @@ export function TrackEvolutionPanel({ degradationRows, notes, sessionType }: Pro
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           Track Evolution
         </span>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-text-muted">{sessionType}</span>
+          <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">{sessionType}</span>
           <MethodologyBadge module="degradation" />
         </div>
       </div>
@@ -44,7 +44,7 @@ export function TrackEvolutionPanel({ degradationRows, notes, sessionType }: Pro
         {/* Track gain estimate */}
         <div className="flex items-center gap-3">
           <div className="flex-1 bg-bg-elevated border border-border-default rounded-[3px] px-3 py-2">
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted mb-0.5">
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted mb-0.5">
               Track improvement
             </div>
             <div className="font-mono font-bold text-[14px] text-text-primary">
@@ -57,7 +57,7 @@ export function TrackEvolutionPanel({ degradationRows, notes, sessionType }: Pro
             </div>
           </div>
           <div className="flex-1 bg-bg-elevated border border-border-default rounded-[3px] px-3 py-2">
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted mb-0.5">
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted mb-0.5">
               Best time window
             </div>
             <div className="font-mono text-[11px] text-text-primary leading-tight">
@@ -69,24 +69,24 @@ export function TrackEvolutionPanel({ degradationRows, notes, sessionType }: Pro
         {/* Benefited / Compromised placeholders */}
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-bg-elevated border border-border-subtle rounded-[3px] px-2 py-1.5">
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-signal-green mb-1">
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-signal-green mb-1">
               Benefited
             </div>
-            <p className="font-mono text-[9px] text-text-muted">
+            <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
               Drivers who improved late in session
             </p>
-            <p className="font-mono text-[9px] text-text-muted italic mt-0.5">
+            <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted italic mt-0.5">
               Full analysis in next update
             </p>
           </div>
           <div className="bg-bg-elevated border border-border-subtle rounded-[3px] px-2 py-1.5">
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-signal-amber mb-1">
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-signal-amber mb-1">
               Compromised
             </div>
-            <p className="font-mono text-[9px] text-text-muted">
+            <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
               Traffic or early-run penalty
             </p>
-            <p className="font-mono text-[9px] text-text-muted italic mt-0.5">
+            <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted italic mt-0.5">
               Full analysis in next update
             </p>
           </div>

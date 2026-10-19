@@ -113,7 +113,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
       <div className="p-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-signal-amber" aria-hidden="true" />
-          <span className="font-display font-bold text-[9px] uppercase tracking-[2px] text-signal-amber">
+          <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[2px] text-signal-amber">
             Restricted — Pit Wall PRO
           </span>
         </div>
@@ -125,7 +125,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
         <p className="font-body text-[14px] text-text-secondary leading-relaxed mb-1">
           2023 and 2024 are free to read. {PRO_PRICE_LABEL}.
         </p>
-        <p className="font-mono text-[10px] text-text-muted mb-6">
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mb-6">
           Subscriptions are not open yet — €2.99/month is what it will cost.
         </p>
 
@@ -133,7 +133,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
           <div className="flex-1 min-w-[200px]">
             <label
               htmlFor="wall-code"
-              className="block font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted mb-1.5"
+              className="block font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted mb-1.5"
             >
               Access code
             </label>
@@ -156,7 +156,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
             type="submit"
             disabled={submitting || code.trim().length === 0}
             className="px-4 py-2 rounded-[3px] border border-signal-red bg-signal-red/10
-                       font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red
+                       font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-signal-red
                        hover:bg-signal-red/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? 'Checking…' : 'Unlock'}
@@ -167,7 +167,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
           id="wall-code-error"
           role="status"
           aria-live="polite"
-          className={`font-mono text-[10px] mb-5 ${error ? 'text-signal-red' : 'sr-only'}`}
+          className={`font-mono text-[length:var(--pw-text-xs)] mb-5 ${error ? 'text-signal-red' : 'sr-only'}`}
         >
           {error ?? ''}
         </p>

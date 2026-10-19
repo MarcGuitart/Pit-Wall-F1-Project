@@ -113,7 +113,7 @@
 /* ── race phase timeline ── */
 .phaseTrack { position: relative; height: 24px; background: var(--pw-surface); margin-bottom: 6px; }
 .phaseSeg { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--pw-bg); outline-offset: -2px; }
-.phaseLabel { color: var(--pw-text) !important; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; max-width: 90%; text-overflow: ellipsis; pointer-events: none; }
+.phaseLabel { color: var(--pw-text) !important; font-size: var(--pw-text-xs); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; max-width: 90%; text-overflow: ellipsis; pointer-events: none; }
 .phaseTip { position: absolute; bottom: calc(100% + 8px); z-index: 30; min-width: 170px; max-width: 260px; padding: 8px 10px; background: var(--pw-bg); border: 2px solid var(--pw-text); border-left-width: 4px; pointer-events: none; white-space: normal; }
 .phaseTipTitle { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 3px; }
 .phaseStart { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--pw-text); z-index: 5; pointer-events: none; }

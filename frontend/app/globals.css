@@ -4,6 +4,8 @@
 
 /* The palette as RGB channels — tailwind.config.ts reads these. */
 :root {
+  /* The smallest text on the site (Block 31, 18 Oct): labels, badges, counts. */
+  --pw-text-xs: 11px;
   --c-bg-primary: 5 6 10;
   --c-bg-secondary: 11 13 18;
   --c-bg-panel: 17 20 25;

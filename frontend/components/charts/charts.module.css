@@ -40,7 +40,7 @@
 }
 
 .badge {
-  font-size: 10px;
+  font-size: var(--pw-text-xs);
   font-weight: 800;
   letter-spacing: 0.08em;
   padding: 2px 7px;

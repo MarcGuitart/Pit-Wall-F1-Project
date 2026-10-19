@@ -23,7 +23,7 @@
 .navOff { opacity: 0.5; cursor: default; }
 .liveDot { width: 8px; height: 8px; background: var(--pw-accent); display: inline-block; animation: pvBlink 1.4s infinite; }
 @keyframes pvBlink { 50% { opacity: 0.2; } }
-.pro { font-size: 10px; letter-spacing: 0.08em; background: var(--pw-text); color: var(--pw-bg); padding: 2px 6px; font-weight: 800; }
+.pro { font-size: var(--pw-text-xs); letter-spacing: 0.08em; background: var(--pw-text); color: var(--pw-bg); padding: 2px 6px; font-weight: 800; }
 
 .raceGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px; background: var(--pw-divider); }
 .raceCell {

@@ -57,7 +57,7 @@ export function AddToCalendarButton({ event, compact = false, className = '', va
       onClick={handleClick}
       className={system ? `${ui.btn} ${className}` : `inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] border border-border-default
                   text-text-muted hover:text-signal-blue hover:border-signal-blue transition-colors
-                  font-mono text-[9px] uppercase tracking-[0.5px] ${className}`}
+                  font-mono text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px] ${className}`}
     >
       <svg width={system ? 12 : 10} height={system ? 12 : 10} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" />

@@ -83,7 +83,7 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
                   ['POS', 'w-[52px] text-center'], ['DRIVER', 'min-w-[170px]'], ['BEST LAP', 'w-[116px] text-right'],
                   ['GAP', 'w-[92px] text-right'], ['S1', 'w-[90px] text-right'], ['S2', 'w-[90px] text-right'],
                   ['S3', 'w-[90px] text-right'], ['IDEAL', 'w-[110px] text-right'], ['TYRE / STINT', 'w-[130px] text-right'],
-                ].map(([label, cls]) => <th key={label} className={`px-3 py-2 font-display font-bold text-[8px] uppercase tracking-[1.2px] text-text-muted ${cls}`}>{label}</th>)}
+                ].map(([label, cls]) => <th key={label} className={`px-3 py-2 font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.2px] text-text-muted ${cls}`}>{label}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle/70">
@@ -93,8 +93,8 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
           </table>
         </div>
         <div className="px-3 py-2 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
-          <p className="font-mono text-[9px] text-text-muted">Ideal is the sum of each driver’s personal best sector. Timing updates with every live snapshot.</p>
-          {focusedDriver && <button onClick={() => onFocus(null)} className="font-display font-bold text-[9px] uppercase tracking-[1px] text-signal-blue hover:text-text-primary">Clear {focusedDriver} focus ×</button>}
+          <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">Ideal is the sum of each driver’s personal best sector. Timing updates with every live snapshot.</p>
+          {focusedDriver && <button onClick={() => onFocus(null)} className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-signal-blue hover:text-text-primary">Clear {focusedDriver} focus ×</button>}
         </div>
       </section>
 
@@ -118,8 +118,8 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
 
       <details className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden group">
         <summary className="list-none cursor-pointer px-3 py-2 flex items-center justify-between gap-2 hover:bg-bg-elevated/50">
-          <span><span className="font-display font-bold text-[10px] uppercase tracking-[1.3px] text-text-secondary">Feed diagnostics</span><span className="font-mono text-[9px] text-text-muted ml-2">transport and topic counts</span></span>
-          <span className="font-mono text-[10px] text-text-muted group-open:rotate-180 transition-transform">⌄</span>
+          <span><span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.3px] text-text-secondary">Feed diagnostics</span><span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted ml-2">transport and topic counts</span></span>
+          <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted group-open:rotate-180 transition-transform">⌄</span>
         </summary>
         <div className="p-3 border-t border-border-subtle">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
@@ -131,7 +131,7 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {Object.entries(snapshot.feed.documents).map(([topic, count]) => <Diag key={topic} label={topic} value={count.toLocaleString()} />)}
           </div>
-          {snapshot.feed.gaps_observed.length > 0 && <p className="mt-3 font-mono text-[9px] text-text-muted">Observed gaps: {snapshot.feed.gaps_observed.slice(-5).map(gap => `${gap.seconds}s at L${gap.at_lap}`).join(' · ')}</p>}
+          {snapshot.feed.gaps_observed.length > 0 && <p className="mt-3 font-mono text-[length:var(--pw-text-xs)] text-text-muted">Observed gaps: {snapshot.feed.gaps_observed.slice(-5).map(gap => `${gap.seconds}s at L${gap.at_lap}`).join(' · ')}</p>}
         </div>
       </details>
     </div>
@@ -147,17 +147,17 @@ function SessionStatus({ snapshot, flagKey, flag }: { snapshot: LiveSnapshot; fl
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-display font-black text-[20px] uppercase tracking-[-0.4px] text-text-primary">{location}</span>
-            <span className="px-1.5 py-0.5 border border-border-default rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[1px] text-text-secondary">{sessionName}</span>
+            <span className="px-1.5 py-0.5 border border-border-default rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-secondary">{sessionName}</span>
           </div>
-          <div className="mt-1 font-mono text-[10px] text-text-muted">SESSION {snapshot.session_key ?? '—'} · updated {localTime(snapshot.generated_at)} local</div>
+          <div className="mt-1 font-mono text-[length:var(--pw-text-xs)] text-text-muted">SESSION {snapshot.session_key ?? '—'} · updated {localTime(snapshot.generated_at)} local</div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-[3px] ${flag.border} ${flag.surface}`}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: flag.accent }} />
-            <span className={`font-display font-bold text-[10px] uppercase tracking-[1px] ${flag.text}`}>{flag.label}</span>
+            <span className={`font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] ${flag.text}`}>{flag.label}</span>
           </span>
-          {snapshot.feed.stale && <span className="px-2 py-1 border border-signal-amber/40 bg-signal-amber/10 rounded-[3px] font-display font-bold text-[9px] uppercase text-signal-amber">Stale feed</span>}
-          {snapshot.chequered && <span className="px-2 py-1 border border-border-default rounded-[3px] font-display font-bold text-[9px] uppercase text-text-primary">Chequered</span>}
+          {snapshot.feed.stale && <span className="px-2 py-1 border border-signal-amber/40 bg-signal-amber/10 rounded-[3px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase text-signal-amber">Stale feed</span>}
+          {snapshot.chequered && <span className="px-2 py-1 border border-border-default rounded-[3px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase text-text-primary">Chequered</span>}
         </div>
       </div>
       <div className="h-[2px] w-full" style={{ backgroundColor: flag.accent, opacity: 0.75 }} />
@@ -178,14 +178,14 @@ function LeaderCard({ row, flag }: { row: PracticeTowerRow | null; flag: typeof 
       <div className="p-4 pl-5 h-full flex flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted">Session fastest</div>
+            <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.5px] text-text-muted">Session fastest</div>
             {row ? <div className="font-display font-black text-[26px] uppercase text-text-primary leading-none mt-1">{row.code}<span className="ml-2 font-mono font-normal text-[11px] text-text-muted">P{row.position}</span></div> : <div className="font-display font-bold text-[16px] text-text-muted mt-2">Awaiting first lap</div>}
           </div>
-          {row && <span className="px-1.5 py-0.5 border border-signal-purple/30 bg-signal-purple/10 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[1px] text-signal-purple">Lap {row.best_lap_number}</span>}
+          {row && <span className="px-1.5 py-0.5 border border-signal-purple/30 bg-signal-purple/10 rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-signal-purple">Lap {row.best_lap_number}</span>}
         </div>
         <div className="flex items-end justify-between gap-4">
           <div className="font-mono font-bold text-[30px] leading-none tracking-[-1px] tabular-nums text-text-primary">{row ? lapTime(row.best_lap_s) : '—:—.———'}</div>
-          {row && <div className="text-right"><div className="font-mono font-bold text-[12px] text-text-secondary">{row.clean_laps} clean laps</div><div className="font-mono text-[9px] text-text-muted mt-1">{row.team ?? row.compound ?? 'Session best'}</div></div>}
+          {row && <div className="text-right"><div className="font-mono font-bold text-[12px] text-text-secondary">{row.clean_laps} clean laps</div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1">{row.team ?? row.compound ?? 'Session best'}</div></div>}
         </div>
       </div>
     </section>
@@ -195,9 +195,9 @@ function LeaderCard({ row, flag }: { row: PracticeTowerRow | null; flag: typeof 
 function MetricCard({ label, value, unit, detail, accent }: { label: string; value: string; unit?: string; detail: string; accent?: 'amber' | 'blue' | 'green' }) {
   const color = accent === 'amber' ? 'text-signal-amber' : accent === 'blue' ? 'text-signal-blue' : accent === 'green' ? 'text-signal-green' : 'text-text-primary'
   return <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-3 py-3 flex flex-col justify-between min-h-[74px]">
-    <div className="font-display font-bold text-[8px] uppercase tracking-[1.2px] text-text-muted">{label}</div>
-    <div className={`font-mono font-bold text-[20px] leading-none tabular-nums ${color}`}>{value}<span className="text-[10px] ml-0.5 font-normal">{unit}</span></div>
-    <div className="font-mono text-[8px] text-text-muted truncate">{detail}</div>
+    <div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.2px] text-text-muted">{label}</div>
+    <div className={`font-mono font-bold text-[20px] leading-none tabular-nums ${color}`}>{value}<span className="text-[length:var(--pw-text-xs)] ml-0.5 font-normal">{unit}</span></div>
+    <div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted truncate">{detail}</div>
   </div>
 }
 
@@ -222,7 +222,7 @@ function BestLapChart({ markers }: { markers: NonNullable<LiveSnapshot['analysis
   const path = coords.map((coord, index) => `${index ? 'L' : 'M'} ${coord.x} ${coord.y}`).join(' ')
 
   return <div className="px-3 pt-2 pb-1">
-    <div className="flex items-center justify-between font-mono text-[8px] text-text-muted mb-1"><span>Lap time · seconds</span><span>Record progression · timestamps ordered by lap completion</span></div>
+    <div className="flex items-center justify-between font-mono text-[length:var(--pw-text-xs)] text-text-muted mb-1"><span>Lap time · seconds</span><span>Record progression · timestamps ordered by lap completion</span></div>
     <div className="w-full overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-[116px]" role="img" aria-label="Progression of session fastest lap times">
         {[0, 0.5, 1].map((fraction, index) => {
@@ -248,12 +248,12 @@ function TimingRow({ row, focused, onClick }: { row: PracticeTowerRow; focused: 
   const gap = row.gap_to_p1 == null ? '—' : row.gap_to_p1 === 0 ? '—' : `+${row.gap_to_p1.toFixed(3)}`
   return <tr onClick={onClick} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } }} tabIndex={0} role="button" aria-pressed={focused} className={`cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-bg-elevated ${focused ? 'bg-bg-elevated' : 'hover:bg-bg-elevated/50'}`}>
     <td className="px-3 py-2.5 text-center"><span className={`font-mono font-bold text-[12px] tabular-nums ${row.position === 1 ? 'text-signal-amber' : 'text-text-muted'}`}>{String(row.position).padStart(2, '0')}</span></td>
-    <td className="px-3 py-2.5"><div className="flex items-center gap-2.5 min-w-0"><span className="w-[3px] h-8 rounded-full shrink-0" style={{ backgroundColor: team }} /><div className="min-w-0"><div className="font-display font-black text-[13px] uppercase tracking-[0.4px] text-text-primary">{row.code}<span className="font-normal text-[9px] ml-2 text-text-muted">{row.team ?? ''}</span></div><div className="font-mono text-[8px] text-text-muted mt-0.5">L{row.best_lap_number} · {row.laps} laps · {row.clean_laps} clean</div></div></div></td>
+    <td className="px-3 py-2.5"><div className="flex items-center gap-2.5 min-w-0"><span className="w-[3px] h-8 rounded-full shrink-0" style={{ backgroundColor: team }} /><div className="min-w-0"><div className="font-display font-black text-[13px] uppercase tracking-[0.4px] text-text-primary">{row.code}<span className="font-normal text-[length:var(--pw-text-xs)] ml-2 text-text-muted">{row.team ?? ''}</span></div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-0.5">L{row.best_lap_number} · {row.laps} laps · {row.clean_laps} clean</div></div></div></td>
     <td className="px-3 py-2.5 text-right"><span className="font-mono font-bold text-[12px] tabular-nums text-text-primary">{lapTime(row.best_lap_s)}</span></td>
-    <td className={`px-3 py-2.5 text-right font-mono text-[10px] tabular-nums ${row.position === 1 ? 'text-text-muted' : 'text-text-secondary'}`}>{gap}</td>
+    <td className={`px-3 py-2.5 text-right font-mono text-[length:var(--pw-text-xs)] tabular-nums ${row.position === 1 ? 'text-text-muted' : 'text-text-secondary'}`}>{gap}</td>
     {(['sector1', 'sector2', 'sector3'] as const).map((sector, index) => <td key={sector} className="px-3 py-2.5 text-right"><SectorValue row={row} sector={sector} segmentKey={`seg${index + 1}` as 'seg1' | 'seg2' | 'seg3'} /></td>)}
-    <td className="px-3 py-2.5 text-right"><span className="font-mono font-bold text-[10px] tabular-nums text-text-secondary">{lapTime(row.ideal_lap?.total)}</span>{row.ideal_lap && row.best_lap_s - row.ideal_lap.total > 0.001 && <span className="block font-mono text-[8px] text-text-muted">+{(row.best_lap_s - row.ideal_lap.total).toFixed(3)}</span>}</td>
-    <td className="px-3 py-2.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><TyreDot compound={row.compound} /><span className="font-mono text-[9px] text-text-secondary">{row.compound ?? '—'}{row.tyre_age != null ? ` · ${row.tyre_age}L` : ''}</span></span></td>
+    <td className="px-3 py-2.5 text-right"><span className="font-mono font-bold text-[length:var(--pw-text-xs)] tabular-nums text-text-secondary">{lapTime(row.ideal_lap?.total)}</span>{row.ideal_lap && row.best_lap_s - row.ideal_lap.total > 0.001 && <span className="block font-mono text-[length:var(--pw-text-xs)] text-text-muted">+{(row.best_lap_s - row.ideal_lap.total).toFixed(3)}</span>}</td>
+    <td className="px-3 py-2.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><TyreDot compound={row.compound} /><span className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{row.compound ?? '—'}{row.tyre_age != null ? ` · ${row.tyre_age}L` : ''}</span></span></td>
   </tr>
 }
 
@@ -261,7 +261,7 @@ function SectorValue({ row, sector, segmentKey }: { row: PracticeTowerRow; secto
   const result = row.sectors[sector]
   const segments = row.segments?.[segmentKey] ?? []
   return <div className="inline-flex flex-col items-end" title={`Mini-sector codes: ${segments.join(', ') || 'not available'}`}>
-    <span className={`font-mono text-[10px] tabular-nums ${SECTOR_TEXT[result.colour ?? ''] ?? 'text-text-muted'}`}>{result.time == null ? '—.———' : result.time.toFixed(3)}</span>
+    <span className={`font-mono text-[length:var(--pw-text-xs)] tabular-nums ${SECTOR_TEXT[result.colour ?? ''] ?? 'text-text-muted'}`}>{result.time == null ? '—.———' : result.time.toFixed(3)}</span>
     <span className="mt-1 inline-flex gap-px">{segments.slice(0, 20).map((code, index) => <i key={index} className="w-[3px] h-[3px]" style={{ backgroundColor: segmentColor(code) }} />)}</span>
   </div>
 }
@@ -275,8 +275,8 @@ function DriverDetail({ row }: { row: PracticeTowerRow }) {
       <InlineMetric label="Ideal lap" value={lapTime(row.ideal_lap?.total)} />
     </div>
     <div className="px-3 py-2.5 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
-      <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">Speed traps · km/h</span>
-      <div className="flex gap-5 font-mono text-[10px] text-text-secondary">{[
+      <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted">Speed traps · km/h</span>
+      <div className="flex gap-5 font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{[
         ['Intermediate 1', row.speed_traps?.i1_speed], ['Intermediate 2', row.speed_traps?.i2_speed], ['Finish line', row.speed_traps?.st_speed],
       ].map(([label, value]) => <span key={String(label)}>{label} <b className="text-text-primary">{value == null ? '—' : value}</b></span>)}</div>
     </div>
@@ -288,10 +288,10 @@ function CleanPacePanel({ rows, focusedDriver }: { rows: NonNullable<LiveSnapsho
   return <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
     <SectionHeader title="Clean lap pace" eyebrow="Median of representative laps" aside={`${rows.length} drivers`} />
     {visible.length ? <div className="divide-y divide-border-subtle/70">{visible.map((row, index) => <div key={row.driver_number} className="px-3 py-2 grid grid-cols-[32px_minmax(0,1fr)_88px_88px_54px] gap-2 items-center">
-      <span className="font-mono text-[9px] text-text-muted">{String(index + 1).padStart(2, '0')}</span>
-      <span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[8px] text-text-muted">n={row.sample_size}</span></span>
-      <span className="text-right font-mono font-bold text-[10px] text-text-primary">{lapTime(row.median_clean_lap_s)}</span>
-      <span className="text-right font-mono text-[9px] text-text-muted">best {lapTime(row.fastest_clean_lap_s)}</span>
+      <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">{String(index + 1).padStart(2, '0')}</span>
+      <span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[length:var(--pw-text-xs)] text-text-muted">n={row.sample_size}</span></span>
+      <span className="text-right font-mono font-bold text-[length:var(--pw-text-xs)] text-text-primary">{lapTime(row.median_clean_lap_s)}</span>
+      <span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-muted">best {lapTime(row.fastest_clean_lap_s)}</span>
       <span className="text-right"><ConfidenceChip confidence={row.confidence} /></span>
     </div>)}</div> : <EmptyState title={focusedDriver ? `No clean pace for ${focusedDriver} yet` : 'Clean pace is not available yet'} detail="The feed needs representative completed laps before this comparison is meaningful." />}
     <PanelFoot>Out-laps, in-laps, neutralised laps and statistical outliers are excluded.</PanelFoot>
@@ -310,7 +310,7 @@ function LongRunPanel({ rows, focusedDriver }: { rows: LongRunRow[]; focusedDriv
 function LongRunRowView({ run }: { run: LongRunRow }) {
   return <div className="px-3 py-2.5 grid grid-cols-[52px_minmax(0,1fr)_auto] gap-3 items-center">
     <span className="font-display font-black text-[12px] text-text-primary">{run.code}</span>
-    <div className="min-w-0"><div className="flex items-center gap-2"><TyreDot compound={run.compound} /><span className="font-display font-bold text-[9px] uppercase text-text-secondary">{run.compound ?? 'Unknown compound'}</span><span className="font-mono text-[9px] text-text-muted">L{run.lap_start}–{run.lap_end} · {run.laps} laps</span></div><div className="mt-1.5 h-[3px] w-full bg-bg-elevated rounded-full overflow-hidden"><div className="h-full bg-signal-blue/70" style={{ width: `${Math.min(run.laps / 20 * 100, 100)}%` }} /></div></div>
+    <div className="min-w-0"><div className="flex items-center gap-2"><TyreDot compound={run.compound} /><span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase text-text-secondary">{run.compound ?? 'Unknown compound'}</span><span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">L{run.lap_start}–{run.lap_end} · {run.laps} laps</span></div><div className="mt-1.5 h-[3px] w-full bg-bg-elevated rounded-full overflow-hidden"><div className="h-full bg-signal-blue/70" style={{ width: `${Math.min(run.laps / 20 * 100, 100)}%` }} /></div></div>
     <div className="text-right"><div className="font-mono font-bold text-[11px] text-text-primary">{lapTime(run.median_s)}</div><div className="mt-1"><ConfidenceChip confidence={run.confidence} /></div></div>
   </div>
 }
@@ -346,7 +346,7 @@ function RaceControlPanel({ notes, status, inputCount }: { notes: LiveNote[]; st
     <SectionHeader title="Race control" eyebrow="Official messages" aside={`${inputCount} received`} />
     {shown.length ? <div className="divide-y divide-border-subtle/70">{shown.map(note => <div key={note.id} className="px-3 py-2.5 flex gap-2.5">
       <span className={`mt-1 w-1 h-6 rounded-full shrink-0 ${note.severity === 'High' ? 'bg-signal-red' : note.severity === 'Medium' ? 'bg-signal-amber' : 'bg-border-default'}`} />
-      <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className="font-display font-bold text-[10px] text-text-primary">{note.title}</span><ConfidenceChip confidence={note.confidence} /></div><p className="font-mono text-[9px] text-text-secondary leading-relaxed mt-0.5">{note.message}</p></div>
+      <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className="font-display font-bold text-[length:var(--pw-text-xs)] text-text-primary">{note.title}</span><ConfidenceChip confidence={note.confidence} /></div><p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-relaxed mt-0.5">{note.message}</p></div>
     </div>)}</div> : <EmptyState title="No new race-control messages" detail={status?.source ?? 'The session is running without a published control message.'} />}
   </section>
 }
@@ -356,7 +356,7 @@ function TrackOrderPanel({ snapshot, focusedDriver, onFocus }: { snapshot: LiveS
   return <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
     <SectionHeader title="Order on track" eyebrow="Physical position · not pace ranking" aside={`${snapshot.tower.length} cars`} />
     {rows.length ? <div className="divide-y divide-border-subtle/70">{rows.map(row => <button key={row.driver_number} onClick={() => onFocus(row.code === focusedDriver ? null : row.code)} className={`w-full px-3 py-2 text-left grid grid-cols-[32px_4px_minmax(0,1fr)_88px_84px] items-center gap-2 hover:bg-bg-elevated/50 ${focusedDriver === row.code ? 'bg-bg-elevated' : ''}`}>
-      <span className="font-mono text-[10px] text-text-muted">P{row.position}</span><span className="h-5 rounded-full" style={{ backgroundColor: row.colour ? `#${row.colour}` : '#4A5568' }} /><span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[8px] text-text-muted">{row.gap_to_leader == null ? '' : typeof row.gap_to_leader === 'number' ? `+${row.gap_to_leader.toFixed(1)}` : row.gap_to_leader}</span></span><span className="text-right font-mono text-[9px] text-text-secondary">{lapTime(row.last_lap_s)}</span><span className="text-right font-mono text-[9px] text-text-muted">{row.compound ?? '—'} {row.stint_laps == null ? '' : `${row.stint_laps}L`}</span>
+      <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">P{row.position}</span><span className="h-5 rounded-full" style={{ backgroundColor: row.colour ? `#${row.colour}` : '#4A5568' }} /><span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[length:var(--pw-text-xs)] text-text-muted">{row.gap_to_leader == null ? '' : typeof row.gap_to_leader === 'number' ? `+${row.gap_to_leader.toFixed(1)}` : row.gap_to_leader}</span></span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{lapTime(row.last_lap_s)}</span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-muted">{row.compound ?? '—'} {row.stint_laps == null ? '' : `${row.stint_laps}L`}</span>
     </button>)}</div> : <EmptyState title="Track order unavailable" detail="No position messages have arrived yet." />}
     <PanelFoot>OpenF1 position is circuit order at the latest position update.</PanelFoot>
   </section>
@@ -364,15 +364,15 @@ function TrackOrderPanel({ snapshot, focusedDriver, onFocus }: { snapshot: LiveS
 
 function EventRow({ kind, time, title, detail }: { kind: string; time: string; title: string; detail: string }) {
   const color = kind === 'RED' ? 'bg-signal-red' : kind === 'GREEN' ? 'bg-signal-green' : kind === 'BEST' ? 'bg-signal-purple' : 'bg-signal-amber'
-  return <div className="px-3 py-2.5 flex gap-2.5 items-start"><span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${color}`} /><div className="min-w-0 flex-1"><div className="flex gap-2 justify-between"><span className="font-display font-bold text-[10px] text-text-primary">{title}</span><span className="font-mono text-[8px] text-text-muted shrink-0">{time}</span></div><div className="font-mono text-[8px] text-text-muted mt-0.5">{detail}</div></div></div>
+  return <div className="px-3 py-2.5 flex gap-2.5 items-start"><span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${color}`} /><div className="min-w-0 flex-1"><div className="flex gap-2 justify-between"><span className="font-display font-bold text-[length:var(--pw-text-xs)] text-text-primary">{title}</span><span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted shrink-0">{time}</span></div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-0.5">{detail}</div></div></div>
 }
 
 function InlineMetric({ label, value, valueClass = 'text-text-primary' }: { label: string; value: string; valueClass?: string }) {
-  return <div className="px-3 py-2.5"><div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">{label}</div><div className={`font-mono font-bold text-[12px] tabular-nums mt-1 ${valueClass}`}>{value}</div></div>
+  return <div className="px-3 py-2.5"><div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted">{label}</div><div className={`font-mono font-bold text-[12px] tabular-nums mt-1 ${valueClass}`}>{value}</div></div>
 }
 
 function Diag({ label, value }: { label: string; value: string }) {
-  return <div className="px-2.5 py-2 bg-bg-elevated/50 border border-border-subtle rounded-[3px] min-w-0"><div className="font-display text-[7px] uppercase tracking-[1px] text-text-muted truncate">{label}</div><div className="font-mono text-[9px] text-text-secondary mt-1 truncate">{value}</div></div>
+  return <div className="px-2.5 py-2 bg-bg-elevated/50 border border-border-subtle rounded-[3px] min-w-0"><div className="font-display text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted truncate">{label}</div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary mt-1 truncate">{value}</div></div>
 }
 
 function TyreDot({ compound }: { compound: string | null }) {
@@ -381,15 +381,15 @@ function TyreDot({ compound }: { compound: string | null }) {
 }
 
 function SectionHeader({ title, eyebrow, aside }: { title: string; eyebrow?: string; aside?: string }) {
-  return <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between gap-3"><div className="flex items-baseline gap-2 min-w-0"><span className="font-display font-bold text-[10px] uppercase tracking-[1.3px] text-text-secondary">{title}</span>{eyebrow && <span className="font-mono text-[8px] text-text-muted truncate">{eyebrow}</span>}</div>{aside && <span className="font-mono text-[8px] text-text-muted text-right shrink-0">{aside}</span>}</div>
+  return <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between gap-3"><div className="flex items-baseline gap-2 min-w-0"><span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.3px] text-text-secondary">{title}</span>{eyebrow && <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted truncate">{eyebrow}</span>}</div>{aside && <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted text-right shrink-0">{aside}</span>}</div>
 }
 
 function PanelFoot({ children }: { children: ReactNode }) {
-  return <div className="px-3 py-2 border-t border-border-subtle font-mono text-[8px] leading-relaxed text-text-muted">{children}</div>
+  return <div className="px-3 py-2 border-t border-border-subtle font-mono text-[length:var(--pw-text-xs)] leading-relaxed text-text-muted">{children}</div>
 }
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
-  return <div className="px-4 py-6 text-center"><div className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-secondary">{title}</div><div className="font-mono text-[9px] text-text-muted mt-1.5">{detail}</div></div>
+  return <div className="px-4 py-6 text-center"><div className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-secondary">{title}</div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1.5">{detail}</div></div>
 }
 
 function trendLabel(trend: string | null | undefined) {

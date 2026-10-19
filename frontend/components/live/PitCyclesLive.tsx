@@ -23,10 +23,10 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           Pit cycles
         </span>
-        <span className="font-mono text-[10px] text-text-muted">
+        <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
           read {settleLaps} laps after the last stop
         </span>
       </div>
@@ -47,7 +47,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
                   </span>
                   <span
                     className={[
-                      'px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px]',
+                      'px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px]',
                       open
                         ? 'text-signal-blue border-signal-blue/40 bg-signal-blue/10'
                         : 'text-text-secondary border-border-default bg-bg-elevated',
@@ -56,16 +56,16 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
                     {open ? `settles on L${cycle.closes_on_lap}` : 'read'}
                   </span>
                   {cycle.neutralised && (
-                    <span className="px-1.5 py-0.5 border border-signal-amber/40 bg-signal-amber/10 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] text-signal-amber">
+                    <span className="px-1.5 py-0.5 border border-signal-amber/40 bg-signal-amber/10 rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px] text-signal-amber">
                       under SC/VSC
                     </span>
                   )}
-                  <span className="font-mono text-[9px] text-text-muted ml-auto">
+                  <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted ml-auto">
                     {cycle.stops} stop{cycle.stops === 1 ? '' : 's'}
                   </span>
                 </div>
 
-                <p className="font-mono text-[10px] text-text-secondary leading-relaxed">
+                <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-relaxed">
                   {cycle.summary}
                 </p>
 
@@ -74,7 +74,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
                     {cycle.participants.map((p) => (
                       <span
                         key={p.driver_number}
-                        className="px-1.5 py-0.5 bg-bg-elevated border border-border-subtle rounded-[2px] font-mono text-[9px] text-text-secondary"
+                        className="px-1.5 py-0.5 bg-bg-elevated border border-border-subtle rounded-[2px] font-mono text-[length:var(--pw-text-xs)] text-text-secondary"
                       >
                         {p.driver_code} L{p.stop_laps.join(', L')}
                       </span>
@@ -86,7 +86,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
                       {cycle.undercuts.map((u, i) => (
                         <span
                           key={i}
-                          className="px-1.5 py-0.5 border border-signal-purple/40 bg-signal-purple/10 rounded-[2px] font-mono text-[9px] text-signal-purple"
+                          className="px-1.5 py-0.5 border border-signal-purple/40 bg-signal-purple/10 rounded-[2px] font-mono text-[length:var(--pw-text-xs)] text-signal-purple"
                         >
                           {u.attacker} undercut {u.target}
                         </span>
@@ -101,7 +101,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
       )}
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed">
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
           Currently on lap {currentLap}. An open cycle shows its stops but no gains or losses —
           positions are still moving and any delta published now would change.
         </p>

@@ -14,7 +14,7 @@ export function ConfidenceChip({ confidence, size = 'xs' }: ConfidenceChipProps)
     <span
       className={[
         'inline-flex items-center border rounded-[2px] font-display font-bold uppercase select-none',
-        size === 'xs' ? 'px-[5px] py-[1px] text-[8px] tracking-[0.5px]' : 'px-2 py-0.5 text-[9px] tracking-[0.8px]',
+        size === 'xs' ? 'px-[5px] py-[1px] text-[length:var(--pw-text-xs)] tracking-[0.5px]' : 'px-2 py-0.5 text-[length:var(--pw-text-xs)] tracking-[0.8px]',
         STYLES[confidence],
       ].join(' ')}
     >

@@ -31,7 +31,7 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
     <section className={s.section}>
       <div className={`${s.secHead} ${s.secHeadWide}`} style={{ alignItems: 'center' }}>
         <h6 className={s.h6}>{title}</h6>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', border: '2px solid var(--pw-accent)', color: 'var(--pw-accent-text)' }}>{final ? 'SESSION OVER · RESULT' : 'PROJECTION · NOT A RESULT'}</span>
+        <span style={{ fontSize: 'var(--pw-text-xs)', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', border: '2px solid var(--pw-accent)', color: 'var(--pw-accent-text)' }}>{final ? 'SESSION OVER · RESULT' : 'PROJECTION · NOT A RESULT'}</span>
         {p.confidence && <span className={s.sub}>{p.confidence} confidence</span>}
         <span className={s.secAside}>{p.simulations} simulations · re-run every frame</span>
       </div>
