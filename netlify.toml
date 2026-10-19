@@ -7,8 +7,12 @@
   # a production deploy, and a production deploy is 15 of the free plan's 300
   # monthly credits (docs/DEPLOY.md).
   #
-  # Netlify runs this with Bash from the base directory, so the pathspecs are
-  # relative to frontend/: "." is the site, "../netlify.toml" is this file.
+  # Netlify runs this with Bash from the base directory, so "." is frontend/.
+  # This file is deliberately not in the pathspec: CACHED_COMMIT_REF is the last
+  # commit Netlify *built*, so a netlify.toml change merged with [skip netlify]
+  # (or otherwise not built) would make the next backend-only push build. A
+  # change to this file alone takes effect with the next site build, or at once
+  # with "Clear cache and deploy site" (CACHED_COMMIT_REF = COMMIT_REF builds).
   # Exit 0 skips the build, anything else builds:
   #   - no CACHED_COMMIT_REF, or equal to COMMIT_REF (a build without cache,
   #     e.g. "Clear cache and deploy"): the first test fails -> exit 1 -> build.
@@ -16,7 +20,7 @@
   #   - git diff: 0 = nothing changed under those paths -> skip; 1 = changed ->
   #     build; 128 = the old commit is not in the clone -> build. Every doubt
   #     builds; only a provably unrelated commit is skipped.
-  ignore = '[ -n "$CACHED_COMMIT_REF" ] && [ "$CACHED_COMMIT_REF" != "$COMMIT_REF" ] && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- . ../netlify.toml'
+  ignore = '[ -n "$CACHED_COMMIT_REF" ] && [ "$CACHED_COMMIT_REF" != "$COMMIT_REF" ] && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- .'
 
 [build.environment]
   NEXT_PUBLIC_LIVE_URL = "https://pit-wall-f1-project-live.onrender.com"

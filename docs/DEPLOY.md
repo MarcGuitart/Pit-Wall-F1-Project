@@ -35,13 +35,26 @@ deploying the fix in the next batch, not by deploying twice in an hour.
 
 ### What spends a deploy
 
-- **A push to `main` that changes `frontend/` or `netlify.toml`.** Anything
-  else is skipped by the `ignore` command in `netlify.toml`, which matters
+- **A push to `main` that changes `frontend/`** since the last commit Netlify
+  built. Anything else is skipped by the `ignore` command in `netlify.toml`,
+  which matters
   because the publication Action (`.github/workflows/publish-race.yml`) commits
   `backend/cache/` to `main` every hour. Those commits redeploy the analysis API
   on Render, which is what publishes a race, and no longer touch Netlify.
 - A push builds its last commit, so ten commits merged in one push are one
   deploy. Ten pushes are ten.
+- The comparison is with the last commit Netlify **built**
+  (`CACHED_COMMIT_REF`, "the last commit that we built before the current
+  build"), not the last one it looked at. A frontend change that was skipped
+  (`[skip netlify]`, or never built) is still pending, and the next push that
+  is not skipped builds it, whatever that push touches. On 18 October the last
+  production build is `7f776a6`; `1f6d73b` (frontend) was refused for credits,
+  so the first push to `main` that Netlify processes will build.
+- `netlify.toml` itself is not in the `ignore` pathspec. **A push that only
+  changes `netlify.toml` does not trigger a build**: it shows in the Deploys
+  list as a canceled build, and that is intended, not a fault. The change
+  takes effect with the next site build; to apply it at once use **Deploys →
+  Trigger deploy → Clear cache and deploy site** (15 credits).
 - Netlify's docs do not say whether a build skipped by `ignore` costs credits.
   It ends without deploying, and only successful deploys are charged, so it
   should cost 0. Confirm it once in *Account usage insights* (below) after the
