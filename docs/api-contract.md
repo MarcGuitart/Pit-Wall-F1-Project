@@ -35,6 +35,15 @@ and (since Block 26d, additive) `location`, `is_cancelled`.
   `is_cancelled: false` and the exclusion file still applied.
 - Clients that ignore the two fields keep working unchanged.
 
+### GET /live/state (live server, not the API)
+Public, no token (Block 29) — the landing's live card. `{"state": "live" |
+"no_session", "session_key": int | null}` and nothing else: no times,
+positions, drivers or counts. `live` = messages for the session arrived in the
+last 180 s and its chequered flag has not fallen. "Under an hour" is the page's
+own reading of the calendar. **Not to be merged before Monday 26 October**:
+it lives in `scripts/live_server.py`, and a change there redeploys the live
+server.
+
 ### GET /stats
 Public (no PRO), counts only (Block 29) — the landing's proof strip. Read from
 the cached `_analysis.json` files with `analysis_version == ANALYSIS_VERSION`
