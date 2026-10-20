@@ -33,7 +33,7 @@ function WindowCard({ window: cw }: { window: CrossoverWindow }) {
       {/* ⚠ Concurrent SC warning — ALWAYS visible when true */}
       {cw.concurrent_sc && (
         <div className={a.warnNote} role="note">
-          <span aria-hidden="true">⚠</span>
+          <span aria-hidden="true">!</span>
           <span>Concurrent SC: attribution mixed. Position gains may reflect SC timing, not tyre choice alone.</span>
         </div>
       )}

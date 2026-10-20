@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { ErrorCode } from '@/lib/errors'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
 import { buttonClass, ui } from '@/components/ui'
 import st from './states.module.css'
@@ -34,22 +33,22 @@ const CONFIG: Record<
   },
   OPENF1_RATE_LIMIT: {
     accentColor: 'var(--pw-amber)',
-    icon: '⏸',
+    icon: '‖',
     title: 'OPENF1 RATE LIMIT',
   },
   OPENF1_ERROR: {
     accentColor: 'var(--pw-accent)',
-    icon: '⚠',
+    icon: '!',
     title: 'DATA UNAVAILABLE',
   },
   ANALYSIS_FAILED: {
     accentColor: 'var(--pw-accent)',
-    icon: '⚠',
+    icon: '!',
     title: 'ANALYSIS INCOMPLETE',
   },
   UNKNOWN: {
     accentColor: 'var(--pw-accent)',
-    icon: '⚠',
+    icon: '!',
     title: 'ERROR',
   },
 }
@@ -127,11 +126,6 @@ export function SessionUnavailableState({
               It is live now · open the pit wall
             </Link>
           )}
-          <NotifyButton
-            label="Notify me when the analysis is ready"
-            watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `Session ${sessionKey}`, sessionKey, readyAt: unlockAtUtc ?? null }}
-            className={buttonClass('ink')}
-          />
         </div>
       )}
 

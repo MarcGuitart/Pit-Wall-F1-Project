@@ -45,7 +45,7 @@ const SEASON_YEARS = seasonYears()
 function yearOptions(pro: boolean) {
   return SEASON_YEARS.map((y) => ({
     value: String(y),
-    label: !pro && isProSeason(y) ? `${y} 🔒` : String(y),
+    label: !pro && isProSeason(y) ? `${y} · PRO` : String(y),
   }))
 }
 

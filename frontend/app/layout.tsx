@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
-import { NotifyWatcher } from '@/components/notify/NotifyWatcher'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
 
 const barlowCondensed = Barlow_Condensed({
@@ -56,7 +55,6 @@ export default function RootLayout({
         className={`${barlowCondensed.variable} ${barlow.variable} ${jetbrainsMono.variable} font-body antialiased bg-bg-primary text-text-primary`}
       >
         <AccessBootstrap />
-        <NotifyWatcher />
         {children}
       </body>
     </html>

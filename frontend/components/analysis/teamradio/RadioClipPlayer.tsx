@@ -105,7 +105,7 @@ export function RadioClipPlayer({ clip, showDriver = false, compact = false }: P
         aria-label={unavailable ? 'Recording unavailable' : state === 'playing' ? 'Pause' : 'Play'}
         className={`${rc.playBtn} ${unavailable ? rc.playDead : ''} ${state === 'playing' ? rc.playOn : ''}`}
       >
-        {unavailable ? '✕' : state === 'loading' ? '…' : state === 'playing' ? '❚❚' : '▶'}
+        {unavailable ? '✕' : state === 'loading' ? '…' : state === 'playing' ? '❚❚' : '►'}
       </button>
       <span className={ui.label} style={{ width: 40, flex: 'none' }}>{label}</span>
       {showDriver && <b style={{ width: 36, flex: 'none', fontSize: 13 }}>{clip.driver_code}</b>}

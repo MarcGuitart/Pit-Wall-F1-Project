@@ -65,7 +65,7 @@ export function ReplayControls({
     <div className={t.player}>
       {/* Play / Pause */}
       <button type="button" onClick={onPlayPause} className={t.play} aria-label={playing ? 'Pause' : 'Play'}>
-        {playing ? '⏸' : '▶'}
+        {playing ? '‖' : '►'}
       </button>
 
       {/* Scrub track */}

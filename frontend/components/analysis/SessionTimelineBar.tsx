@@ -70,7 +70,7 @@ type TooltipCardProps = {
 }
 
 function TooltipCard({ type, lap, color, label, detail }: TooltipCardProps) {
-  const icon = type === 'sc' || type === 'vsc' ? '⚠' : type === 'pit' ? '■' : '↑'
+  const icon = type === 'sc' || type === 'vsc' ? '!' : type === 'pit' ? '■' : '↑'
   return (
     <div className={a.markTip} style={{ borderLeftColor: color }}>
       <div className={a.row} style={{ gap: 6 }}>

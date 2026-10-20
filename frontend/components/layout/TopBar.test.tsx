@@ -203,10 +203,12 @@ describe('the next-session popover', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('"Add to calendar" downloads an .ics for that session', async () => {
+  it('"Add to calendar" offers Google Calendar and an .ics for that session', async () => {
     const download = vi.spyOn(ics, 'downloadIcs').mockImplementation(() => undefined)
     await openIt()
     fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
+    expect(screen.getByRole('link', { name: 'Google Calendar' }).getAttribute('href')).toContain('dates=20261023T173000Z')
+    fireEvent.click(screen.getByRole('button', { name: 'Apple or Outlook (.ics)' }))
     expect(download).toHaveBeenCalledTimes(1)
     const [filename, body] = download.mock.calls[0]
     expect(filename).toMatch(/\.ics$/)

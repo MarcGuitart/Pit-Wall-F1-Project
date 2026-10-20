@@ -27,7 +27,7 @@ const fill = (token: string) => token === 'muted' ? 'var(--pw-surface-2)' : `col
 const PHASE_ABBREV: Record<string, string> = {
   'Safety Car Reset':      'SC Reset',
   'VSC Period':            'VSC',
-  'Weather Crossover':     'Weather ↗',
+  'Weather Crossover':     'Weather',
   'DRS Train Compression': 'DRS Train',
   'Pit Window':            'Pit Window',
   'Final Push':            'Final Push',

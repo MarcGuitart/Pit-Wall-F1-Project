@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { fetchLivePublicState } from '@/lib/liveStatus'
 import { useIsland } from '@/lib/island'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { buttonClass } from '@/components/ui'
 import { loadNextSession, sessionIcs, useClientNow } from './NextSessionCard'
 import h from './home.module.css'
@@ -81,10 +80,6 @@ function LiveCard() {
         {upcoming && (
           <div className={h.ctas}>
             {upcoming.dateEnd && <AddToCalendarButton variant="system" event={sessionIcs(upcoming)} />}
-            <NotifyButton
-              watch={{ kind: 'live', id: `live-${upcoming.dateStart}`, label: `${upcoming.place} ${upcoming.sessionName}`, startsAt: upcoming.dateStart }}
-              className={buttonClass('ink')}
-            />
           </div>
         )}
       </>
@@ -105,8 +100,8 @@ export function LiveSection() {
         <span className={h.secNum}>02 · Live mode</span>
         <h2 id="live-title" className={h.secTitle}>Follow a session as it happens</h2>
         <p className={h.secLead}>
-          Live mode is part of PRO. Browser notifications only work while a Pit Wall Engineer tab is open; if you
-          close the tab, nothing is sent.
+          Live mode is part of PRO. To be there when the next session starts, add it to your calendar from the
+          card below.
         </p>
       </div>
       <div style={{ padding: '0 var(--pw-gutter) 32px' }}>

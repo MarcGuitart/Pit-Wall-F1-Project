@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAccessStore } from '@/stores/accessStore'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { Popover } from '@/components/ui'
@@ -113,10 +112,6 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                       }}
                     />
                   )}
-                  <NotifyButton
-                    watch={{ kind: 'live', id: `live-${nextLive.dateStart}`, label: `${nextLive.place} ${nextLive.sessionName}`, startsAt: nextLive.dateStart }}
-                    className={s.navLink}
-                  />
                 </div>
               )}
             </Popover>

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import s from './live.module.css'
 import { archivo } from '@/lib/fonts'
 import { usePwTheme } from '@/lib/pwTheme'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
 
@@ -44,25 +43,18 @@ export function NotLiveYet() {
           </div>
         )}
       </header>
-      {next && (
+      {next && next.dateEnd && (
         <section className={`${s.cells} ${s.ruled}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
           <div className={s.cell}>
-            <div className={s.label} style={{ marginBottom: 10 }}>Tell me when it starts</div>
-            <NotifyButton
-              watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.place} ${next.sessionName}`, startsAt: next.dateStart }}
-              className={s.btn}
-            />
-          </div>
-          <div className={s.cell}>
-            <div className={s.label} style={{ marginBottom: 10 }}>Or put it in your calendar</div>
+            <div className={s.label} style={{ marginBottom: 10 }}>Put it in your calendar</div>
             <AddToCalendarButton event={{
               uid: `pitwall-${next.dateStart}@pitwallengineer.com`,
               summary: `${next.place} · ${next.sessionName}`,
               description: 'Live on the pit wall: https://pitwallengineer.com',
               location: next.circuitShortName ?? undefined,
               dateStart: next.dateStart,
-              dateEnd: next.dateEnd ?? new Date(new Date(next.dateStart).getTime() + 3600_000).toISOString(),
-            }} />
+              dateEnd: next.dateEnd!,
+            }} sessionKey={next.sessionKey ?? undefined} />
           </div>
         </section>
       )}

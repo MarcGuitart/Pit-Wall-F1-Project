@@ -21,7 +21,7 @@ const COPY: Record<Module, string> = {
   weather:
     'OpenF1 weather telemetry (air/track temperature, rainfall) correlated with lap timestamps. OpenF1 rainfall is a 0/1 flag: a rain period needs ≥3 consecutive wet minutes after the first lap, and dry gaps of ≤2 minutes inside a shower are ignored. Temperature trend from per-lap averages.',
   crossover:
-    'Crossover windows detected from DRY↔WET changes between laps, using the same rain-period rule as the weather module. Attribution is approximate: concurrent safety cars may explain some position changes.',
+    'Crossover windows detected from DRY to WET and back changes between laps, using the same rain-period rule as the weather module. Attribution is approximate: concurrent safety cars may explain some position changes.',
   drs:
     'DRS trains detected from OpenF1 interval data (~4s resolution). Consecutive intervals where 3+ drivers are within 1.0s. Aggregated from raw snapshots by merging groups sharing ≥50% drivers. SC/VSC periods excluded.',
 }
@@ -34,7 +34,7 @@ type Props = {
 export function MethodologyBadge({ module }: Props) {
   return (
     <Popover
-      trigger={<><span aria-hidden="true">⚙</span><span>methodology</span></>}
+      trigger={<span>methodology</span>}
       triggerLabel="Show methodology"
       triggerClassName={`${ui.btn} ${ui.btnGhost}`}
       title="How this is calculated"

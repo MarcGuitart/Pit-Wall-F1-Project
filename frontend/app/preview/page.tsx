@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import s from '@/components/live/dashboard/live.module.css'
 import p from '@/components/preview/preview.module.css'
 import { PreviewShell } from '@/components/preview/PreviewShell'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { RaceSelector } from '@/components/landing/RaceSelector'
 import { ProSection } from '@/components/access/ProSection'
 import { fetchRaces, fetchSessions } from '@/lib/api'
@@ -79,7 +78,7 @@ export default function PreviewHome() {
                 ? <button className={s.btn} style={{ marginTop: 6, background: 'var(--pw-accent)', borderColor: 'var(--pw-accent)', color: '#fff', fontWeight: 800 }} onClick={() => router.push(`/live/${liveSessionKey}`)}>Open the pit wall →</button>
                 : <>
                     <div className={s.mid} style={{ fontSize: 22 }}>{pro ? 'No session' : 'PRO only'}</div>
-                    {pro && next && <div style={{ marginTop: 8 }}><NotifyButton className={s.btn} watch={{ kind: 'live', id: `live-${next.dateStart}`, label: `${next.place} ${next.sessionName}`, startsAt: next.dateStart }} /></div>}
+                    
                   </>}
             </div>
             <div className={`${s.cell} ${s.cellTight}`}>

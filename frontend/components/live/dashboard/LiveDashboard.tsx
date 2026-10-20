@@ -948,7 +948,7 @@ function TeamRadio({ snapshot }: { snapshot: LiveSnapshot }) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={on ? 'M6 4h4v16H6zM14 4h4v16h-4z' : 'M6 3l14 9-14 9z'} /></svg>
               </button>
               <div><div style={{ fontSize: 15, fontWeight: 800 }}>{c.code}</div><div className={s.sub} style={{ fontSize: 11 }}>{clock(c.date)}{c.lap_number ? ` · L${c.lap_number}` : ''}</div></div>
-              {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600, color: 'var(--pw-accent-text)' }}>Open clip ↗</a>}
+              {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600, color: 'var(--pw-accent-text)' }}>Open clip →</a>}
             </div>
           )
         })}

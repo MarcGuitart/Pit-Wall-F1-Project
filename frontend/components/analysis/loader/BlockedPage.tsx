@@ -5,13 +5,12 @@ import Link from 'next/link'
 import type { SessionMeta } from '@/types'
 import { redeemAccessCode } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
-import { buildSessionIcs, downloadIcs, icsFilename } from '@/lib/ics'
+import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { formatUtcInstant } from '@/lib/sessionFacts'
 import { placeOf } from '@/lib/place'
 import { RACE_LIST_HREF } from '@/lib/routes'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
 import { REDEEM_ERROR } from '@/components/access/ProWall'
-import { NotifyButton } from '@/components/notify/NotifyButton'
 import { buttonClass, ui } from '@/components/ui'
 import { AnalysisSkeleton } from './AnalysisSkeleton'
 import k from './skeleton.module.css'
@@ -138,34 +137,25 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
       const when = formatUtcInstant(earliest)
       extra = when ? <Info label="Earliest possible" value={when} /> : null
       const gp = meta ? placeOf(meta) : `Session ${sessionKey}`
+      const end = earliest ? new Date(new Date(earliest).getTime() + 30 * 60_000).toISOString() : ''
+      const summary = `Pit Wall · ${gp} ${session} analysis (earliest)`
       actions = (
         <>
           {earliest && (
-            <button
-              type="button"
+            <AddToCalendarButton
+              variant="system"
               className={buttonClass('primary', true)}
-              onClick={() => {
-                const end = new Date(new Date(earliest).getTime() + 30 * 60_000).toISOString()
-                const summary = `Pit Wall · ${gp} ${session} analysis (earliest)`
-                downloadIcs(icsFilename(summary), buildSessionIcs({
+              event={{
                   uid: `pitwall-analysis-${sessionKey}@pitwallengineer.com`,
                   summary,
                   description: `Earliest possible time for the analysis. It is normally published within a few hours of the chequered flag.${meta?.date_start ? ` Session start: ${formatUtcInstant(meta.date_start)}.` : ''}`,
                   location: meta ? placeOf(meta) : undefined,
                   dateStart: earliest,
-                  dateEnd: end,
-                }))
+                  dateEnd: end
               }}
-            >
-              Add to calendar · earliest
-            </button>
+            />
           )}
           {liveHere && <Link href={`/live/${sessionKey}`} className={buttonClass('ink')}>It is live now · open the pit wall</Link>}
-          <NotifyButton
-            label="Notify me when it is ready"
-            watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `${gp} · ${session}`, sessionKey, readyAt: earliest }}
-            className={buttonClass('ink')}
-          />
           {back}
         </>
       )

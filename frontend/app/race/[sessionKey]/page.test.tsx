@@ -87,7 +87,7 @@ describe('pages with no analysis', () => {
     await flush()
     expect(screen.getByText('Earliest possible')).toBeTruthy()
     expect(screen.getByText('Sun 19 Apr 2026 · 19:30 UTC')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Add to calendar · earliest' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^add to calendar: .*\(earliest\)$/i })).toBeTruthy()
     expect(document.body.textContent).toMatch(/normally within a few hours of the chequered flag/)
   })
 
