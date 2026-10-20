@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Popover } from './Popover'
 import { StatusBadge, ConfidenceBadge } from './Badge'
 import { Segmented } from './Controls'
@@ -106,6 +108,20 @@ describe('Segmented', () => {
     expect(screen.getByRole('radio', { name: 'C' }).getAttribute('aria-checked')).toBe('true')
     fireEvent.keyDown(group, { key: 'ArrowRight' })
     expect(screen.getByRole('radio', { name: 'A' }).getAttribute('aria-checked')).toBe('true')
+  })
+  // 320 px /races: the season control ran off screen (2023 unreachable). The
+  // section aside and the captioned control must be able to wrap and shrink.
+  it('wraps instead of overflowing when captioned in a section aside', () => {
+    const css = readFileSync(join(__dirname, 'ui.module.css'), 'utf8')
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? ''
+    for (const name of ['secAside', 'segLabelled']) {
+      expect(rule(name)).toMatch(/flex-wrap: wrap/)
+      expect(rule(name)).toMatch(/min-width: 0/)
+      expect(rule(name)).toMatch(/max-width: 100%/)
+    }
+    expect(rule('seg')).toMatch(/min-width: 0/)
+    const { container } = render(<Segmented label="Season" showLabel value="a" onChange={() => {}} options={[{ value: 'a', label: 'A' }]} />)
+    expect(container.firstElementChild?.getAttribute('style')).toBeNull()
   })
 })
 

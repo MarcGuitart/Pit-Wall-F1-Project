@@ -100,7 +100,11 @@
 }
 .secHeadWide { padding-left: var(--pw-gutter); padding-right: var(--pw-gutter); }
 .h6 { margin: 0; font-size: 14px; font-weight: 800; }
-.secAside { margin-left: auto; font-size: 12px; color: var(--pw-muted); display: flex; align-items: center; gap: 8px; }
+.secAside {
+  margin-left: auto; font-size: 12px; color: var(--pw-muted); display: flex; align-items: center; gap: 8px;
+  /* At 320 px the season control must wrap under the count, not run off screen. */
+  flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%;
+}
 .body { padding: 16px 20px; min-width: 0; }
 .foot { padding: 10px 20px; font-size: 11px; line-height: 1.5; color: var(--pw-muted); border-top: 1px solid var(--pw-divider); }
 .empty { padding: 24px 20px; font-size: 13px; line-height: 1.5; color: var(--pw-muted); }
@@ -167,7 +171,9 @@
 .btnLarge { font-size: 14px; padding: 10px 18px; min-height: 44px; }
 
 /* ── segmented control ── */
-.seg { display: inline-flex; border: 2px solid var(--pw-divider); max-width: 100%; overflow-x: auto; }
+.seg { display: inline-flex; border: 2px solid var(--pw-divider); max-width: 100%; min-width: 0; overflow-x: auto; }
+/* Segmented with its caption: the caption goes above when the row is too narrow. */
+.segLabelled { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; max-width: 100%; }
 .segOpt {
   font: inherit; font-size: 13px; font-weight: 700; padding: 7px 14px; background: transparent;
   color: var(--pw-muted); border: 0; text-align: left; cursor: pointer; white-space: nowrap;

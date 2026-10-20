@@ -64,7 +64,7 @@ export function Segmented<T extends string>({ value, options, onChange, label, s
   )
   if (!showLabel) return group
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <span className={s.segLabelled}>
       <span className={s.label} aria-hidden="true">{label}</span>
       {group}
     </span>
