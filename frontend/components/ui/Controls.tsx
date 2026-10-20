@@ -16,13 +16,17 @@ export function Button({ variant = 'default', large, className = '', type = 'but
  * Live's segmented control. Arrow keys move between options (roving
  * tabindex), as a set of mutually exclusive buttons should.
  */
-export function Segmented<T extends string>({ value, options, onChange, label, small, role = 'radiogroup' }: {
+export function Segmented<T extends string>({ value, options, onChange, label, small, role = 'radiogroup', showLabel = false, markCurrent = false }: {
   value: T
   options: { value: T; label: ReactNode; title?: string }[]
   onChange: (v: T) => void
   label: string
   small?: boolean
   role?: 'radiogroup' | 'tablist'
+  /** Print the label beside the control (block 43: "Season"). */
+  showLabel?: boolean
+  /** Mark the active option by text too ("✓"), and with aria-current, not by colour alone. */
+  markCurrent?: boolean
 }) {
   const idx = options.findIndex((o) => o.value === value)
   const key = (e: KeyboardEvent) => {
@@ -34,7 +38,7 @@ export function Segmented<T extends string>({ value, options, onChange, label, s
     el?.focus()
   }
   const itemRole = role === 'tablist' ? 'tab' : 'radio'
-  return (
+  const group = (
     <div className={`${s.seg} ${small ? s.segSmall : ''}`} role={role} aria-label={label} onKeyDown={key}>
       {options.map((o) => {
         const on = o.value === value
@@ -47,14 +51,23 @@ export function Segmented<T extends string>({ value, options, onChange, label, s
             aria-selected={itemRole === 'tab' ? on : undefined}
             tabIndex={on ? 0 : -1}
             title={o.title}
+            aria-current={markCurrent && on ? 'true' : undefined}
             className={`${s.segOpt} ${on ? s.segOn : ''}`}
             onClick={() => onChange(o.value)}
           >
+            {markCurrent && on && <span aria-hidden="true">✓ </span>}
             {o.label}
           </button>
         )
       })}
     </div>
+  )
+  if (!showLabel) return group
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span className={s.label} aria-hidden="true">{label}</span>
+      {group}
+    </span>
   )
 }
 

@@ -7,9 +7,10 @@ import { findRaceSession } from '@/lib/nextSession'
 import { FREE_SEASONS, isFreeSeason } from '@/lib/access'
 import { seasonYears } from '@/lib/seasons'
 import { seasonGrid, type GridRace } from '@/lib/seasonGrid'
+import { weekendLabel } from '@/lib/raceDates'
 import { useOpenRace } from '@/lib/raceNav'
 import { useAccessStore } from '@/stores/accessStore'
-import { Segmented, ui } from '@/components/ui'
+import { PageHeader, Segmented, ui } from '@/components/ui'
 import l from './landing.module.css'
 
 /**
@@ -60,6 +61,12 @@ export function SeasonGrid() {
   }
 
   return (
+    <>
+    <PageHeader
+      kicker="Historical"
+      title={`Races ${season}`}
+      meta={<span>Pick a Grand Prix for its full analysis. Seasons {FREE_SEASONS.join(' and ')} are free.</span>}
+    />
     <section className={ui.section} aria-labelledby="season-title">
       <div className={`${ui.secHead} ${ui.secHeadWide}`} style={{ alignItems: 'center' }}>
         <h2 className={ui.h6} id="season-title">{season} season</h2>
@@ -69,6 +76,8 @@ export function SeasonGrid() {
           <Segmented
             small
             label="Season"
+            showLabel
+            markCurrent
             value={String(season)}
             onChange={(v) => { setTouched(true); setSeason(Number(v)) }}
             options={years.map((y) => ({ value: String(y), label: !pro && !isFreeSeason(y) ? `${y} · PRO` : String(y) }))}
@@ -82,7 +91,8 @@ export function SeasonGrid() {
       {races && (
         <div className={l.grid}>
           {cells.map(({ race: r, round, place, cancelled }) => {
-            const date = new Date(r.date_start).toLocaleDateString([], { day: 'numeric', month: 'short' })
+            // The whole weekend, with its year (block 43): "29 Feb to 2 Mar 2024".
+            const date = weekendLabel(r.date_start, r.date_end)
             if (cancelled) {
               // Nothing to open: not a button, not a link, no round number.
               return (
@@ -115,5 +125,6 @@ export function SeasonGrid() {
         </div>
       )}
     </section>
+    </>
   )
 }

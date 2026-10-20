@@ -2,8 +2,7 @@ import type { Metadata } from 'next'
 import { AppShell } from '@/components/layout/AppShell'
 import { RaceSelector } from '@/components/landing/RaceSelector'
 import { SeasonGrid } from '@/components/landing/SeasonGrid'
-import { PageHeader, ui } from '@/components/ui'
-import { FREE_SEASONS } from '@/lib/access'
+import { ui } from '@/components/ui'
 
 export const metadata: Metadata = {
   title: 'Races · Pit Wall Engineer',
@@ -19,11 +18,7 @@ export const metadata: Metadata = {
 export default function RacesPage() {
   return (
     <AppShell breadcrumb={[{ label: 'Races' }]}>
-      <PageHeader
-        kicker="Historical"
-        title="Races"
-        meta={<span>Pick a Grand Prix for its full analysis. Seasons {FREE_SEASONS.join(' and ')} are free.</span>}
-      />
+      {/* The header lives in SeasonGrid: its title carries the season shown ("Races 2024"). */}
       <SeasonGrid />
       <section className={ui.section} aria-labelledby="any-session">
         <div className={`${ui.secHead} ${ui.secHeadWide}`}>

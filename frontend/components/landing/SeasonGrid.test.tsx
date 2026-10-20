@@ -59,7 +59,48 @@ describe('SeasonGrid with /races carrying location and is_cancelled', () => {
     await grid()
     expect(cellOf('Kuala Lumpur').tagName).toBe('BUTTON')
     // OpenF1's meeting name is never shown; the one "Bahrain" is Sakhir's cell, cancelled.
-    expect(screen.queryByText(/Grand Prix/)).toBeNull()
+    // (inside the grid: the page header's own sentence says "Pick a Grand Prix")
+    const section = document.querySelector('section[aria-labelledby="season-title"]') as HTMLElement
+    expect(within(section).queryByText(/Grand Prix/)).toBeNull()
     expect(cellOf('Bahrain').getAttribute('data-cancelled')).toBe('true')
+  })
+})
+
+describe('block 43: title, Season selector, weekend dates', () => {
+  it('titles the page "Races <season>" and labels the selector "Season"', async () => {
+    await grid()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Races 2026')
+    expect(screen.getByRole('radiogroup', { name: 'Season' })).toBeTruthy()
+    expect(screen.getByText('Season', { selector: 'span' })).toBeTruthy()
+  })
+
+  it('marks the active season by text and aria-current, not by colour alone', async () => {
+    await grid()
+    const current = screen.getByRole('radio', { checked: true })
+    expect(current.getAttribute('aria-current')).toBe('true')
+    expect(current.textContent).toMatch(/^✓ 2026/)
+    for (const other of screen.getAllByRole('radio', { checked: false })) expect(other.getAttribute('aria-current')).toBeNull()
+  })
+
+  it('shows each weekend with its year, from date_end when it is there', async () => {
+    await grid()
+    for (const cell of Array.from(document.querySelectorAll('section[aria-labelledby="season-title"] button, section[aria-labelledby="season-title"] [data-cancelled]'))) {
+      expect(cell.textContent).toMatch(/20\d\d(?!\d)/)
+    }
+    // The fixture predates date_end: the first day with its year.
+    expect(cellOf('Melbourne').textContent).toContain('6 Mar 2026')
+  })
+
+  it('with date_end, the whole weekend: "6 to 8 Mar 2026"', async () => {
+    const api = await import('@/lib/api')
+    const withEnd = races2026.map((r) => r.location === 'Melbourne' ? { ...r, date_end: '2026-03-08T06:00:00+00:00' } : r)
+    // Every call (the grid asks for the free season first, then the PRO one).
+    vi.mocked(api.fetchRaces).mockResolvedValue(withEnd as never)
+    try {
+      await grid()
+      expect(cellOf('Melbourne').textContent).toContain('6 to 8 Mar 2026')
+    } finally {
+      vi.mocked(api.fetchRaces).mockResolvedValue(races2026 as never)
+    }
   })
 })

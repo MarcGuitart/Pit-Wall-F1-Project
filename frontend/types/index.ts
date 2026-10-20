@@ -377,6 +377,8 @@ export type RaceListItem = {
   /** Only true is cancelled — the backend reads OpenF1's flag strictly and adds
    *  excluded_sessions.json (docs/api-contract.md). Absent on older backends. */
   is_cancelled?: boolean | null
+  /** The weekend's end (block 43, ops/races-dates); null or absent when the backend has none. */
+  date_end?: string | null
 }
 
 /** GET /sessions/{key}/meta (ops/loading-meta, docs/api-contract.md): what a
