@@ -7,7 +7,7 @@ import pg from '@/components/layout/page.module.css'
 export default function NotFound() {
   return (
     <AppShell>
-      <PageContainer width="narrow">
+      <PageContainer width="reading">
       <PageHeader kicker="404" title="404" meta={<span>This page could not be found.</span>} />
       <div className={pg.page}>
         <Link href="/races" className={buttonClass('ink', true)}>Back to the race list</Link>

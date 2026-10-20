@@ -47,8 +47,10 @@ export default function SettingsPage() {
 
   return (
     <AppShell breadcrumb={[{ label: 'Settings' }]}>
-      <PageContainer width="narrow">
+      {/* The giant title needs the reading width ("SETTINGS" broke in two at 40rem); the card stays narrow. */}
+      <PageContainer width="reading">
       <PageHeader kicker="This browser" title="Settings" meta={<span>Preferences for this browser only.</span>} />
+      <PageContainer width="narrow">
       <div className={pg.page}>
         <section className={pg.card} aria-labelledby="pro-access-heading">
           <div className={pg.cardHead}>
@@ -104,6 +106,7 @@ export default function SettingsPage() {
           )}
         </section>
       </div>
+      </PageContainer>
       </PageContainer>
     </AppShell>
   )

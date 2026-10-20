@@ -16,7 +16,7 @@ describe('PageContainer', () => {
 
   it('wraps every text page and state', () => {
     const root = join(__dirname, '../..')
-    for (const [f, width] of [['app/docs/page.tsx', 'reading'], ['app/settings/page.tsx', 'narrow'], ['app/not-found.tsx', 'narrow'],
+    for (const [f, width] of [['app/docs/page.tsx', 'reading'], ['app/settings/page.tsx', 'reading'], ['app/settings/page.tsx', 'narrow'], ['app/not-found.tsx', 'reading'],
       ['components/access/ProWall.tsx', 'narrow'], ['components/analysis/SessionUnavailableState.tsx', 'narrow']]) {
       expect(readFileSync(join(root, f), 'utf8'), f).toContain(`<PageContainer width="${width}">`)
     }
