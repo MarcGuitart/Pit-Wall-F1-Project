@@ -29,9 +29,14 @@ from app.services.clean_air_service import estimate_clean_air_value
 from app.services.classification_service import compute_race_classification
 from app.services.lap_charts_service import build_lap_charts
 from app.core.access import require_season_access
+from app.api.races import read_exclusions
+from app.services.autopublish import is_cancelled, parse_exclusions
 from app.utils.time import is_session_historical
 
 router = APIRouter(tags=["analysis"])
+
+# What OPENF1_RATE_LIMIT tells the reader to wait before retrying.
+RATE_LIMIT_RETRY_S = 60
 logger = logging.getLogger(__name__)
 
 # ── Single-flight lock per session_key ────────────────────────────────────
@@ -196,7 +201,7 @@ def _build_race_brain(
 
 # ── Main analysis endpoint ─────────────────────────────────────────────────
 
-async def _session_year(session_key: int) -> int | None:
+async def _session_probe(session_key: int) -> tuple[int | None, dict]:
     """
     The season this session belongs to, as cheaply as possible — and without
     writing anything to disk.
@@ -215,24 +220,48 @@ async def _session_year(session_key: int) -> int | None:
     question the gate needs — the year — without that side effect; if access
     is granted, the normal flow's own _fetch_session_meta() call a few lines
     below (after the gate) does the real, legitimate caching.
+
+    Returns (year, row): row is the session as OpenF1 describes it when one
+    was read (the cached _session_meta.json or the uncached network answer),
+    {} when only the cached analysis was — a published session is not a
+    cancelled one. The row feeds the SESSION_CANCELLED check (Block 27).
     """
     meta = analysis_cache.get_session_meta(session_key)
     if isinstance(meta, dict) and isinstance(meta.get("year"), int):
-        return meta["year"]
+        return meta["year"], meta
     cached = analysis_cache.get_full_analysis(session_key)
     if isinstance(cached, dict):
         year = (cached.get("race") or {}).get("year")
         if isinstance(year, int):
-            return year
+            return year, {}
     try:
         sessions = await fetch_json("sessions", session_key=session_key)
     except Exception as exc:
         logger.warning("[PRO] could not read the year for %s: %s", session_key, exc)
-        return None
+        return None, {}
     if not sessions:
-        return None
-    year = sessions[0].get("year")
-    return year if isinstance(year, int) else None
+        return None, {}
+    row = sessions[0] if isinstance(sessions[0], dict) else {}
+    year = row.get("year")
+    return (year if isinstance(year, int) else None), row
+
+
+async def _session_year(session_key: int) -> int | None:
+    """The season of a session, without writing anything — see _session_probe."""
+    return (await _session_probe(session_key))[0]
+
+
+def _cancelled_source(session_key: int, row: dict) -> str | None:
+    """
+    Why a session counts as cancelled, or None. Same reading as /races: the
+    hand-kept excluded_sessions.json, or OpenF1's flag read strictly (only the
+    boolean True). Nothing here touches the network or the disk cache.
+    """
+    if session_key in parse_exclusions(read_exclusions()):
+        return "excluded_sessions.json"
+    if is_cancelled(row or {}):
+        return "openf1"
+    return None
 
 
 @router.get("/analysis/{session_key}", response_model=FullRaceAnalysis)
@@ -246,7 +275,21 @@ async def get_analysis(
     # 0. PRO gate, before anything is read or computed — including the cache, so
     #    a PRO race that happens to be on disk is no easier to reach than one
     #    that is not, and force_refresh cannot be used to step around it.
-    require_season_access(request, await _session_year(session_key), session_key)
+    year, row = await _session_probe(session_key)
+
+    # Cancelled first, PRO second: that a session did not take place is a fact
+    # about the calendar, not part of a PRO analysis, and it is the answer for
+    # free and PRO readers alike. 410: nothing will ever be published here.
+    source = _cancelled_source(session_key, row)
+    if source is not None:
+        raise AppError(
+            "SESSION_CANCELLED",
+            "This session was cancelled. There is no analysis for it.",
+            status=410,
+            details={"session_key": session_key, "source": source},
+        )
+
+    require_season_access(request, year, session_key)
 
     # 1. Fast path: full analysis cache (no lock needed for read)
     if not force_refresh:
@@ -288,6 +331,36 @@ async def get_analysis(
                     },
                 )
 
+    # 4. One build per session at a time, shared. The build runs as its own
+    #    task: a client that gives up (the page aborts at 45 s) does not cancel
+    #    it, and the retry that follows awaits the same task instead of
+    #    starting a second computation (Block 27).
+    return await _shared_build(session_key, session_meta, force_refresh)
+
+
+_builds: dict[int, asyncio.Task] = {}
+
+
+def _forget_build(session_key: int, task: asyncio.Task) -> None:
+    if _builds.get(session_key) is task:
+        del _builds[session_key]
+    if not task.cancelled():
+        task.exception()  # retrieved: an unawaited failure must not log as "never retrieved"
+
+
+async def _shared_build(session_key: int, session_meta: dict, force_refresh: bool) -> FullRaceAnalysis:
+    task = _builds.get(session_key)
+    if task is None or task.done():
+        task = asyncio.ensure_future(_build(session_key, session_meta, force_refresh))
+        _builds[session_key] = task
+        task.add_done_callback(lambda t, k=session_key: _forget_build(k, t))
+    else:
+        logger.info("[ANALYSIS] %s — joining the build already in progress", session_key)
+    # shield: cancelling this request (client gone) leaves the build running.
+    return await asyncio.shield(task)
+
+
+async def _build(session_key: int, session_meta: dict, force_refresh: bool) -> FullRaceAnalysis:
     # 4. Acquire per-session lock — prevents concurrent duplicate computation
     lock = await _get_analysis_lock(session_key)
     async with lock:
@@ -325,7 +398,10 @@ async def get_analysis(
                 f"OpenF1 is rate-limiting requests (while fetching {exc.endpoint}). "
                 "Endpoints already fetched are cached; retry in a minute to resume.",
                 status=429,
-                details=exc.details(),
+                # retry_after_seconds: the page's countdown (Block 27). OpenF1's own
+                # Retry-After is consumed by the client's retries; a minute is what
+                # the message promises.
+                details={**exc.details(), "retry_after_seconds": RATE_LIMIT_RETRY_S},
             ) from exc
         except OpenF1Error as exc:
             raise AppError(

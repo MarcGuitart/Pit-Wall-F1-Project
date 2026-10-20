@@ -11,10 +11,61 @@
 Response: {"status": "ok"}
 
 ### GET /races?year=2024
-Returns list of race meetings for the year.
+Returns list of race meetings for the year, newest first. Each item:
+`meeting_key`, `meeting_name`, `country_name`, `circuit_short_name`,
+`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`.
 
 ### GET /races/{meeting_key}/sessions
-Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint).
+Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint). Each
+item: `session_key`, `session_name`, `session_type`, `date_start`, `date_end`,
+and (since Block 26d, additive) `location`, `is_cancelled`.
+
+#### location and is_cancelled (both endpoints)
+- `location`: the host city as OpenF1 publishes it, or `null` when unknown. It
+  can differ from the meeting name (a relocated grand prix keeps its name) —
+  clients that show a place should prefer it over `circuit_short_name`.
+- `is_cancelled`: always a boolean, never absent. `true` when either
+  - OpenF1 sends `is_cancelled` as the boolean `true` — anything else (missing,
+    `null`, `"true"`, `1`) reads as not cancelled; or
+  - `backend/excluded_sessions.json` lists it: a row's `session_key` cancels
+    that session, a row's optional `meeting_key` cancels the whole meeting.
+  The file only adds cancellations; it never un-cancels what OpenF1 flags.
+- Caching: a cached list written before these fields existed is refreshed
+  from OpenF1 once; if OpenF1 fails it is served as is, with `location: null`,
+  `is_cancelled: false` and the exclusion file still applied.
+- Clients that ignore the two fields keep working unchanged.
+
+### GET /stats
+Public (no PRO), counts only (Block 29) — the landing's proof strip. Read from
+the cached `_analysis.json` files with `analysis_version == ANALYSIS_VERSION`
+(an older or unreadable file is not counted):
+- `sessions`: how many such analyses exist;
+- `driver_laps`: Σ over those analyses and over True Pace rows of the clean
+  laps used (`sample_size`) plus the laps the exclusion log removed;
+- `seasons`: distinct `race.year` values;
+- `modules` / `module_names`: the fields of `FullRaceAnalysis` minus its
+  envelope (`race`, `analysis_version`, `modules`) — the pipeline's registry;
+- `analysis_version`, `definitions` (one sentence per figure, for footnotes).
+Cached in memory, recomputed when ANALYSIS_VERSION or any analysis file's
+mtime or size changes.
+
+### GET /sessions/{session_key}/meta
+Public (no PRO), light (Block 27). What a page can say about a session before
+its analysis exists — the loader's header and the pages with no analysis:
+`session_key`, `meeting_key`, `meeting_name`, `location` (host city; prefer it
+to `country_name`), `circuit_short_name`, `country_name`, `year`,
+`session_name`, `session_type`, `date_start`, `date_end`, `is_cancelled`
+(same reading as /races), `analysis_cached` (an analysis file is on this
+server), `earliest_at` (the historical guard's unlock instant: the earliest
+/analysis can compute it, not a publication time; null without a date).
+Sources, in order: `_session_meta.json` or the cached analysis (never the
+network), then OpenF1 (`sessions`, and `meetings` for the name when the cached
+calendar lacks it). The OpenF1 path is guarded: an in-memory memo (512 keys;
+an answer for 5 min, "no such session" for 1 min, failures not kept), one
+flight per session_key, and 20 cold lookups per IP per minute (memo hits and
+joins are free). Never writes to the cache.
+Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503,
+RATE_LIMITED 429 (details: `retry_after_seconds`, `scope` ip, `limit`, `window_seconds`).
 
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`
@@ -175,11 +226,13 @@ Every non-2xx response, whatever raised it, has the same body:
 |---|---|---|
 | SESSION_NOT_CACHED | 404 | /analysis (demo mode, session not in cache); /races/{meeting}/sessions (needs token) |
 | SESSION_NOT_HISTORICAL_YET | 425 | /analysis — details: `unlock_at_utc`, `retry_after_minutes` |
-| OPENF1_RATE_LIMIT | 429 | /analysis, /races — details: `endpoint`, `attempts` |
+| SESSION_NOT_FOUND | 404 | /sessions/{session_key}/meta — OpenF1 has no such session |
+| SESSION_CANCELLED | 410 | /analysis — the session did not take place: in `backend/excluded_sessions.json` or OpenF1 `is_cancelled` is the boolean `true` (same reading as /races). Checked before the PRO gate, without computing or caching anything. details: `session_key`, `source` (`excluded_sessions.json` \| `openf1`) |
+| OPENF1_RATE_LIMIT | 429 | /analysis, /races — details: `endpoint`, `attempts`; /analysis also `retry_after_seconds` (60), for the page's countdown |
 | OPENF1_ERROR | 503 | /analysis, /races — details: `endpoint`, `attempts`, `upstream_status` when OpenF1 answered |
 | OPENF1_UNAUTHORIZED | 503 | /analysis, /races — token configured but rejected by OpenF1 (without a token the same 401 is SESSION_NOT_CACHED) |
 | LLM_RATE_LIMITED | 503 | /chat — the LLM provider (Groq) throttled the request; details: `provider`, `model`, `retry_after_seconds` |
-| RATE_LIMITED | 429 | /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
+| RATE_LIMITED | 429 | /sessions/{key}/meta — cold lookups per IP; /chat — details: `retry_after_seconds`, `scope` (session \| ip), `limit`, `window_seconds` |
 | ANALYSIS_NOT_FOUND | 404 | /chat, /telemetry — run /analysis/{session_key} first |
 | ANALYSIS_FAILED | 500 | /analysis — cached file unreadable (discarded; retry recomputes) or the computation itself crashed; /chat — cached analysis no longer matches the schema |
 | TELEMETRY_RACE_ONLY | 400 | /telemetry — session is not a Race |

@@ -396,6 +396,13 @@ class RaceListItem(BaseModel):
     circuit_short_name: Optional[str] = None
     date_start: Optional[str] = None
     year: int
+    # Added for the season grid (Block 26d), additive: an older cached list
+    # without them still validates. location is the host city OpenF1 publishes
+    # (it can differ from the meeting name — a relocated grand prix keeps its
+    # name). is_cancelled: OpenF1's flag read strictly (only True counts) or a
+    # meeting_key named in excluded_sessions.json.
+    location: Optional[str] = None
+    is_cancelled: bool = False
 
 
 class SessionInfo(BaseModel):
@@ -409,6 +416,10 @@ class SessionInfo(BaseModel):
     # analysis-cache fallback path may not have it for a session cached before
     # this field existed, hence Optional.
     date_end: Optional[str] = None
+    # Same reading as RaceListItem (Block 26d): OpenF1's flag, strictly, or the
+    # session_key listed in excluded_sessions.json.
+    location: Optional[str] = None
+    is_cancelled: bool = False
 
 
 # ── Circuit Telemetry (FastF1 — loaded lazily) ─────────────────────────────

@@ -94,6 +94,7 @@ from app.clients.openf1_client import fetch_json  # read-only, one-shot — see 
 from app.core.branding import PRO_NAME  # noqa: E402
 from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
+from app.utils.origins import any_of, netlify_preview_origin_regex  # the API's, not a copy  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
 from live_state import (  # noqa: E402
@@ -115,6 +116,15 @@ ALLOWED_ORIGINS = PRODUCTION_ORIGINS + tuple(
     if o.strip() and o.strip() not in PRODUCTION_ORIGINS
 )
 LOCAL_ORIGIN_RE = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+
+
+def origin_regex(allowed: tuple[str, ...]) -> str:
+    """
+    Local dev origins, plus the Netlify deploy previews of any
+    https://<site>.netlify.app in `allowed` — derived by the same function the
+    API uses, so the two servers can never disagree on what a preview is.
+    """
+    return any_of(LOCAL_ORIGIN_RE, netlify_preview_origin_regex(allowed))
 
 STARTED_AT = time.time()
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
@@ -506,7 +516,7 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
         Middleware(
             CORSMiddleware,
             allow_origins=list(ALLOWED_ORIGINS),
-            allow_origin_regex=LOCAL_ORIGIN_RE,
+            allow_origin_regex=origin_regex(ALLOWED_ORIGINS),
             allow_methods=["GET"],
             allow_headers=["Content-Type", "Authorization"],
         ),

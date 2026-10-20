@@ -185,7 +185,8 @@ def test_openf1_rate_limit_429(client, monkeypatch, fake_openf1, tmp_path):
     fake_openf1(handler)
 
     err = envelope(client.get("/analysis/424244"), 429, "OPENF1_RATE_LIMIT")
-    assert err["details"] == {"endpoint": "laps", "attempts": 4}
+    # retry_after_seconds drives the page's countdown (Block 27)
+    assert err["details"] == {"endpoint": "laps", "attempts": 4, "retry_after_seconds": 60}
 
 
 def test_openf1_error_503_after_retries(client, monkeypatch, fake_openf1, tmp_path):
