@@ -83,19 +83,87 @@ checklist is done:
       `git log --oneline origin/main..HEAD` and
       `git diff --stat origin/main..HEAD`, read through by hand. Note anything
       under `backend/` and which Render services its paths reach.
-- [ ] **Frontend tests:** `cd frontend && npx vitest run` and `npx tsc --noEmit`.
-- [ ] **Backend tests:** `cd backend && pytest`. The count must match the
-      previous run, or the change must explain the difference.
-- [ ] **Local build:** `cd frontend && npm run build`. It must finish with no
-      errors. It is the same command Netlify runs.
-- [ ] **Playwright smoke** against that build (`npx next start -p 3100`): the
-      landing page and selector, one race with every analysis tab, one PRO race
-      behind the wall, `/settings`, `/docs`. Playwright is not a dependency of
-      the frontend. Run it from a separate install.
+- [ ] **The preflight gate is green** on the release candidate:
+      `tools/preflight.sh --full --strict --candidate oct27` ends with
+      `0 fail`. It runs the frontend and backend tests, the production build
+      and the browser checks; see [Preflight](#preflight) below. Anything it
+      reports as KNOWN was accepted on purpose (`--accept-known`) and is listed
+      in the report.
 - [ ] **Not during a live session**, if the batch reaches `pit-wall-live` or
       `pit-wall-recorder`. A recorder deploy drops the subscription, and that
       part of the capture is lost.
 - [ ] **Log the deploy** in the table at the end of this file.
+
+## Preflight
+
+Everything that can be checked before a deploy, locally, with zero calls to
+OpenF1. It lives in `tools/` on the `qa/preflight` branch until that branch is
+merged; run it from a checkout of `qa/preflight`.
+
+### Running it
+
+| Command | What it runs | Time |
+|---|---|---|
+| `tools/preflight.sh --quick` | types, unit tests, build, hygiene, deploy filters, API contract, golden outputs | ~2 min |
+| `tools/preflight.sh --full` | the above plus the backend suite, the live replay, bundle size, and the browser checks (smoke, visual, geometry, perf, live, content, /race latency) | ~35 min |
+| `--strict` | FLAKY (passed only on retry) and a mandatory SKIPPED count as FAIL | |
+| `--candidate oct27` | builds the release candidate first: remote `main` plus the branches in `tools/candidates.json`, merged in one throwaway worktree (`~/pw-work/candidates/current`), deleted at the end | |
+| `--keep` | keeps that worktree | |
+| `--accept-known` | under `--strict`, accepts the decided findings in `tools/known.json`; without it they fail | |
+| `--only build,hygiene` | just those checks; `--list` shows them all | |
+| `--update-baseline` | accepts the current screenshots and budgets as the new reference | |
+| `--online` | allows OpenF1 calls (off by default) | |
+
+The run keeps the Mac awake (`caffeinate -i`). The perf check refuses to time
+anything on a busy machine and says which process is busy (SKIPPED); run it
+again when the machine is quiet.
+
+`tools/dev.sh` starts the same local stack for a person instead of a check:
+API, live replay (if `PW_LIVE_CAPTURE` points at a capture) and the frontend,
+with OpenF1 unreachable and a one-off PRO code printed at start.
+`--root <dir>` runs another checkout (a candidate), `--hot` uses `next dev`,
+`--online` lets OpenF1 through. Ctrl+C stops everything it started.
+
+### The gate
+
+**`tools/preflight.sh --full --strict --candidate oct27` with 0 fail.** A
+deploy does not go out on a red or a FLAKY run.
+
+### Reading the report
+
+- The table printed at the end, and `tools/report/index.html`: one row per
+  check, its status, time and reason, and links to its log and reports.
+- `tools/report/summary.json`: the same, for scripts, plus the accepted known
+  findings.
+- `tools/report/logs/<YYYYmmdd-HHMMSS>/`: one directory per run, never
+  overwritten. `<check>.log` is the check's output; `<check>.try1.log` is the
+  first attempt of a check that was retried; `stack/` holds the local
+  servers' logs.
+- `tools/report/artifacts/`: the visual diff (`visual/report.html`) and other
+  reports.
+
+Statuses: PASS; FAIL; SKIPPED (could not run, with the reason; mandatory
+ones fail under `--strict`); FLAKY (failed, then passed on retry; fails under
+`--strict`).
+
+### A draft deploy, measured
+
+Checks against the real runtime (Netlify functions, the production API) that
+the local stack cannot give:
+
+1. From the release branch, with the production `NEXT_PUBLIC_*` values set in
+   the shell: `netlify deploy --build` (no `--prod`). It prints a draft URL.
+2. `PF_BASE_API=<production API URL> tools/preflight.sh --base <draft URL>`
+   runs smoke, geometry, perf (hard ceilings only) and the /race latency
+   against it. PRO steps run only if `PF_BASE_PRO_CODE` is set in the shell;
+   it is never written anywhere.
+3. `node tools/browser/navlatency.mjs --base <URL> --no-browser` measures the
+   first and warm requests of `/race/<k>` with plain GETs (no API calls): a
+   first request several times slower than the warm ones is a cold function.
+
+What a draft deploy costs in credits, and whether a validated draft can be
+published as is, are not assumed here: check Netlify's docs and *Account usage
+insights* before relying on either.
 
 ## Order: Netlify and Render separately
 
