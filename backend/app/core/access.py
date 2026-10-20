@@ -53,6 +53,11 @@ logger = logging.getLogger(__name__)
 
 VERSION = "v1"
 CODE_ID_LENGTH = 12        # hex characters of sha256(code): enough to tell codes apart
+# Tokens minted for a Stripe subscription (block 44) carry this code id prefix
+# and the subscription id in "sub". They are not tied to a configured code, so
+# revoking codes does not touch them; they end with the paid period instead,
+# and /billing/renew asks Stripe before extending one.
+SUBSCRIPTION_PREFIX = "stripe:"
 
 
 def b64(raw: bytes) -> str:
@@ -111,6 +116,7 @@ class AccessToken:
     code_id: str
     issued_at: int
     expires_at: int
+    subscription: str | None = None
 
     @property
     def expires_in(self) -> int:
@@ -136,16 +142,28 @@ def mint_token(matched_code_id: str, ttl_days: int | None = None) -> AccessToken
     return token
 
 
+def subscription_token(subscription_id: str, issued_at: int, expires_at: int) -> AccessToken:
+    """A token for a paid Stripe subscription. Raises if unconfigured."""
+    if not settings.pro_token_secret.get_secret_value():
+        raise AppError(
+            "PRO_ACCESS_UNAVAILABLE",
+            "Access codes are not enabled on this deployment.",
+            status=503,
+        )
+    cid = SUBSCRIPTION_PREFIX + hashlib.sha256(subscription_id.encode()).hexdigest()[:CODE_ID_LENGTH]
+    return AccessToken(code_id=cid, issued_at=issued_at, expires_at=expires_at, subscription=subscription_id)
+
+
 def encode_token(token: AccessToken) -> str:
-    payload = b64(json.dumps(
-        {"cid": token.code_id, "iat": token.issued_at, "exp": token.expires_at},
-        separators=(",", ":"), sort_keys=True,
-    ).encode())
+    claims = {"cid": token.code_id, "iat": token.issued_at, "exp": token.expires_at}
+    if token.subscription:
+        claims["sub"] = token.subscription
+    payload = b64(json.dumps(claims, separators=(",", ":"), sort_keys=True).encode())
     signing_input = f"{VERSION}.{payload}"
     return f"{signing_input}.{_sign(signing_input)}"
 
 
-def decode_token(raw: str) -> AccessToken | None:
+def decode_token(raw: str, allow_expired: bool = False) -> AccessToken | None:
     """
     The token's claims, or None for anything that is not a currently valid token
     signed by us: wrong version, tampered payload, bad signature, expired, or a
@@ -171,8 +189,14 @@ def decode_token(raw: str) -> AccessToken | None:
         return None
     if not isinstance(cid, str):
         return None
-    if exp <= int(time.time()):
+    # allow_expired is for /billing/renew only: it asks Stripe before minting.
+    if exp <= int(time.time()) and not allow_expired:
         return None
+    if cid.startswith(SUBSCRIPTION_PREFIX):
+        sub = claims.get("sub")
+        if not isinstance(sub, str) or not sub:
+            return None
+        return AccessToken(code_id=cid, issued_at=iat, expires_at=exp, subscription=sub)
     # A revoked code must not keep working until its tokens expire.
     if cid not in known_code_ids():
         return None
