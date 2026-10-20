@@ -16,7 +16,7 @@ describe('PARITY.md live backlog', () => {
     }
   })
   it('points only at files that exist', () => {
-    const paths = [...section.matchAll(/`((?:components|app)\/[^`]+\.tsx)`/g)].map((m) => m[1])
+    const paths = Array.from(section.matchAll(/`((?:components|app)\/[^`]+\.tsx)`/g), (m) => m[1])
     expect(paths.length).toBeGreaterThan(9)
     for (const p of paths) expect(existsSync(join(root, p)), p).toBe(true)
   })
