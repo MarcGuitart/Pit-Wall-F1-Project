@@ -40,9 +40,8 @@ free of personal data, and costs this:
    owner, who finds them in the Stripe dashboard.
 2. **Cancelling does not cut access at once.** A token stays valid until it
    expires (end of the paid period plus 3 days). A refund with immediate
-   cancellation also leaves the token working until then. The only way to kill
-   one token early is rotating `PRO_TOKEN_SECRET`, which logs out everyone,
-   code holders included.
+   cancellation also leaves the token working until then, unless the owner
+   revokes the subscription (next section).
 3. **A token can be shared.** Nothing counts devices; whoever holds the token
    has PRO until it expires.
 4. **The success URL is a key.** Anyone with `?session_id=cs_...` (browser
@@ -55,6 +54,23 @@ free of personal data, and costs this:
    limits at this scale, but a Stripe outage blocks renewals (not existing tokens).
 7. **Two subscriptions from one person go unnoticed.** Checkout does not know
    who is already paying.
+
+## Revoking a subscription by hand
+
+For a refund, a chargeback or abuse: add the subscription id (`sub_...`, from
+the Stripe dashboard) to `PAYMENTS_REVOKED_SUBS` on Render, comma-separated,
+and let the service restart. From then on:
+
+1. every token for that subscription stops verifying (`/access/status` says
+   `pro: false`, PRO pages answer 402);
+2. `/billing/renew` and `/billing/portal` refuse it;
+3. `/billing/success` refuses to issue a new token for it (`403 SUBSCRIPTION_REVOKED`).
+
+Code tokens and other subscriptions are not affected. The list is read on
+every check (`app/core/billing_revocation.py`); keep an id there at least until
+its last token would have expired anyway (end of its period plus 3 days).
+Rotating `PRO_TOKEN_SECRET` remains the way to end every token at once, code
+holders included.
 
 ## What to set up in Stripe (test mode)
 
@@ -75,7 +91,7 @@ Environment, never in the repo:
 
 | Where | Variable |
 |---|---|
-| Render (API) | `PAYMENTS_ENABLED=1`, `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `PAYMENTS_RETURN_URL` (the site, e.g. `https://pitwallengineer.com`) |
+| Render (API) | `PAYMENTS_ENABLED=1`, `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `PAYMENTS_RETURN_URL` (the site, e.g. `https://pitwallengineer.com`), `PAYMENTS_REVOKED_SUBS` (empty unless revoking) |
 | Netlify (site) | `NEXT_PUBLIC_PAYMENTS_ENABLED=1` (needs a new build) |
 
 ## Testing in test mode

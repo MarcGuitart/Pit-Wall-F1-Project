@@ -45,6 +45,7 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
+from app.core.billing_revocation import is_revoked
 from app.core.branding import PRO_NAME
 from app.core.config import settings
 from app.core.errors import AppError
@@ -195,6 +196,10 @@ def decode_token(raw: str, allow_expired: bool = False) -> AccessToken | None:
     if cid.startswith(SUBSCRIPTION_PREFIX):
         sub = claims.get("sub")
         if not isinstance(sub, str) or not sub:
+            return None
+        # The owner's revocation list (PAYMENTS_REVOKED_SUBS) beats the
+        # signature: a revoked subscription's tokens stop at once.
+        if is_revoked(sub):
             return None
         return AccessToken(code_id=cid, issued_at=iat, expires_at=exp, subscription=sub)
     # A revoked code must not keep working until its tokens expire.

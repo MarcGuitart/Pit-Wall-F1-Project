@@ -16,7 +16,7 @@ from pydantic import SecretStr
 
 from app.api import billing
 from app.core import stripe_api
-from app.core.access import decode_token, encode_token, mint_token
+from app.core.access import decode_token, encode_token, known_code_ids, mint_token
 from app.core.config import settings
 from app.main import app
 
@@ -188,3 +188,24 @@ def test_period_end_reads_both_stripe_api_shapes():
     assert stripe_api.period_end({"current_period_end": 5}) == 5
     assert stripe_api.period_end({"items": {"data": [{"current_period_end": 7}, {"current_period_end": 9}]}}) == 9
     assert stripe_api.period_end({}) is None
+
+
+def test_a_revoked_subscription_stops_at_once(stripe, monkeypatch):
+    tok = _sub_token()
+    assert client.get("/access/status", headers={"Authorization": f"Bearer {tok}"}).json()["pro"] is True
+    monkeypatch.setenv("PAYMENTS_REVOKED_SUBS", " sub_OTHER , sub_ABC123 ")
+    assert decode_token(tok) is None
+    assert client.get("/access/status", headers={"Authorization": f"Bearer {tok}"}).json()["pro"] is False
+    assert client.post("/billing/renew", headers={"Authorization": f"Bearer {tok}"}).status_code == 409
+    r = client.get("/billing/success", params={"session_id": "cs_test_abc"})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "SUBSCRIPTION_REVOKED"
+
+
+def test_the_revocation_list_leaves_other_tokens_alone(stripe, monkeypatch):
+    tok = _sub_token()
+    code_tok = encode_token(mint_token(next(iter(known_code_ids()))))
+    monkeypatch.setenv("PAYMENTS_REVOKED_SUBS", "sub_OTHER,,")
+    assert decode_token(tok) is not None
+    assert decode_token(code_tok) is not None
+    monkeypatch.setenv("PAYMENTS_REVOKED_SUBS", "")
+    assert decode_token(tok) is not None

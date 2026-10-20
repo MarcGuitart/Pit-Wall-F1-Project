@@ -9,7 +9,7 @@ from app.api.billing import router
 ROOT = Path(__file__).resolve().parents[2]
 DOC = (ROOT / "docs" / "PAYMENTS.md").read_text()
 ENV = (ROOT / "backend" / ".env.example").read_text()
-VARS = ["PAYMENTS_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "PAYMENTS_RETURN_URL"]
+VARS = ["PAYMENTS_ENABLED", "PAYMENTS_REVOKED_SUBS", "STRIPE_SECRET_KEY", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "PAYMENTS_RETURN_URL"]
 
 
 def test_every_billing_route_is_documented():

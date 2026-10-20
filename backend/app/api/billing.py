@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from app.api.access import _client_ip
 from app.core import stripe_api
 from app.core.access import bearer_token, decode_token, encode_token, subscription_token
+from app.core.billing_revocation import is_revoked
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
@@ -133,6 +134,8 @@ async def success(session_id: str = Query(..., max_length=256)) -> TokenResponse
         raise AppError("PAYMENTS_UPSTREAM", "The payment service gave no subscription.", status=502)
     if not stripe_api.is_active(sub):
         raise AppError("SUBSCRIPTION_INACTIVE", "This subscription is not active.", status=402)
+    if is_revoked(str(sub.get("id"))):
+        raise AppError("SUBSCRIPTION_REVOKED", "Access for this subscription has been withdrawn.", status=403)
     logger.info("[BILLING] token for subscription %s (checkout %s)", sub.get("id"), session_id)
     return _token_for(sub, int(session.get("created") or time.time()))
 
