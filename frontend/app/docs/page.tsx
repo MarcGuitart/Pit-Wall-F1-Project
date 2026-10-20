@@ -98,9 +98,8 @@ export default function DocsPage() {
           <p>
             During a session, Live mode shows the race as it happens: timing and sectors, the track map
             and car telemetry, race control, weather, tyres, pit stops and team radio, updating roughly
-            every couple of seconds. Everything is a reading of the feed except the Predictions tab (win and pole odds from a model run on the laps so far, labelled as a projection wherever it
-            appears) and anything that cannot be judged until the chequered flag, such as the Chaos
-            Index, is marked as such. An AI engineer answers questions from the same live data.
+            every couple of seconds. Everything is a reading of the feed, and anything that cannot be
+            judged until the chequered flag, such as the Chaos Index, is marked as such. An AI engineer answers questions from the same live data.
           </p>
           <p>Live mode is part of PRO.</p>
         </Section>
