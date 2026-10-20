@@ -1,3 +1,4 @@
+import { BUILD_COMMIT } from '@/lib/build'
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
@@ -27,6 +28,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   // Absolute URLs for canonical and og:image (Block 29).
   metadataBase: new URL('https://pitwallengineer.com'),
+  // Which commit this build is: <meta name="pw-build"> (block 42, lib/build.ts).
+  other: { 'pw-build': BUILD_COMMIT },
   title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
   description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view.',
   openGraph: {
