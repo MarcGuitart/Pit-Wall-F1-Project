@@ -465,6 +465,24 @@ Con PRO activo "/" sigue siendo la landing. Logo → "/"; Historical → "/races
 |---|---|---|---|---|
 | Dashboard live, NotLiveYet, ConnectionBanner, vista clásica de reserva | live/** | (sin cambios) | replay de Bakú a 30x, t=20/45/75 s, 1440 y 390, antes y después del shell: mismo dashboard, cambian solo TopBar y footer (`~/.pitwall-ui-baseline/live-before` vs `live-after`) | verificado |
 
+### Live: componentes del diseño antiguo, para el segundo deploy
+
+Decidido el 20 de octubre (bloque 43): se dejan como están en este deploy. El segundo deploy los migra al sistema nuevo o los borra.
+
+| Componente | Dónde se usa hoy | Estado |
+|---|---|---|
+| `components/live/PracticePitWall.tsx` | `app/live/[sessionKey]/page.tsx` (libres) | pendiente: segundo deploy |
+| `components/live/PositionTower.tsx` | `app/live/[sessionKey]/page.tsx` | pendiente: segundo deploy |
+| `components/live/LiveEngineerNotes.tsx` | `app/live/[sessionKey]/page.tsx` | pendiente: segundo deploy |
+| `components/live/RadioFeed.tsx` | dentro de `PracticePitWall` | pendiente: segundo deploy |
+| `components/live/ConnectionBanner.tsx` | `app/live/[sessionKey]/page.tsx` | pendiente: segundo deploy |
+| `components/live/PitWindowWatch.tsx` | ninguna ruta | pendiente: migrar o borrar |
+| `components/live/PitCyclesLive.tsx` | ninguna ruta | pendiente: migrar o borrar |
+| `components/live/ChaosDensityMeter.tsx` | ninguna ruta | pendiente: migrar o borrar |
+| `components/live/TrackStatusBanner.tsx` | ninguna ruta | pendiente: migrar o borrar |
+| Estado de espera (`WaitingForFeed`) en `app/live/[sessionKey]/page.tsx` | `/live/[k]` antes del primer snapshot | pendiente: segundo deploy |
+| Variante `classic` de `components/access/ProWall.tsx` | valor por defecto; `/live` ya usa `LiveProWall` | pendiente: segundo deploy |
+
 ### Fuera de la app migrada
 
 | Feature | Motivo | Estado |
