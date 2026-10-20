@@ -12,12 +12,20 @@ export type ErrorCode =
   | 'OPENF1_RATE_LIMIT'
   | 'ANALYSIS_FAILED'
   | 'OPENF1_ERROR'
+  /** 410: the session did not take place — nothing will ever be published. */
+  | 'SESSION_CANCELLED'
+  /** 404 from /sessions/{key}/meta: OpenF1 has no such session. */
+  | 'SESSION_NOT_FOUND'
+  /** Frontend-only: /analysis did not answer within TIMEOUT_AFTER_MS and was aborted. */
+  | 'ANALYSIS_TIMEOUT'
   | 'UNKNOWN'
 
 export type AnalysisError = {
   code: ErrorCode
   message: string
   retryAfterMinutes?: number
+  /** OPENF1_RATE_LIMIT: the countdown before Retry unlocks. */
+  retryAfterSeconds?: number
   unlockAtUtc?: string
   /** PRO_REQUIRED: the season that is gated, so the wall can name it. */
   year?: number
@@ -48,6 +56,8 @@ const CODE_TO_STATE: Record<string, ErrorCode> = {
   OPENF1_RATE_LIMIT: 'OPENF1_RATE_LIMIT',
   OPENF1_ERROR: 'OPENF1_ERROR',
   ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+  SESSION_CANCELLED: 'SESSION_CANCELLED',
+  SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
   // A crash inside /analysis is a failed analysis from the page's point of view.
   INTERNAL_ERROR: 'ANALYSIS_FAILED',
 }
@@ -56,12 +66,14 @@ export function parseAnalysisError(err: unknown): AnalysisError {
   if (err instanceof ApiError) {
     const code = CODE_TO_STATE[err.code] ?? 'UNKNOWN'
     const retry = err.details?.retry_after_minutes
+    const retrySeconds = err.details?.retry_after_seconds
     const unlock = err.details?.unlock_at_utc
     const year = err.details?.year
     return {
       code,
       message: err.message,
       retryAfterMinutes: typeof retry === 'number' ? retry : undefined,
+      retryAfterSeconds: typeof retrySeconds === 'number' ? retrySeconds : undefined,
       unlockAtUtc: typeof unlock === 'string' ? unlock : undefined,
       year: typeof year === 'number' ? year : undefined,
     }

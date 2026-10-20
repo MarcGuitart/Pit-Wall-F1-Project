@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { displayNameOf } from '@/lib/displayName'
 import { archivo } from '@/lib/fonts'
 import s from './live.module.css'
 import { RaceLapCharts, LapTimeEvolutionChart } from '@/components/charts/LapCharts'
@@ -39,9 +40,9 @@ const FLAG_LABEL: Record<string, string> = { GREEN: 'GREEN FLAG', YELLOW: 'YELLO
 
 const colourOf = (c: string | null | undefined) => (c ? `#${c.replace('#', '')}` : '#8a94a6')
 const clock = (iso: string | null | undefined) => {
-  if (!iso) return '—'
+  if (!iso) return 'n/a'
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  return Number.isNaN(d.getTime()) ? 'n/a' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
 const hms = (sec: number) => {
   sec = Math.max(0, Math.floor(sec))
@@ -127,8 +128,14 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
   const [tab, setTabState] = useState<TabId>('timing')
   useEffect(() => {
     const h = window.location.hash.slice(1) as TabId
-    if (TABS.some(t => t.id === h)) setTabState(h)
+    if (liveTabs(snapshot).some(t => t.id === h)) setTabState(h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // The Predictions tab exists only while the snapshot carries a projection;
+  // if it goes away under an open tab, back to Timing.
+  const hasProjection = Boolean(snapshot.projection)
+  const tabs = useMemo(() => liveTabs({ projection: hasProjection ? snapshot.projection : undefined }), [hasProjection]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tabs.some(t => t.id === tab)) setTabState('timing') }, [tabs, tab])
   const setTab = (t: TabId) => {
     setTabState(t)
     try { window.history.replaceState(null, '', `#${t}`) } catch { /* ignore */ }
@@ -140,7 +147,7 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
         themeToggle={<ThemeToggle theme={theme} onChange={setTheme} />} />
       <Header snapshot={snapshot} now={now} profile={profile} />
       <KpiRow snapshot={snapshot} dash={dash} profile={profile} />
-      <TabBar tab={tab} onTab={setTab} isRace={isRace} />
+      <TabBar tab={tab} onTab={setTab} isRace={isRace} tabs={tabs} />
 
       {tab === 'timing' && <>
         <TimingTable snapshot={snapshot} dash={dash} isRace={isRace} selected={sel} onSelect={setSelected} />
@@ -185,7 +192,7 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
         <section className={s.section}>
           <div className={`${s.secHead} ${s.secHeadWide}`}>
             <h6 className={s.h6}>Lap by lap</h6>
-            <span className={s.sub}>{isRace ? 'Lap times, gaps, tyre degradation and fuel — from completed laps only' : 'Every completed lap of the session'}</span>
+            <span className={s.sub}>{isRace ? 'Lap times, gaps, tyre degradation and fuel, from completed laps only' : 'Every completed lap of the session'}</span>
           </div>
           {isRace
             ? <RaceLapCharts drivers={chartDrivers} bands={bands} totalLaps={snapshot.race_distance ?? Math.max(snapshot.current_lap, 1)} idPrefix="live" />
@@ -204,11 +211,11 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
 
       {tab === 'feed' && <FeedCoverage snapshot={snapshot} isRace={isRace} />}
 
-      <footer className={s.footer}>
-        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed
-        except the Predictions tab, which is a model and says so. Team radio clips are linked from Formula 1&apos;s
-        archive and are not stored here.
-      </footer>
+      <p className={s.footer}>
+        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed{snapshot.projection
+          ? <> except the Predictions tab, which is a model and says so</>
+          : null}. Team radio clips are linked from Formula 1&apos;s archive and are not stored here.
+      </p>
     </div>
   )
 }
@@ -227,10 +234,15 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'feed', label: 'Feed' },
 ]
 
-function TabBar({ tab, onTab }: { tab: TabId; onTab: (t: TabId) => void; isRace: boolean }) {
+/** The tabs a snapshot can show: Predictions only when the live server sends a projection (block 32, addendum). */
+export function liveTabs(snapshot: Pick<LiveSnapshot, 'projection'>): { id: TabId; label: string }[] {
+  return TABS.filter(t => t.id !== 'predict' || Boolean(snapshot.projection))
+}
+
+function TabBar({ tab, onTab, tabs }: { tab: TabId; onTab: (t: TabId) => void; isRace: boolean; tabs: { id: TabId; label: string }[] }) {
   return (
     <nav className={s.tabs} aria-label="Live views">
-      {TABS.map(t => (
+      {tabs.map(t => (
         <button key={t.id} className={`${s.tab} ${tab === t.id ? s.tabOn : ''}`} onClick={() => onTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
           {t.label}{t.id === 'engineer' && <span className={s.tabNew}>AI</span>}
         </button>
@@ -268,7 +280,7 @@ function MiniOrder({ snapshot, order, isRace }: { snapshot: LiveSnapshot; order:
         {order.map(o => {
           const r = race.get(o.number), p = practice.get(o.number)
           const val = isRace
-            ? (o.position === 1 ? 'Leader' : r?.gap_to_leader == null ? '—' : typeof r.gap_to_leader === 'number' ? `+${r.gap_to_leader.toFixed(1)}` : r.gap_to_leader)
+            ? (o.position === 1 ? 'Leader' : r?.gap_to_leader == null ? 'n/a' : typeof r.gap_to_leader === 'number' ? `+${r.gap_to_leader.toFixed(1)}` : r.gap_to_leader)
             : formatLap(p?.best_lap_s)
           return (
             <div key={o.number} style={{ display: 'grid', gridTemplateColumns: '32px 4px 1fr auto', gap: 10, alignItems: 'center', padding: '7px 20px', fontSize: 14 }}>
@@ -290,12 +302,12 @@ function StatusStrip({ snapshot, bad, connection, frameAge, error, onRetry, them
   snapshot: LiveSnapshot; bad: boolean; connection: ConnectionState; frameAge: number; error: string | null; onRetry: () => void; themeToggle?: ReactNode
 }) {
   const f = snapshot.feed
-  const streamLabel = connection === 'open' ? 'Stream connected' : connection === 'connecting' ? 'Connecting' : 'Connection lost — retrying'
+  const streamLabel = connection === 'open' ? 'Stream connected' : connection === 'connecting' ? 'Connecting' : 'Connection lost · retrying'
   return (
     <div className={`${s.strip} ${bad ? s.stripBad : ''}`} role="status">
       <span className={s.stripItem}><span className={s.blinker} />{streamLabel}</span>
       <span>MQTT · {f.connected ? 'Connected' : 'Disconnected'} · {f.messages_total.toLocaleString('en-US')} messages</span>
-      <span>Last feed message · {f.last_message_age_s == null ? '—' : `${f.last_message_age_s.toFixed(1)}s ago`}</span>
+      <span>Last feed message · {f.last_message_age_s == null ? 'n/a' : `${f.last_message_age_s.toFixed(1)}s ago`}</span>
       {f.stale && <span>Feed stale · no timing for {f.stale_after_s}s+</span>}
       {connection !== 'open' && <span>Last frame {frameAge}s ago{error ? ` · ${error}` : ''}</span>}
       {connection !== 'open' && <button className={s.stripBtn} onClick={onRetry}>Retry</button>}
@@ -309,24 +321,24 @@ function Header({ snapshot, now, profile }: { snapshot: LiveSnapshot; now: numbe
   const info = snapshot.session_info ?? {}
   const start = info.date_start ? new Date(info.date_start).getTime() : null
   const end = info.date_end ? new Date(info.date_end).getTime() : null
-  const city = snapshot.location ?? info.circuit_short_name ?? 'Live timing'
+  const city = displayNameOf(snapshot) ?? info.circuit_short_name ?? 'Live timing'
   const windowTxt = start && end
-    ? `${clock(info.date_start).slice(0, 5)} – ${clock(info.date_end).slice(0, 5)} your time`
+    ? `${clock(info.date_start).slice(0, 5)} to ${clock(info.date_end).slice(0, 5)} your time`
     : null
   const isRace = profile === 'race'
   const cells: [string, string][] = isRace
     ? [
-        ['Race time', start && now > start ? hms((now - start) / 1000) : '—'],
-        ['Lap', snapshot.current_lap ? `${snapshot.current_lap}${snapshot.race_distance ? ` / ${snapshot.race_distance}` : ''}` : '—'],
+        ['Race time', start && now > start ? hms((now - start) / 1000) : 'n/a'],
+        ['Lap', snapshot.current_lap ? `${snapshot.current_lap}${snapshot.race_distance ? ` / ${snapshot.race_distance}` : ''}` : 'n/a'],
       ]
     : [
-        [end && now < end ? 'Time remaining' : 'Session clock', end ? (now < end ? hms((end - now) / 1000) : 'Ended') : '—'],
+        [end && now < end ? 'Time remaining' : 'Session clock', end ? (now < end ? hms((end - now) / 1000) : 'Ended') : 'n/a'],
         ['Drivers timed', String((snapshot.practice_tower ?? []).length)],
       ]
   return (
     <header className={s.header}>
       <div style={{ minWidth: 0 }}>
-        <div className={s.kicker}><span className={s.square} />Live timing · OpenF1 · Session {snapshot.session_key ?? '—'}</div>
+        <div className={s.kicker}><span className={s.square} />Live timing · OpenF1 · Session {snapshot.session_key ?? 'n/a'}</div>
         <h1 className={s.h1}>{city}</h1>
         <div className={s.meta}>
           <b>{snapshot.session_name ?? snapshot.session_type ?? 'Live session'}</b>
@@ -376,7 +388,7 @@ function KpiRow({ snapshot, dash, profile }: { snapshot: LiveSnapshot; dash: Das
     <section className={`${s.cells} ${s.ruled}`} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
       <div className={s.cell}>
         <div className={s.label}>{isRace ? 'Fastest lap' : profile === 'qualifying' ? 'Provisional pole' : 'Session fastest'}</div>
-        <div className={`${s.big} ${s.accent}`}>{fast ? formatLap(fast.t) : '—'}</div>
+        <div className={`${s.big} ${s.accent}`}>{fast ? formatLap(fast.t) : 'n/a'}</div>
         <div className={s.sub}>{fast?.sub ?? 'No timed lap yet'}</div>
       </div>
       <div className={s.cell}>
@@ -387,11 +399,11 @@ function KpiRow({ snapshot, dash, profile }: { snapshot: LiveSnapshot; dash: Das
         </div>
         <div className={s.sub} style={{ marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{snapshot.track_status.source}</div>
       </div>
-      <Kpi label="Track temperature" value={w.track_temperature == null ? '—' : `${w.track_temperature.toFixed(1)}°`} sub={tempDelta ?? 'Latest sample'} />
-      <Kpi label="Air temperature" value={w.air_temperature == null ? '—' : `${w.air_temperature.toFixed(1)}°`} sub={w.humidity == null ? '—' : `Humidity ${Math.round(w.humidity)}%`} />
-      <Kpi label="Wind" value={w.wind_speed == null ? '—' : <>{w.wind_speed.toFixed(1)}<span style={{ fontSize: 16, fontWeight: 600 }}> m/s</span></>}
-        sub={w.wind_direction == null ? '—' : `From ${w.wind_direction}°${w.pressure == null ? '' : ` · ${w.pressure.toFixed(1)} mbar`}`} />
-      <Kpi label="Track condition" value={w.rainfall == null ? '—' : wet ? 'WET' : 'DRY'} sub={`Rain periods confirmed: ${snapshot.analysis.weather?.rain_periods ?? 0}`} />
+      <Kpi label="Track temperature" value={w.track_temperature == null ? 'n/a' : `${w.track_temperature.toFixed(1)}°`} sub={tempDelta ?? 'Latest sample'} />
+      <Kpi label="Air temperature" value={w.air_temperature == null ? 'n/a' : `${w.air_temperature.toFixed(1)}°`} sub={w.humidity == null ? 'n/a' : `Humidity ${Math.round(w.humidity)}%`} />
+      <Kpi label="Wind" value={w.wind_speed == null ? 'n/a' : <>{w.wind_speed.toFixed(1)}<span style={{ fontSize: 16, fontWeight: 600 }}> m/s</span></>}
+        sub={w.wind_direction == null ? 'n/a' : `From ${w.wind_direction}°${w.pressure == null ? '' : ` · ${w.pressure.toFixed(1)} mbar`}`} />
+      <Kpi label="Track condition" value={w.rainfall == null ? 'n/a' : wet ? 'WET' : 'DRY'} sub={`Rain periods confirmed: ${snapshot.analysis.weather?.rain_periods ?? 0}`} />
     </section>
   )
 }
@@ -409,7 +421,7 @@ function SectorCell({ time, colour, segs }: { time: number | null; colour: strin
   return (
     <>
       <span className={s.chip} style={{ background: bg, color: bg === 'transparent' ? 'var(--pw-text)' : '#fff', fontWeight: colour === 'purple' ? 800 : 600, fontSize: 15 }}>
-        {time == null ? '—' : time.toFixed(3)}
+        {time == null ? 'n/a' : time.toFixed(3)}
       </span>
       {segs && segs.length > 0 && <div className={s.dots}>{segs.slice(0, 12).map((c, i) => <span key={i} style={{ background: segColour(c) }} />)}</div>}
     </>
@@ -438,14 +450,14 @@ function TimingTable({ snapshot, dash, isRace, selected, onSelect }: {
   const tyreCell = (compound: string | null, age: number | null): ReactNode => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
       <span className={s.tyreSq} style={{ background: COMPOUND[(compound ?? '').toUpperCase()] ?? 'transparent' }} />
-      {compound ?? '—'}{age != null ? ` · ${age}L` : ''}
+      {compound ?? 'n/a'}{age != null ? ` · ${age}L` : ''}
     </div>
   )
   const plain = (t: ReactNode, sub?: ReactNode, strong = false) => (
     <><span style={{ fontSize: 15, fontWeight: strong ? 800 : 600 }}>{t}</span>{sub ? <div className={s.sub} style={{ fontSize: 11 }}>{sub}</div> : null}</>
   )
   const pos = (p: number) => <span style={{ fontSize: 17, fontWeight: 800, color: p === 1 ? 'var(--pw-accent-text)' : undefined }}>{String(p).padStart(2, '0')}</span>
-  const gapTxt = (g: number | string | null) => (g == null ? '—' : typeof g === 'number' ? `+${g.toFixed(3)}` : g)
+  const gapTxt = (g: number | string | null) => (g == null ? 'n/a' : typeof g === 'number' ? `+${g.toFixed(3)}` : g)
 
   let rows: { n: number; cells: Cell[] }[]
   if (isRace) {
@@ -461,12 +473,12 @@ function TimingTable({ snapshot, dash, isRace, selected, onSelect }: {
         cells: [
           { key: 'pos', node: pos(r.position) },
           { key: 'drv', node: driverCell(r.code, r.colour, r.team ?? '') },
-          { key: 'int', node: plain(r.position === 1 ? '—' : gapTxt(r.interval)) },
+          { key: 'int', node: plain(r.position === 1 ? 'n/a' : gapTxt(r.interval)) },
           { key: 'gap', node: plain(r.position === 1 ? 'Leader' : gapTxt(r.gap_to_leader), undefined, true) },
           { key: 'last', node: plain(formatLap(r.last_lap_s)) },
           { key: 'best', node: plain(formatLap(d?.best_s), d ? `L${d.best_lap}` : undefined, true) },
           { key: 's1', node: sec('sector1') }, { key: 's2', node: sec('sector2') }, { key: 's3', node: sec('sector3') },
-          { key: 'trap', node: plain(d?.last.st_speed ?? '—', d ? `${d.last.i1_speed ?? '—'} · ${d.last.i2_speed ?? '—'}` : undefined) },
+          { key: 'trap', node: plain(d?.last.st_speed ?? 'n/a', d ? `${d.last.i1_speed ?? 'n/a'} · ${d.last.i2_speed ?? 'n/a'}` : undefined) },
           { key: 'tyre', node: tyreCell(r.compound, r.tyre_age) },
           { key: 'pit', node: plain(`PIT ${r.stops}`, r.pit_laps.length ? `L${r.pit_laps.join(', L')}` : undefined) },
         ],
@@ -487,12 +499,12 @@ function TimingTable({ snapshot, dash, isRace, selected, onSelect }: {
           { key: 'drv', node: driverCell(r.code, r.colour, `L${r.best_lap_number} · ${r.laps} laps · ${r.clean_laps} clean`) },
           { key: 'last', node: plain(formatLap(d?.last_s ?? t?.last_lap_s)) },
           { key: 'best', node: plain(formatLap(r.best_lap_s), undefined, true) },
-          { key: 'gap', node: plain(r.position === 1 || r.gap_to_p1 == null ? '—' : `+${r.gap_to_p1.toFixed(3)}`) },
+          { key: 'gap', node: plain(r.position === 1 || r.gap_to_p1 == null ? 'n/a' : `+${r.gap_to_p1.toFixed(3)}`) },
           { key: 's1', node: <SectorCell time={r.sectors.sector1.time} colour={r.sectors.sector1.colour} segs={r.segments?.seg1} /> },
           { key: 's2', node: <SectorCell time={r.sectors.sector2.time} colour={r.sectors.sector2.colour} segs={r.segments?.seg2} /> },
           { key: 's3', node: <SectorCell time={r.sectors.sector3.time} colour={r.sectors.sector3.colour} segs={r.segments?.seg3} /> },
           { key: 'ideal', node: plain(formatLap(ideal), dI > 0.0005 ? `+${dI.toFixed(3)}` : undefined) },
-          { key: 'trap', node: plain(r.speed_traps?.st_speed ?? '—', `${r.speed_traps?.i1_speed ?? '—'} · ${r.speed_traps?.i2_speed ?? '—'}`) },
+          { key: 'trap', node: plain(r.speed_traps?.st_speed ?? 'n/a', `${r.speed_traps?.i1_speed ?? 'n/a'} · ${r.speed_traps?.i2_speed ?? 'n/a'}`) },
           { key: 'tyre', node: tyreCell(r.compound, r.tyre_age) },
           { key: 'st', node: <span className={s.chip} style={{ fontSize: 12, fontWeight: 800, background: status === 'IN PIT' ? 'var(--pw-text)' : 'transparent', color: status === 'IN PIT' ? 'var(--pw-bg)' : status === 'OUT LAP' ? 'var(--pw-muted)' : 'var(--pw-text)' }}>{status}</span> },
         ],
@@ -557,7 +569,7 @@ function TrackMap({ dash, order, selected, onSelect }: { dash: Dash; order: Orde
               <path d={d} fill="none" stroke="color-mix(in srgb, var(--pw-text) 75%, transparent)" strokeWidth="1.5" strokeLinejoin="round" />
             </svg>
           )}
-          {sf && <div style={{ position: 'absolute', left: `${sf[0] / W * 100}%`, top: `${sf[1] / H * 100}%`, transform: 'translate(-50%,-50%)', fontSize: 10, fontWeight: 800, background: 'var(--pw-text)', color: 'var(--pw-bg)', padding: '1px 5px', letterSpacing: '0.06em' }}>S/F</div>}
+          {sf && <div style={{ position: 'absolute', left: `${sf[0] / W * 100}%`, top: `${sf[1] / H * 100}%`, transform: 'translate(-50%,-50%)', fontSize: 'var(--pw-text-xs)', fontWeight: 800, background: 'var(--pw-text)', color: 'var(--pw-bg)', padding: '1px 5px', letterSpacing: '0.06em' }}>S/F</div>}
           {proj && cars.map(c => {
             const [px, py] = proj(c.x as number, c.y as number)
             const p = posOf.get(c.driver_number) ?? 99
@@ -570,7 +582,7 @@ function TrackMap({ dash, order, selected, onSelect }: { dash: Dash; order: Orde
               </button>
             )
           })}
-          {!cars.length && <div className={s.empty} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>No car positions yet — they arrive once cars are on track.</div>}
+          {!cars.length && <div className={s.empty} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>No car positions yet: they arrive once cars are on track.</div>}
         </div>
         <div className={s.foot} style={{ padding: '10px 0 0' }}>
           {outline ? 'The circuit is drawn from the first clean lap completed in this session.' : 'The circuit outline appears after the first clean flying lap; until then only the cars are drawn.'} Positions refresh every 2 s; lateral track position is approximate.
@@ -588,30 +600,30 @@ function CarData({ dash, order, selected }: { dash: Dash; order: OrderRow[]; sel
   const pts = (f: (h: [number | null, number | null, number | null]) => number) =>
     hist.map((h, i) => `${(i / Math.max(1, hist.length - 1) * 300).toFixed(1)},${f(h).toFixed(1)}`).join(' ')
   const drs = car?.drs ?? null
-  const drsLabel = drs == null ? '—' : drs >= 10 ? 'OPEN' : drs === 8 ? 'ELIGIBLE' : 'CLOSED'
+  const drsLabel = drs == null ? 'n/a' : drs >= 10 ? 'OPEN' : drs === 8 ? 'ELIGIBLE' : 'CLOSED'
   return (
     <div className={s.panel}>
       <div className={s.secHead}>
         <h6 className={s.h6}>Car data</h6><span className={s.sub}>Telemetry · ~3.7 Hz</span>
         <span className={s.secAside} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--pw-text)' }}>
-          <span className={s.tyreSq} style={{ background: colourOf(row?.colour ?? car?.colour) }} />{row?.code ?? car?.code ?? '—'}{row ? ` · P${row.position}` : ''}
+          <span className={s.tyreSq} style={{ background: colourOf(row?.colour ?? car?.colour) }} />{row?.code ?? car?.code ?? 'n/a'}{row ? ` · P${row.position}` : ''}
         </span>
       </div>
       {!car ? <div className={s.empty}>No telemetry for this car yet. Select a driver in the timing table; car data arrives while cars are running.</div> : (
         <>
           <div className={s.cells} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
-            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>Speed km/h</div><div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{car.speed ?? '—'}</div></div>
-            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>Gear</div><div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1 }}>{car.gear ?? '—'}</div></div>
-            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>RPM</div><div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.5 }}>{car.rpm?.toLocaleString('en-US') ?? '—'}</div>
+            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>Speed km/h</div><div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{car.speed ?? 'n/a'}</div></div>
+            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>Gear</div><div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1 }}>{car.gear ?? 'n/a'}</div></div>
+            <div className={s.cell} style={{ padding: '14px 20px' }}><div className={s.label}>RPM</div><div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.5 }}>{car.rpm?.toLocaleString('en-US') ?? 'n/a'}</div>
               <div style={{ height: 6, background: 'var(--pw-surface)' }}><div style={{ height: '100%', width: `${Math.min(100, (car.rpm ?? 0) / 130)}%`, background: 'var(--pw-text)' }} /></div></div>
           </div>
           <div style={{ padding: '16px 20px', display: 'grid', gap: 12, borderBottom: '2px solid var(--pw-divider)' }}>
-            <div className={s.barRow}><span>Throttle</span><div className={s.bar}><div style={{ width: `${car.throttle ?? 0}%`, background: 'var(--pw-text)' }} /></div><b style={{ fontSize: 14 }}>{car.throttle ?? '—'}%</b></div>
-            <div className={s.barRow}><span>Brake</span><div className={s.bar}><div style={{ width: `${car.brake ?? 0}%`, background: 'var(--pw-accent)' }} /></div><b style={{ fontSize: 14 }}>{car.brake ?? '—'}%</b></div>
+            <div className={s.barRow}><span>Throttle</span><div className={s.bar}><div style={{ width: `${car.throttle ?? 0}%`, background: 'var(--pw-text)' }} /></div><b style={{ fontSize: 14 }}>{car.throttle ?? 'n/a'}%</b></div>
+            <div className={s.barRow}><span>Brake</span><div className={s.bar}><div style={{ width: `${car.brake ?? 0}%`, background: 'var(--pw-accent)' }} /></div><b style={{ fontSize: 14 }}>{car.brake ?? 'n/a'}%</b></div>
             <div className={s.barRow} style={{ gridTemplateColumns: '84px 1fr' }}><span>DRS flag</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', border: '2px solid var(--pw-text)', background: drsLabel === 'OPEN' ? 'var(--pw-accent)' : 'transparent' }}>{drsLabel}</span>
-                <span className={s.sub}>raw {drs ?? '—'}</span>
+                <span className={s.sub}>raw {drs ?? 'n/a'}</span>
               </div>
             </div>
           </div>
@@ -628,7 +640,7 @@ function CarData({ dash, order, selected }: { dash: Dash; order: OrderRow[]; sel
           </div>
           <div className={s.cells} style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))', borderTop: '2px solid var(--pw-divider)' }}>
             {([['I1 speed', det?.last.i1_speed], ['I2 speed', det?.last.i2_speed], ['Speed trap', det?.last.st_speed]] as const).map(([l, v]) => (
-              <div key={l} className={s.cell} style={{ padding: '10px 20px' }}><div className={s.label}>{l}</div><div style={{ fontSize: 18, fontWeight: 800 }}>{v ?? '—'}</div></div>
+              <div key={l} className={s.cell} style={{ padding: '10px 20px' }}><div className={s.label}>{l}</div><div style={{ fontSize: 18, fontWeight: 800 }}>{v ?? 'n/a'}</div></div>
             ))}
           </div>
         </>
@@ -659,7 +671,7 @@ function RaceControl({ dash }: { dash: Dash }) {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>{r.message}</div>
               <div className={s.label} style={{ marginTop: 3 }}>
-                {r.category ?? '—'}{r.scope ? ` · ${r.scope}` : ''}{r.sector != null ? ` ${r.sector}` : ''}{r.lap_number ? ` · L${r.lap_number}` : ''}
+                {r.category ?? 'n/a'}{r.scope ? ` · ${r.scope}` : ''}{r.sector != null ? ` ${r.sector}` : ''}{r.lap_number ? ` · L${r.lap_number}` : ''}
               </div>
             </div>
           </div>
@@ -717,11 +729,11 @@ function Weather({ dash, trend, rainPeriods }: { dash: Dash; trend: string | nul
     <div className={s.panel}>
       <div className={s.secHead}><h6 className={s.h6}>Weather</h6><span className={s.sub}>Updated about every minute{w.date ? ` · ${clock(w.date)}` : ''}</span></div>
       <div className={s.cells} style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))' }}>
-        {cell('Air', w.air_temperature == null ? '—' : <>{w.air_temperature.toFixed(1)}{unit('°C')}</>)}
-        {cell('Track', w.track_temperature == null ? '—' : <>{w.track_temperature.toFixed(1)}{unit('°C')}</>)}
-        {cell('Humidity', w.humidity == null ? '—' : <>{Math.round(w.humidity)}{unit('%')}</>)}
-        {cell('Pressure', w.pressure == null ? '—' : <>{w.pressure.toFixed(1)}{unit('mbar')}</>)}
-        {cell('Wind speed', w.wind_speed == null ? '—' : <>{w.wind_speed.toFixed(1)}{unit('m/s')}</>)}
+        {cell('Air', w.air_temperature == null ? 'n/a' : <>{w.air_temperature.toFixed(1)}{unit('°C')}</>)}
+        {cell('Track', w.track_temperature == null ? 'n/a' : <>{w.track_temperature.toFixed(1)}{unit('°C')}</>)}
+        {cell('Humidity', w.humidity == null ? 'n/a' : <>{Math.round(w.humidity)}{unit('%')}</>)}
+        {cell('Pressure', w.pressure == null ? 'n/a' : <>{w.pressure.toFixed(1)}{unit('mbar')}</>)}
+        {cell('Wind speed', w.wind_speed == null ? 'n/a' : <>{w.wind_speed.toFixed(1)}{unit('m/s')}</>)}
         <div className={s.cell} style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 44, height: 44, border: '2px solid var(--pw-text)', position: 'relative', flex: 'none' }} aria-hidden>
             {w.wind_direction != null && (
@@ -732,7 +744,7 @@ function Weather({ dash, trend, rainPeriods }: { dash: Dash; trend: string | nul
               </div>
             )}
           </div>
-          <div><div className={s.label}>Direction</div><div style={{ fontSize: 24, fontWeight: 800 }}>{w.wind_direction == null ? '—' : `${w.wind_direction}°`}</div></div>
+          <div><div className={s.label}>Direction</div><div style={{ fontSize: 24, fontWeight: 800 }}>{w.wind_direction == null ? 'n/a' : `${w.wind_direction}°`}</div></div>
         </div>
         <div className={s.cell} style={{ padding: '12px 20px', gridColumn: 'span 2' }}>
           <div className={s.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -804,12 +816,12 @@ function LongRuns({ snapshot }: { snapshot: LiveSnapshot }) {
           <div key={`${g.driver_number}-${g.lap_start}`} style={{ padding: '14px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
               <span className={s.tyreSq} style={{ background: COMPOUND[(g.compound ?? '').toUpperCase()] ?? 'transparent', alignSelf: 'center' }} />
-              <span style={{ fontSize: 16, fontWeight: 800 }}>{g.code}</span><span style={{ fontSize: 11, letterSpacing: '0.06em' }}>{g.compound ?? '—'}</span>
+              <span style={{ fontSize: 16, fontWeight: 800 }}>{g.code}</span><span style={{ fontSize: 11, letterSpacing: '0.06em' }}>{g.compound ?? 'n/a'}</span>
               <span style={{ marginLeft: 'auto', fontSize: 18, fontWeight: 800 }}>{formatLap(g.median_s)}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
               <div style={{ flex: 1, height: 6, background: 'var(--pw-surface)' }}><div style={{ height: '100%', width: `${g.laps / maxLaps * 100}%`, background: 'var(--pw-text)' }} /></div>
-              <span className={s.sub} style={{ fontSize: 11 }}>L{g.lap_start}–{g.lap_end} · {g.laps} clean laps</span>
+              <span className={s.sub} style={{ fontSize: 11 }}>L{g.lap_start} to {g.lap_end} · {g.laps} clean laps</span>
               <span style={{ fontSize: 11, fontWeight: 600 }}>{g.confidence}</span>
             </div>
           </div>
@@ -854,9 +866,9 @@ function PitLane({ dash }: { dash: Dash }) {
           const lane = q.lane_duration ?? q.pit_duration
           return (
             <div key={`${q.driver_number}-${q.lap_number}-${i}`} style={{ display: 'grid', gridTemplateColumns: grid, gap: 8, padding: '9px 20px', fontSize: 14, alignItems: 'center' }}>
-              <span style={{ fontWeight: 600 }}>L{q.lap_number ?? '—'}</span><span style={{ fontWeight: 800 }}>{q.code}</span>
-              <span>{lane == null ? '—' : `${lane.toFixed(1)} s`}</span>
-              <span style={{ fontWeight: 800, color: q.stop_duration != null && q.stop_duration === best ? 'var(--pw-accent-text)' : undefined }}>{q.stop_duration == null ? '—' : `${q.stop_duration.toFixed(1)} s`}</span>
+              <span style={{ fontWeight: 600 }}>L{q.lap_number ?? 'n/a'}</span><span style={{ fontWeight: 800 }}>{q.code}</span>
+              <span>{lane == null ? 'n/a' : `${lane.toFixed(1)} s`}</span>
+              <span style={{ fontWeight: 800, color: q.stop_duration != null && q.stop_duration === best ? 'var(--pw-accent-text)' : undefined }}>{q.stop_duration == null ? 'n/a' : `${q.stop_duration.toFixed(1)} s`}</span>
             </div>
           )
         })}
@@ -898,9 +910,9 @@ function TyreStrategy({ dash, order, currentLap }: { dash: Dash; order: OrderRow
                   const c = (st.compound ?? '?').toUpperCase()
                   const light = c === 'HARD' || c === 'MEDIUM'
                   return (
-                    <div key={st.stint_number} title={`${c} · laps ${from}–${to}${st.tyre_age_at_start ? ` · ${st.tyre_age_at_start} laps old at fitting` : ''}`}
+                    <div key={st.stint_number} title={`${c} · laps ${from} to ${to}${st.tyre_age_at_start ? ` · ${st.tyre_age_at_start} laps old at fitting` : ''}`}
                       style={{ position: 'absolute', top: 0, bottom: 0, left: `${(from - 1) / max * 100}%`, width: `${Math.max(1, to - from + 1) / max * 100}%`,
-                        background: COMPOUND[c] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)', border: '2px solid var(--pw-bg)', fontSize: 10, fontWeight: 800,
+                        background: COMPOUND[c] ?? 'color-mix(in srgb, var(--pw-text) 30%, transparent)', border: '2px solid var(--pw-bg)', fontSize: 'var(--pw-text-xs)', fontWeight: 800,
                         color: light ? '#05060a' : '#fff', display: 'flex', alignItems: 'center', paddingLeft: 5, whiteSpace: 'nowrap', overflow: 'hidden', boxSizing: 'border-box' }}>
                       {c[0]} {to - from + 1}
                     </div>
@@ -947,7 +959,7 @@ function TeamRadio({ snapshot }: { snapshot: LiveSnapshot }) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={on ? 'M6 4h4v16H6zM14 4h4v16h-4z' : 'M6 3l14 9-14 9z'} /></svg>
               </button>
               <div><div style={{ fontSize: 15, fontWeight: 800 }}>{c.code}</div><div className={s.sub} style={{ fontSize: 11 }}>{clock(c.date)}{c.lap_number ? ` · L${c.lap_number}` : ''}</div></div>
-              {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600, color: 'var(--pw-accent-text)' }}>Open clip ↗</a>}
+              {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600, color: 'var(--pw-accent-text)' }}>Open clip →</a>}
             </div>
           )
         })}
@@ -1062,7 +1074,7 @@ function FeedCoverage({ snapshot, isRace }: { snapshot: LiveSnapshot; isRace: bo
             <div style={{ fontSize: 14, fontWeight: 800 }}>/{r.name}</div>
             <div style={{ fontSize: 11, letterSpacing: '0.06em', fontWeight: 800, padding: '1px 8px', alignSelf: 'start', background: r.status === 'LIVE' ? 'var(--pw-text)' : 'transparent', color: r.status === 'LIVE' ? 'var(--pw-bg)' : 'var(--pw-text)', border: r.status === 'LIVE' ? 0 : '1px solid var(--pw-divider)' }}>{r.status}</div>
             <div className={s.sub}>{r.rate}</div>
-            <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{r.count ? `${r.count.toLocaleString('en-US')} msgs` : '—'}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{r.count ? `${r.count.toLocaleString('en-US')} msgs` : 'n/a'}</div>
           </div>
         ))}
       </div>

@@ -1,5 +1,8 @@
 'use client'
 
+import { Segmented, ui } from '@/components/ui'
+import t from './telemetry.module.css'
+
 export type ActiveMetric = 'speed' | 'throttle' | 'brake' | 'gear'
 
 const METRICS: { id: ActiveMetric; label: string }[] = [
@@ -17,34 +20,10 @@ type Props = {
 
 export function MetricSelector({ active, onChange, multiDriver }: Props) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mr-1">
-        Metric
-      </span>
-      <div className="flex items-center gap-1">
-        {METRICS.map((m) => {
-          const isActive = m.id === active
-          return (
-            <button
-              key={m.id}
-              onClick={() => onChange(m.id)}
-              className={[
-                'px-2.5 py-1 rounded-[3px] border font-display font-bold text-[9px] uppercase tracking-[0.5px] transition-all',
-                isActive
-                  ? 'bg-signal-red border-signal-red text-white'
-                  : 'border-border-subtle text-text-secondary hover:border-border-default hover:text-text-primary',
-              ].join(' ')}
-            >
-              {m.label}
-            </button>
-          )
-        })}
-      </div>
-      {multiDriver && (
-        <span className="font-mono text-[8px] text-text-muted">
-          Multi-driver: team colours, speed as line weight
-        </span>
-      )}
+    <div className={t.group}>
+      <span className={ui.label}>Metric</span>
+      <Segmented small label="Metric" value={active} onChange={onChange} options={METRICS.map((m) => ({ value: m.id, label: m.label }))} />
+      {multiDriver && <span className={ui.sub}>Multi-driver: team colours, speed as line weight</span>}
     </div>
   )
 }

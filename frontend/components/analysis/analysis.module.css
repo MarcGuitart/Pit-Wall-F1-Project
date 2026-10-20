@@ -1,0 +1,149 @@
+/* The race analysis page and its modules, in the design system.
+   Tokens and primitives: components/ui (ui.module.css). */
+
+.page { display: flex; flex-direction: column; min-width: 0; }
+.stack { display: flex; flex-direction: column; min-width: 0; }
+.stack > * + * { border-top: 2px solid var(--pw-divider); }
+.headStats { display: flex; align-items: stretch; gap: 0; border: 2px solid var(--pw-divider); }
+.headStats > div { padding: 10px 16px; min-width: 96px; }
+.headStats > div + div { border-left: 2px solid var(--pw-divider); }
+
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;
+  padding: 12px var(--pw-gutter); border-bottom: 2px solid var(--pw-divider);
+}
+.toolbarNote { font-size: 12px; color: var(--pw-muted); }
+.toolbarNote b { color: var(--pw-text); font-weight: 700; }
+
+.focus {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px var(--pw-gutter); background: var(--pw-accent-tint); border-bottom: 2px solid var(--pw-divider);
+  font-size: 13px; cursor: pointer;
+}
+.focus b { font-weight: 800; }
+
+.tabIcon { display: inline-flex; width: 14px; justify-content: center; font-size: 13px; line-height: 1; }
+
+/* ── shared module pieces ── */
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--pw-muted); }
+.small { font-size: 12px; }
+.tiny { font-size: 11px; }
+.strong { font-weight: 800; }
+.num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.para { margin: 0; font-size: 13px; line-height: 1.55; color: var(--pw-muted); }
+.paraStrong { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 700; color: var(--pw-text); }
+.list { display: flex; flex-direction: column; }
+.list > * + * { border-top: 1px solid var(--pw-divider); }
+.item { padding: 12px 20px; min-width: 0; }
+.itemBtn { padding: 12px 20px; min-width: 0; width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; display: block; }
+.itemBtn:hover { background: var(--pw-accent-tint); }
+.linkBtn { font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; background: transparent; border: 0; padding: 0; color: var(--pw-text); cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.linkBtn:hover { color: var(--pw-accent-text); }
+.code { font-weight: 800; letter-spacing: 0.02em; }
+.swatch { width: 4px; align-self: stretch; flex: none; min-height: 18px; }
+.sq { width: 10px; height: 10px; display: inline-block; flex: none; }
+.track { position: relative; height: 10px; background: var(--pw-surface-2); overflow: hidden; }
+.track > span { position: absolute; top: 0; bottom: 0; left: 0; }
+/* Readings in ruled cells; rules on the cells, so a short last row leaves no grey hole. */
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); border-top: 2px solid var(--pw-divider); border-left: 2px solid var(--pw-divider); }
+.kv > div { background: var(--pw-bg); padding: 10px 14px; min-width: 0; border-right: 2px solid var(--pw-divider); border-bottom: 2px solid var(--pw-divider); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* A module that has no content: "not applicable" is quiet and dashed,
+   "failed" is the accent and must never look the same. */
+.unavailable { padding: 16px 20px; display: grid; gap: 6px; }
+.unavailableFailed { box-shadow: inset 4px 0 0 var(--pw-accent); }
+.unavailableNa { box-shadow: inset 4px 0 0 var(--pw-divider); }
+
+/* ── Race Brain / DNA ── */
+.brain { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 20px; }
+@media (max-width: 860px) { .brain { grid-template-columns: 1fr; } }
+.brainQ { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; text-transform: uppercase; }
+.dnaValue { font-size: 16px; font-weight: 800; line-height: 1.2; margin-top: 4px; }
+
+/* ── True Pace podium, decisions ── */
+.podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.podiumCard {
+  font: inherit; color: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); min-width: 0;
+}
+.podiumCard:hover { border-color: var(--pw-text); }
+.podiumP1 { border-color: var(--pw-accent); background: var(--pw-accent-tint); }
+.podiumEmpty { display: flex; align-items: center; justify-content: center; padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); }
+.podiumCode { display: block; font-size: 20px; font-weight: 800; line-height: 1; }
+.podiumTime { display: block; font-size: 16px; font-weight: 800; }
+.ellipsis { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialogClose { width: 100%; justify-content: center; border: 0 !important; border-top: 2px solid var(--pw-divider) !important; }
+.rank { font-size: 28px; font-weight: 800; line-height: 1; color: var(--pw-accent); flex: none; min-width: 22px; }
+.itemTitle { font-size: 14px; font-weight: 800; line-height: 1.25; }
+.impact { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin: 4px 0; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 520px) { .podium { grid-template-columns: 1fr; } .podiumP1 { order: -1; } }
+
+/* ── column groups inside a panel (tyre cliff, pit sequence) ── */
+.colHead { padding: 10px 14px; border-bottom: 1px solid var(--pw-divider); }
+.colFoot { padding: 8px 14px; border-top: 1px solid var(--pw-divider); margin-top: auto; }
+.highlight { background: color-mix(in srgb, var(--pw-blue) 10%, transparent); box-shadow: inset 4px 0 0 var(--pw-blue); }
+
+/* ── weather sub-panels ── */
+.subCard { display: grid; gap: 8px; padding: 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); min-width: 0; }
+.warnNote { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; font-size: 12px; line-height: 1.45; color: var(--pw-amber); border: 2px solid currentColor; }
+.twoCol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 640px) { .twoCol { grid-template-columns: 1fr; } }
+
+/* ── chaos, signals ── */
+.chaosGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 520px) { .chaosGrid { grid-template-columns: 1fr; } }
+.chaosScore { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.chipOn { background: var(--pw-text) !important; color: var(--pw-bg) !important; border-color: var(--pw-text) !important; }
+
+/* ── data view ── */
+.sectionNav { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 10px var(--pw-gutter); background: var(--pw-bg); }
+@media (min-width: 861px) { .sectionNav { position: sticky; top: 56px; z-index: 5; } }
+.dot { width: 8px; height: 8px; flex: none; display: inline-block; }
+.footList { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.stack > [id] { scroll-margin-top: 130px; }
+.rowOn { background: var(--pw-accent-tint); }
+.compound { width: 22px; height: 22px; border: 2px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex: none; }
+
+/* ── race phase timeline ── */
+.phaseTrack { position: relative; height: 24px; background: var(--pw-surface); margin-bottom: 6px; }
+.phaseSeg { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--pw-bg); outline-offset: -2px; }
+.phaseLabel { color: var(--pw-text) !important; font-size: var(--pw-text-xs); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; max-width: 90%; text-overflow: ellipsis; pointer-events: none; }
+.phaseTip { position: absolute; bottom: calc(100% + 8px); z-index: 30; min-width: 170px; max-width: 260px; padding: 8px 10px; background: var(--pw-bg); border: 2px solid var(--pw-text); border-left-width: 4px; pointer-events: none; white-space: normal; }
+.phaseTipTitle { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 3px; }
+.phaseStart { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--pw-text); z-index: 5; pointer-events: none; }
+.phaseFinish { position: absolute; top: 0; bottom: 0; right: 0; width: 12px; z-index: 5; pointer-events: none; }
+.phaseLaps { position: relative; height: 16px; margin-bottom: 10px; font-size: 11px; color: var(--pw-muted); }
+.phaseLaps > span { position: absolute; white-space: nowrap; }
+.marker { position: absolute; top: 0; bottom: 0; width: 14px; transform: translateX(-50%); display: flex; align-items: stretch; justify-content: center; outline-offset: 0; }
+.markTip { min-width: 150px; max-width: 240px; padding: 8px 10px; background: var(--pw-bg); border: 2px solid var(--pw-text); border-left-width: 4px; display: grid; gap: 2px; pointer-events: none; }
+
+/* ── Block 27: arrival after the loader. Each first-screen module fades in
+   rising 6 px, 160 ms, 20 ms × its index (data-arrive); the skeleton under
+   it fades out on the same clock (loader/skeleton.module.css). Heights are
+   never animated. Reduced motion: one 120 ms opacity swap for the page. ── */
+.headRightIn { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; min-width: 0; }
+.arrive { position: relative; z-index: 1; }
+.arrive [data-arrive] { animation: pwArrive 160ms var(--pw-ease-out) both; }
+.arrive [data-arrive='1'] { animation-delay: 20ms; }
+.arrive [data-arrive='2'] { animation-delay: 40ms; }
+.arrive [data-arrive='3'] { animation-delay: 60ms; }
+.arrive [data-arrive='4'] { animation-delay: 80ms; }
+.arrive [data-arrive='5'] { animation-delay: 100ms; }
+.arrive [data-arrive='6'] { animation-delay: 120ms; }
+@keyframes pwArrive { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .arrive [data-arrive] { animation: none; }
+  .arrive { animation: pwArriveFade 120ms linear both; }
+}
+@keyframes pwArriveFade { from { opacity: 0; } }
+
+/* A race with no team radio keeps the lane's measured height (121 px, 145 on
+   mobile, with its 2 px rule), so arrival over the skeleton moves nothing. */
+.radioEmpty { min-height: 121px; }
+@media (max-width: 860px) { .radioEmpty { min-height: 145px; } }

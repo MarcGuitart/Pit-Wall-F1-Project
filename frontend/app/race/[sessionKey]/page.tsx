@@ -1,135 +1,111 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useRaceStore } from '@/stores/raceStore'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { useRaceAnalysis } from '@/hooks/useRaceAnalysis'
 import { AppShell } from '@/components/layout/AppShell'
 import { AnalysisLoadingScreen } from '@/components/analysis/AnalysisLoadingScreen'
 import { AnalysisPage } from '@/components/analysis/AnalysisPage'
-import { SessionUnavailableState } from '@/components/analysis/SessionUnavailableState'
-import { ProWall } from '@/components/access/ProWall'
+import { BlockedPage, type BlockedKind } from '@/components/analysis/loader/BlockedPage'
+import { useSessionMeta } from '@/lib/sessionMeta'
+import { useArrival } from '@/lib/arrival'
+import { loadStartedAt } from '@/lib/loadPhase'
+import type { AnalysisError } from '@/lib/errors'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { raceBreadcrumb } from '@/lib/sessionFacts'
+import { placeOf } from '@/lib/place'
 
+/** Which no-analysis page an error is, or null for the loader's own state 4 / a generic failure. */
+function blockedKind(error: AnalysisError): BlockedKind {
+  switch (error.code) {
+    case 'PRO_REQUIRED': return 'pro'
+    case 'SESSION_CANCELLED': return 'cancelled'
+    case 'SESSION_NOT_FOUND': return 'notfound'
+    case 'SESSION_NOT_HISTORICAL_YET': return 'unpublished'
+    case 'OPENF1_RATE_LIMIT': return 'rate'
+    default: return 'failed'
+  }
+}
+
+/**
+ * /race/{key} (Block 27): loader → arrival → page, or one of the pages with
+ * no analysis. The header's facts come from /sessions/{key}/meta, asked in
+ * parallel with /analysis, so a cancelled or unknown session is answered
+ * without waiting for the analysis server.
+ */
 export default function RacePage() {
   const params = useParams()
-  const router = useRouter()
   const sessionKey = Number(params.sessionKey)
+  const valid = Number.isInteger(sessionKey) && sessionKey > 0
 
-  const { loadingStep } = useRaceStore()
-  const { loading, data: analysis, error, retry } = useRaceAnalysis(
-    isNaN(sessionKey) ? null : sessionKey,
-  )
+  const { data: analysis, error, retry } = useRaceAnalysis(valid ? sessionKey : null)
+  const { meta, notFound } = useSessionMeta(valid ? sessionKey : null)
+  const [startedAt, setStartedAt] = useState(() => (valid ? loadStartedAt(sessionKey) : Date.now()))
+  const stage = useArrival(startedAt, Boolean(analysis))
 
-  // Update browser tab title once race data is available — must be before any early return
   useEffect(() => {
-    if (analysis) {
-      document.title = `${analysis.race.meeting_name} ${analysis.race.year} · ${PRODUCT_NAME}`
-    }
-    return () => {
-      document.title = `${PRODUCT_NAME} — Race Strategy Intelligence`
-    }
-  }, [analysis])
+    if (analysis) document.title = `${meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} ${analysis.race.year} · ${PRODUCT_NAME}`
+    return () => { document.title = `${PRODUCT_NAME} · Race Strategy Intelligence` }
+  }, [analysis, meta])
 
-  if (isNaN(sessionKey)) {
-    router.push('/')
-    return null
+  const again = () => {
+    retry()
+    setStartedAt(loadStartedAt(sessionKey))
   }
 
-  const raceName = analysis
-    ? `${analysis.race.meeting_name} ${analysis.race.year}`
-    : 'Loading…'
+  if (!valid) {
+    return <AppShell><BlockedPage kind="notfound" sessionKey={0} meta={null} /></AppShell>
+  }
 
-  const breadcrumb = analysis
-    ? [
-        { label: String(analysis.race.year), href: '/' },
-        { label: analysis.race.meeting_name, href: '/' },
-        { label: analysis.race.session_name },
-      ]
-    : []
-
-  // Error states — map to SessionUnavailableState for structured errors
-  if (error) {
-    // Not a failure: the race exists and works, it is simply behind the wall.
-    // This is the path someone takes when a PRO link is shared with them.
-    if (error.code === 'PRO_REQUIRED') {
-      return (
-        <AppShell>
-          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-            <ProWall year={error.year ?? null} onUnlocked={() => retry()} />
-          </div>
-        </AppShell>
-      )
-    }
-
-    if (
-      error.code === 'SESSION_NOT_HISTORICAL_YET' ||
-      error.code === 'SESSION_NOT_CACHED' ||
-      error.code === 'OPENF1_RATE_LIMIT' ||
-      error.code === 'OPENF1_ERROR'
-    ) {
-      return (
-        <AppShell>
-          <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-            <SessionUnavailableState
-              code={error.code}
-              message={error.message}
-              unlockAtUtc={error.unlockAtUtc}
-              retryAfterMinutes={error.retryAfterMinutes}
-              onRetry={() => retry()}
-              sessionKey={sessionKey}
-            />
-          </div>
-        </AppShell>
-      )
-    }
-
-    // ANALYSIS_FAILED or UNKNOWN — show generic error with retry
+  if (analysis && (stage === 'done' || stage === 'arriving')) {
+    const breadcrumb = [
+      { label: String(analysis.race.year), href: '/races' },
+      { label: meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`, href: '/races' },
+      { label: analysis.race.session_name },
+    ]
     return (
-      <AppShell>
-        <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-          <div className="bg-bg-panel border border-signal-red/30 rounded-[4px] p-8 max-w-lg w-full">
-            <div className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-signal-red mb-2">
-              Analysis Failed
-            </div>
-            <p className="font-mono text-[13px] text-text-secondary mb-4 leading-relaxed">
-              {error.message}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => retry()}
-                className="px-4 py-2 bg-signal-red text-white font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:bg-red-600 transition-colors"
-              >
-                Retry
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 bg-bg-elevated border border-border-default text-text-secondary font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] hover:text-text-primary transition-colors"
-              >
-                Back
-              </button>
-            </div>
-          </div>
+      <AppShell breadcrumb={breadcrumb}>
+        <div style={{ position: 'relative' }}>
+          <AnalysisPage analysis={analysis} meta={meta} arriving={stage === 'arriving'} />
+          {stage === 'arriving' && <AnalysisLoadingScreen sessionKey={sessionKey} startedAt={startedAt} meta={meta} leaving />}
         </div>
       </AppShell>
     )
   }
 
-  if (loading || !analysis) {
-    return (
-      <AppShell>
-        <AnalysisLoadingScreen
-          raceName={raceName}
-          sessionKey={sessionKey}
-          currentStep={loadingStep}
-        />
-      </AppShell>
-    )
+  if (!analysis) {
+    let blocked: { kind: BlockedKind; err?: AnalysisError } | null = null
+    if (notFound) blocked = { kind: 'notfound' }
+    else if (meta?.is_cancelled) blocked = { kind: 'cancelled' }
+    else if (error && error.code !== 'ANALYSIS_TIMEOUT') blocked = { kind: blockedKind(error), err: error }
+    if (blocked) {
+      return (
+        <AppShell breadcrumb={raceBreadcrumb(meta)}>
+          <BlockedPage
+            kind={blocked.kind}
+            sessionKey={sessionKey}
+            meta={meta}
+            earliestAt={blocked.err?.unlockAtUtc ?? null}
+            retryAfterSeconds={blocked.err?.retryAfterSeconds}
+            message={blocked.err?.message}
+            onRetry={again}
+            onUnlocked={again}
+          />
+        </AppShell>
+      )
+    }
   }
 
+  // Loading, the 300 ms hold before arrival, or state 4 (aborted at 45 s).
   return (
-    <AppShell breadcrumb={breadcrumb}>
-      <AnalysisPage analysis={analysis} />
+    <AppShell breadcrumb={raceBreadcrumb(meta)}>
+      <AnalysisLoadingScreen
+        sessionKey={sessionKey}
+        startedAt={startedAt}
+        meta={meta}
+        failed={error?.code === 'ANALYSIS_TIMEOUT'}
+        onRetry={again}
+      />
     </AppShell>
   )
 }

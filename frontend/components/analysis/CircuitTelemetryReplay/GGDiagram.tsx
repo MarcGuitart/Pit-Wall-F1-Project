@@ -47,7 +47,7 @@ function pointColor(p: TelemetryPoint): string {
 
 // ── Stats helpers ─────────────────────────────────────────────────────────────
 function pct(n: number, total: number): string {
-  return total > 0 ? `${Math.round((n / total) * 100)}%` : '—'
+  return total > 0 ? `${Math.round((n / total) * 100)}%` : 'n/a'
 }
 
 type Props = {
@@ -102,8 +102,8 @@ export function GGDiagram({ driver }: Props) {
 
   if (!hasGG) {
     return (
-      <div className="bg-bg-elevated border border-border-subtle rounded-[4px] p-6 flex items-center justify-center">
-        <span className="font-mono text-[10px] text-text-muted">
+      <div className="p-6 flex items-center justify-center">
+        <span className="text-[12px] text-text-muted">
           G-G data requires FastF1 telemetry
         </span>
       </div>
@@ -111,29 +111,29 @@ export function GGDiagram({ driver }: Props) {
   }
 
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden">
+    <div className="overflow-hidden">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
         <div>
-          <span className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
+          <span className="font-bold text-[11px] uppercase tracking-[1.5px] text-text-muted">
             G-G Diagram
           </span>
-          <span className="ml-2 font-mono text-[8px] text-text-muted/60">
+          <span className="ml-2 text-[11px] text-text-muted">
             Traction circle · {driver.lap_mode === 'representative' ? 'representative lap' : 'fastest clean lap'}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-signal-green opacity-70" />
-            <span className="font-mono text-[8px] text-text-muted">Throttle</span>
+            <span className="w-2 h-2 bg-signal-green opacity-70" />
+            <span className="text-[11px] text-text-muted">Throttle</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-signal-red opacity-70" />
-            <span className="font-mono text-[8px] text-text-muted">Brake</span>
+            <span className="w-2 h-2 bg-signal-red opacity-70" />
+            <span className="text-[11px] text-text-muted">Brake</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-text-muted opacity-50" />
-            <span className="font-mono text-[8px] text-text-muted">Coast</span>
+            <span className="w-2 h-2 bg-text-muted opacity-50" />
+            <span className="text-[11px] text-text-muted">Coast</span>
           </span>
         </div>
       </div>
@@ -151,31 +151,31 @@ export function GGDiagram({ driver }: Props) {
               {/* Vertical (lat) */}
               <line
                 x1={gx(g)} y1={PAD} x2={gx(g)} y2={H - PAD}
-                stroke="rgb(var(--c-border-subtle))" strokeWidth={g === 0 ? 0 : 0.5}
+                stroke="var(--pw-divider)" strokeWidth={g === 0 ? 0 : 0.5}
               />
               {/* Horizontal (lon) */}
               <line
                 x1={PAD} y1={gy(g)} x2={W - PAD} y2={gy(g)}
-                stroke="rgb(var(--c-border-subtle))" strokeWidth={g === 0 ? 0 : 0.5}
+                stroke="var(--pw-divider)" strokeWidth={g === 0 ? 0 : 0.5}
               />
             </g>
           ))}
 
           {/* Zero axes — more visible */}
-          <line x1={gx(0)} y1={PAD} x2={gx(0)} y2={H - PAD} stroke="rgb(var(--c-border-default))" strokeWidth={1} />
-          <line x1={PAD} y1={gy(0)} x2={W - PAD} y2={gy(0)} stroke="rgb(var(--c-border-default))" strokeWidth={1} />
+          <line x1={gx(0)} y1={PAD} x2={gx(0)} y2={H - PAD} stroke="color-mix(in srgb, var(--pw-text) 30%, transparent)" strokeWidth={1} />
+          <line x1={PAD} y1={gy(0)} x2={W - PAD} y2={gy(0)} stroke="color-mix(in srgb, var(--pw-text) 30%, transparent)" strokeWidth={1} />
 
           {/* Axis tick labels */}
           {ticks.map((g) => (
             <g key={`lbl-${g}`}>
               {/* Lat G (bottom axis) */}
               <text x={gx(g)} y={H - PAD + 14} textAnchor="middle"
-                fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                fill="var(--pw-muted)" fontSize="8" fontFamily="var(--font-archivo), sans-serif">
                 {g > 0 ? `+${g}` : g}
               </text>
               {/* Lon G (left axis) */}
               <text x={PAD - 6} y={gy(g) + 3} textAnchor="end"
-                fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                fill="var(--pw-muted)" fontSize="8" fontFamily="var(--font-archivo), sans-serif">
                 {g > 0 ? `+${g}` : g}
               </text>
             </g>
@@ -183,30 +183,30 @@ export function GGDiagram({ driver }: Props) {
 
           {/* Axis unit labels */}
           <text x={CX} y={H - 2} textAnchor="middle"
-            fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700">
+            fill="var(--pw-muted)" fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="1" fontWeight="700">
             LATERAL G →
           </text>
           <text x={10} y={CY} textAnchor="middle"
-            fill="rgb(var(--c-text-muted))" fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1" fontWeight="700"
+            fill="var(--pw-muted)" fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="1" fontWeight="700"
             transform={`rotate(-90, 10, ${CY})`}>
             LONGITUDINAL G ↑
           </text>
 
           {/* Quadrant labels */}
           <text x={CX} y={PAD + 12} textAnchor="middle"
-            fill="#23D18B" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            fill="#23D18B" opacity={0.4} fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="2" fontWeight="700">
             ACCELERATING
           </text>
           <text x={CX} y={H - PAD - 8} textAnchor="middle"
-            fill="#E8001D" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            fill="#E8001D" opacity={0.4} fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="2" fontWeight="700">
             BRAKING
           </text>
           <text x={PAD + 8} y={CY - 6} textAnchor="start"
-            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="2" fontWeight="700">
             L
           </text>
           <text x={W - PAD - 8} y={CY - 6} textAnchor="end"
-            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2" fontWeight="700">
+            fill="#4DA3FF" opacity={0.4} fontSize="8" fontFamily="var(--font-archivo), sans-serif" letterSpacing="2" fontWeight="700">
             R
           </text>
 
@@ -225,11 +225,11 @@ export function GGDiagram({ driver }: Props) {
 
           {/* Limit labels */}
           <text x={gx(LAT_LIMIT) + 4} y={CY + 4}
-            fill="#FFB020" fontSize="7" fontFamily="JetBrains Mono, monospace" opacity={0.7}>
+            fill="#FFB020" fontSize="7" fontFamily="var(--font-archivo), sans-serif" opacity={0.7}>
             {LAT_LIMIT}g
           </text>
           <text x={CX + 4} y={gy(-BRK_LIMIT) + 10}
-            fill="#FFB020" fontSize="7" fontFamily="JetBrains Mono, monospace" opacity={0.7}>
+            fill="#FFB020" fontSize="7" fontFamily="var(--font-archivo), sans-serif" opacity={0.7}>
             {BRK_LIMIT}g
           </text>
 
@@ -275,9 +275,9 @@ export function GGDiagram({ driver }: Props) {
                 { label: 'Peak Acc', value: `${stats.peakAcc.toFixed(2)}g`, color: '#23D18B' },
                 { label: 'At Limit', value: pct(stats.atLimit, stats.total), color: '#FFB020' },
               ].map(({ label, value, color }) => (
-                <div key={label} className="bg-bg-panel border border-border-subtle rounded-[3px] px-2 py-2">
-                  <div className="font-mono text-[8px] text-text-muted mb-0.5">{label}</div>
-                  <div className="font-mono text-[13px] font-bold tabular-nums" style={{ color }}>
+                <div key={label} className="border-2 border-border-subtle px-2 py-2">
+                  <div className="text-[11px] text-text-muted mb-0.5">{label}</div>
+                  <div className="text-[13px] font-bold tabular-nums" style={{ color }}>
                     {value}
                   </div>
                 </div>
@@ -308,14 +308,14 @@ export function GGDiagram({ driver }: Props) {
                 const frac = total > 0 ? value / total : 0
                 return (
                   <div key={label} className="flex items-center gap-2">
-                    <div className="font-mono text-[8px] text-text-muted w-[92px] shrink-0">{label}</div>
-                    <div className="flex-1 h-[5px] bg-bg-panel rounded-full overflow-hidden">
+                    <div className="text-[11px] text-text-muted w-[92px] shrink-0">{label}</div>
+                    <div className="flex-1 h-[5px] bg-bg-panel overflow-hidden">
                       <div
-                        className="h-full rounded-full"
+                        className="h-full"
                         style={{ width: `${(frac * 100).toFixed(1)}%`, backgroundColor: color, opacity: 0.75 }}
                       />
                     </div>
-                    <div className="font-mono text-[8px] w-8 text-right" style={{ color }}>
+                    <div className="text-[11px] w-8 text-right" style={{ color }}>
                       {Math.round(frac * 100)}%
                     </div>
                   </div>

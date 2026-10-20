@@ -23,10 +23,10 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           Team radio
         </span>
-        <span className="font-mono text-[10px] text-text-muted">
+        <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
           {shown.length} clip{shown.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -42,20 +42,20 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
             const isPlaying = playing === id
             return (
               <div key={id} className="px-3 py-2 flex items-center gap-2.5">
-                <span className="font-mono text-[9px] text-text-muted tabular-nums w-8 shrink-0">
-                  {clip.lap_number != null ? `~L${clip.lap_number}` : '–'}
+                <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted tabular-nums w-8 shrink-0">
+                  {clip.lap_number != null ? `~L${clip.lap_number}` : 'n/a'}
                 </span>
                 <span className="font-display font-bold text-[12px] tracking-[0.5px] text-text-primary w-10 shrink-0">
                   {clip.code}
                 </span>
-                <span className="font-mono text-[10px] text-text-muted tabular-nums flex-1 truncate">
+                <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted tabular-nums flex-1 truncate">
                   {clip.date ? clip.date.slice(11, 19) : ''}
                 </span>
                 {clip.recording_url ? (
                   <button
                     onClick={() => setPlaying(isPlaying ? null : id)}
                     className={[
-                      'shrink-0 px-2 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.8px] transition-colors',
+                      'shrink-0 px-2 py-0.5 border rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.8px] transition-colors',
                       isPlaying
                         ? 'border-signal-green/50 text-signal-green bg-signal-green/10'
                         : 'border-border-default text-text-secondary hover:text-text-primary',
@@ -64,7 +64,7 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
                     {isPlaying ? 'stop' : 'play'}
                   </button>
                 ) : (
-                  <span className="font-mono text-[9px] text-text-muted shrink-0">no audio</span>
+                  <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted shrink-0">no audio</span>
                 )}
                 {isPlaying && clip.recording_url && (
                   // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -82,8 +82,8 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
       )}
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed">
-          Lap is approximate — OpenF1 publishes a timestamp and an audio URL, not a lap number or a
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
+          Lap is approximate: OpenF1 publishes a timestamp and an audio URL, not a lap number or a
           transcript.
         </p>
       </div>

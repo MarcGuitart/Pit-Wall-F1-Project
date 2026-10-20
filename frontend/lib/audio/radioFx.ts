@@ -3,6 +3,18 @@
 
 let audioCtx: AudioContext | null = null
 
+// After the next paint: creating the AudioContext costs ~340 ms of main thread
+// with the CPU throttled four times, and the overlay's effect that plays the
+// opening click runs inside the click, before paint (Block 31, C4: INP).
+// The page already has user activation, so starting audio a frame later is
+// still allowed by autoplay policy.
+function afterNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame !== 'function') { setTimeout(resolve, 0); return }
+    requestAnimationFrame(() => setTimeout(resolve, 0))
+  })
+}
+
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -30,6 +42,7 @@ export function setAudioEnabled(enabled: boolean): void {
 export async function playRadioOpen(): Promise<void> {
   if (!isAudioEnabled()) return
   try {
+    await afterNextPaint()
     const ctx = getAudioContext()
     if (ctx.state === 'suspended') await ctx.resume()
 
@@ -78,6 +91,7 @@ export async function playRadioOpen(): Promise<void> {
 export async function playRadioClose(): Promise<void> {
   if (!isAudioEnabled()) return
   try {
+    await afterNextPaint()
     const ctx = getAudioContext()
     if (ctx.state === 'suspended') await ctx.resume()
     const now = ctx.currentTime
@@ -100,6 +114,7 @@ export async function playRadioClose(): Promise<void> {
 export async function playMessageReceived(): Promise<void> {
   if (!isAudioEnabled()) return
   try {
+    await afterNextPaint()
     const ctx = getAudioContext()
     if (ctx.state === 'suspended') await ctx.resume()
     const now = ctx.currentTime

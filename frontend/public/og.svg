@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Pit Wall Engineer — share card. Original artwork: the site's ground, accent
+       and type; abstract bars, no Formula 1 imagery or marks. -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&amp;display=block');
+    text { font-family: Archivo, Arial, sans-serif; }
+  </style>
+  <rect width="1200" height="630" fill="#05060a"/>
+  <rect x="0" y="0" width="1200" height="8" fill="#ec3013"/>
+  <rect x="64" y="72" width="16" height="16" fill="#ec3013"/>
+  <text x="96" y="87" fill="#f0f2f5" font-size="22" font-weight="800" letter-spacing="2">PIT WALL <tspan fill="#ff6a4f">ENGINEER</tspan></text>
+  <text x="64" y="232" fill="#f0f2f5" font-size="88" font-weight="800" letter-spacing="-3">Every race, read</text>
+  <text x="64" y="330" fill="#f0f2f5" font-size="88" font-weight="800" letter-spacing="-3">like an engineer would.</text>
+  <text x="64" y="400" fill="#9a9ca1" font-size="28" font-weight="600">True pace · tyre degradation · pit cycles · chaos</text>
+  <g fill="#f0f2f5">
+    <rect x="64"  y="500" width="36" height="66"/>
+    <rect x="112" y="480" width="36" height="86" opacity="0.9"/>
+    <rect x="160" y="512" width="36" height="54"/>
+    <rect x="208" y="470" width="36" height="96" opacity="0.18"/>
+    <rect x="256" y="496" width="36" height="70"/>
+    <rect x="304" y="505" width="36" height="61"/>
+    <rect x="352" y="460" width="36" height="106" opacity="0.18"/>
+    <rect x="400" y="500" width="36" height="66"/>
+  </g>
+  <rect x="64" y="574" width="1072" height="2" fill="#f0f2f5" opacity="0.16"/>
+  <text x="1136" y="555" fill="#9a9ca1" font-size="24" font-weight="600" text-anchor="end">pitwallengineer.com</text>
+</svg>

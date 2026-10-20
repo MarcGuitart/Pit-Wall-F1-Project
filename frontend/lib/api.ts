@@ -1,4 +1,4 @@
-import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
+import type { FullRaceAnalysis, RaceListItem, SessionInfo, SessionMeta } from '@/types'
 import type { TelemetryData } from '@/types/telemetry'
 import { ApiError, type ErrorDetails } from '@/lib/errors'
 import {
@@ -206,8 +206,28 @@ export async function fetchSessions(
   return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
 }
 
-export async function fetchAnalysis(sessionKey: number): Promise<FullRaceAnalysis> {
-  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`)
+/** GET /stats (ops/landing-meta): the landing's proof strip, counts only. */
+export type SiteStats = {
+  sessions: number
+  driver_laps: number
+  seasons: number[]
+  modules: number
+  module_names: string[]
+  analysis_version: string
+  definitions: Record<string, string>
+}
+
+export async function fetchStats(signal?: AbortSignal): Promise<SiteStats> {
+  return apiFetch<SiteStats>('/stats', signal ? { signal } : undefined)
+}
+
+/** Public, light: the facts the loader and the blocked pages show before /analysis answers. */
+export async function fetchSessionMeta(sessionKey: number, signal?: AbortSignal): Promise<SessionMeta> {
+  return apiFetch<SessionMeta>(`/sessions/${sessionKey}/meta`, signal ? { signal } : undefined)
+}
+
+export async function fetchAnalysis(sessionKey: number, signal?: AbortSignal): Promise<FullRaceAnalysis> {
+  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`, signal ? { signal } : undefined)
 }
 
 export type LapChartsPayload = {
@@ -318,30 +338,39 @@ export async function engineerChat(payload: {
 }
 
 /**
- * Circuit telemetry (FastF1) — loaded lazily when the Circuit View is expanded.
+ * Circuit telemetry (FastF1), loaded when the telemetry tab opens.
  *
- * Returns:
- *   TelemetryData        — success
- *   null                 — generic failure
- *   'race_only'          — session is not a Race (Qualifying, Practice, etc.)
- *   'not_precomputed'    — session is a Race but telemetry hasn't been precomputed
- *   'production_unavailable' — legacy / unrecognised 503
+ * Block 32, task 7: "unavailable" is a fact about the session, not a failure,
+ * so it is told apart from an error worth retrying.
+ *   data         the laps
+ *   unavailable  permanent: not a race (400 TELEMETRY_RACE_ONLY), not prepared
+ *                for this race (503 TELEMETRY_NOT_PRECOMPUTED — a 503 whose
+ *                code says what it is), or no FastF1 telemetry (404, any other
+ *                4xx, or an answer with no drivers)
+ *   error        worth a retry: a network failure or any other 5xx
  */
+export type TelemetryResult =
+  | { kind: 'data'; data: TelemetryData }
+  | { kind: 'unavailable'; reason: 'race_only' | 'not_prepared' | 'no_data' }
+  | { kind: 'error' }
+
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
   lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
-): Promise<TelemetryData | null | 'race_only' | 'not_precomputed' | 'production_unavailable'> {
+): Promise<TelemetryResult> {
   try {
-    return await apiFetch<TelemetryData>(
+    const data = await apiFetch<TelemetryData>(
       `/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,
     )
+    return data?.drivers?.length ? { kind: 'data', data } : { kind: 'unavailable', reason: 'no_data' }
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.code === 'TELEMETRY_RACE_ONLY') return 'race_only'
-      if (err.code === 'TELEMETRY_NOT_PRECOMPUTED') return 'not_precomputed'
-      if (err.status === 503) return 'production_unavailable'
+      if (err.code === 'TELEMETRY_RACE_ONLY') return { kind: 'unavailable', reason: 'race_only' }
+      if (err.code === 'TELEMETRY_NOT_PRECOMPUTED') return { kind: 'unavailable', reason: 'not_prepared' }
+      if (err.status >= 500) return { kind: 'error' }
+      return { kind: 'unavailable', reason: 'no_data' }
     }
-    return null
+    return { kind: 'error' }
   }
 }

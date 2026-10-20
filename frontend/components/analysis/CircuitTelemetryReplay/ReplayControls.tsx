@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from 'react'
+import { buttonClass } from '@/components/ui'
+import t from './telemetry.module.css'
 
 const SPEEDS = [0.5, 1, 2, 4] as const
 type PlaybackSpeed = typeof SPEEDS[number]
@@ -31,7 +33,6 @@ export function ReplayControls({
   onSpeedChange,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
 
   const computeProgress = useCallback((clientX: number) => {
     if (!trackRef.current) return
@@ -40,56 +41,57 @@ export function ReplayControls({
     onScrub(clamped)
   }, [onScrub])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    dragging.current = true
+  // Drag with mouse, pen or touch
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
     computeProgress(e.clientX)
-    const onMove = (ev: MouseEvent) => { if (dragging.current) computeProgress(ev.clientX) }
-    const onUp = () => { dragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+  }
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) computeProgress(e.clientX)
+  }
+
+  // …and with the keyboard: arrows step 1 %, Page keys 10 %, Home/End the ends
+  const handleKey = (e: KeyboardEvent) => {
+    const step = { ArrowRight: 0.01, ArrowUp: 0.01, ArrowLeft: -0.01, ArrowDown: -0.01, PageUp: 0.1, PageDown: -0.1 }[e.key]
+    if (step != null) { e.preventDefault(); onScrub(Math.max(0, Math.min(1, progress + step))) }
+    else if (e.key === 'Home') { e.preventDefault(); onScrub(0) }
+    else if (e.key === 'End') { e.preventDefault(); onScrub(1) }
   }
 
   const elapsed = progress * lapTime
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(playbackSpeed) + 1) % SPEEDS.length]
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 bg-bg-primary/90 border border-border-subtle rounded-[4px] backdrop-blur-sm">
+    <div className={t.player}>
       {/* Play / Pause */}
-      <button
-        onClick={onPlayPause}
-        className="w-7 h-7 flex items-center justify-center rounded-full bg-signal-red text-white text-[10px] font-bold shrink-0 hover:bg-red-600 transition-colors"
-        aria-label={playing ? 'Pause' : 'Play'}
-      >
-        {playing ? '⏸' : '▶'}
+      <button type="button" onClick={onPlayPause} className={t.play} aria-label={playing ? 'Pause' : 'Play'}>
+        {playing ? '‖' : '►'}
       </button>
 
       {/* Scrub track */}
       <div
         ref={trackRef}
-        onMouseDown={handleMouseDown}
-        className="relative flex-1 h-[2px] bg-border-default rounded-full cursor-pointer"
-        style={{ minWidth: 100 }}
+        role="slider"
+        tabIndex={0}
+        aria-label="Lap position"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
+        aria-valuetext={`${formatTime(elapsed)} of ${formatTime(lapTime)}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onKeyDown={handleKey}
+        className={t.scrub}
       >
-        <div
-          className="absolute top-0 left-0 h-full bg-signal-red rounded-full"
-          style={{ width: `${progress * 100}%` }}
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-signal-red shadow-sm"
-          style={{ left: `calc(${progress * 100}% - 4px)` }}
-        />
+        <span className={t.scrubFill} style={{ width: `${progress * 100}%` }} />
+        <span className={t.scrubThumb} style={{ left: `${progress * 100}%` }} />
       </div>
 
       {/* Time */}
-      <span className="font-mono text-[10px] text-text-secondary tabular-nums shrink-0">
-        {formatTime(elapsed)} / {formatTime(lapTime)}
-      </span>
+      <span className={t.time}>{formatTime(elapsed)} / {formatTime(lapTime)}</span>
 
       {/* Speed toggle */}
-      <button
-        onClick={() => onSpeedChange(nextSpeed)}
-        className="px-2 py-0.5 rounded-[3px] border border-border-subtle text-text-muted font-mono text-[9px] hover:border-border-default hover:text-text-secondary transition-all shrink-0"
-      >
+      <button type="button" onClick={() => onSpeedChange(nextSpeed)} className={buttonClass()} aria-label={`Playback speed ${playbackSpeed}×, change to ${nextSpeed}×`}>
         {playbackSpeed}×
       </button>
     </div>

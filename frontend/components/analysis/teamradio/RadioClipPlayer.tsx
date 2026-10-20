@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { TeamRadioClip } from '@/types'
 import { claimAudio, releaseAudio } from '@/lib/audioBus'
+import { ui } from '@/components/ui'
+import rc from './radio.module.css'
 
 type State = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error'
 
@@ -14,7 +16,7 @@ type Props = {
 }
 
 function fmt(s: number): string {
-  if (!isFinite(s) || s < 0) return '–:––'
+  if (!isFinite(s) || s < 0) return 'n/a'
   const m = Math.floor(s / 60)
   const r = Math.floor(s % 60)
   return `${m}:${r.toString().padStart(2, '0')}`
@@ -94,35 +96,22 @@ export function RadioClipPlayer({ clip, showDriver = false, compact = false }: P
   const label = clip.lap_number != null ? `L${clip.lap_number}` : clip.phase === 'pre' ? 'PRE' : 'POST'
 
   return (
-    <div
-      className={`flex items-center gap-2 ${compact ? 'py-1' : 'py-1.5'} ${unavailable ? 'opacity-70' : ''}`}
-      data-testid="radio-clip"
-    >
+    <div className={`${rc.clip} ${compact ? rc.clipCompact : ''}`} style={unavailable ? { opacity: 0.8 } : undefined} data-testid="radio-clip">
       <audio ref={ref} src={clip.recording_url} preload="metadata" />
       <button
         type="button"
         onClick={toggle}
         disabled={unavailable}
         aria-label={unavailable ? 'Recording unavailable' : state === 'playing' ? 'Pause' : 'Play'}
-        className={`w-6 h-6 shrink-0 rounded-[3px] border flex items-center justify-center font-mono text-[10px] transition-colors ${
-          unavailable
-            ? 'border-signal-red/40 text-signal-red cursor-not-allowed'
-            : 'border-border-default text-text-secondary hover:border-signal-green hover:text-signal-green'
-        }`}
+        className={`${rc.playBtn} ${unavailable ? rc.playDead : ''} ${state === 'playing' ? rc.playOn : ''}`}
       >
-        {unavailable ? '✕' : state === 'loading' ? '…' : state === 'playing' ? '❚❚' : '▶'}
+        {unavailable ? '✕' : state === 'loading' ? '…' : state === 'playing' ? '❚❚' : '►'}
       </button>
-      <span className="font-display font-bold text-[9px] uppercase tracking-[0.5px] text-text-muted w-9 shrink-0">
-        {label}
-      </span>
-      {showDriver && (
-        <span className="font-display font-bold text-[10px] uppercase text-text-primary w-8 shrink-0">
-          {clip.driver_code}
-        </span>
-      )}
+      <span className={ui.label} style={{ width: 40, flex: 'none' }}>{label}</span>
+      {showDriver && <b style={{ width: 36, flex: 'none', fontSize: 13 }}>{clip.driver_code}</b>}
       {unavailable ? (
-        <span className="font-mono text-[10px] text-signal-red">
-          Recording unavailable — the F1 archive no longer serves this file.
+        <span className={ui.accent} style={{ fontSize: 12, flex: 1 }}>
+          Recording unavailable: the F1 archive no longer serves this file.
         </span>
       ) : (
         <>
@@ -135,14 +124,14 @@ export function RadioClipPlayer({ clip, showDriver = false, compact = false }: P
             onChange={seek}
             disabled={!isFinite(duration)}
             aria-label="Seek"
-            className="flex-1 h-1 accent-signal-green min-w-[60px]"
+            className={rc.seek}
           />
-          <span className="font-mono text-[9px] text-text-muted tabular-nums w-[70px] text-right shrink-0">
+          <span className={ui.sub} style={{ width: 76, textAlign: 'right', flex: 'none' }}>
             {fmt(time)} / {fmt(duration)}
           </span>
         </>
       )}
-      <span className="font-mono text-[8px] text-text-muted shrink-0" title="Broadcast time (UTC)">
+      <span className={ui.sub} style={{ flex: 'none', fontSize: 11 }} title="Broadcast time (UTC)">
         {clockUtc(clip.date)}
       </span>
     </div>

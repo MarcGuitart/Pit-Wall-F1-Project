@@ -1,0 +1,29 @@
+/* PitWallSelect in the design system: a 2px-ruled field, square, instant. */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pw-muted); font-weight: 600; user-select: none; }
+.wrap { position: relative; }
+.trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: inherit; font-size: 14px; font-weight: 700; padding: 8px 32px 8px 12px; min-height: 40px; text-align: left;
+  background: var(--pw-surface); color: var(--pw-text); border: 2px solid var(--pw-divider); cursor: pointer;
+}
+.trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--pw-text) 40%, transparent); }
+.trigger:disabled { opacity: 0.45; cursor: not-allowed; }
+.open { border-color: var(--pw-text); }
+.value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--pw-muted); pointer-events: none; font-size: 11px; }
+.menu {
+  position: absolute; z-index: 50; top: calc(100% + 2px); left: 0; width: 100%; min-width: max-content;
+  background: var(--pw-bg); border: 2px solid var(--pw-text); max-height: 280px; display: flex; flex-direction: column;
+  box-shadow: 6px 6px 0 color-mix(in srgb, var(--pw-text) 18%, transparent);
+}
+.search { border-bottom: 2px solid var(--pw-divider); }
+.search input { width: 100%; font: inherit; font-size: 13px; padding: 8px 12px; background: var(--pw-surface); color: var(--pw-text); border: 0; outline: none; }
+.search input::placeholder { color: var(--pw-muted); }
+.options { overflow-y: auto; }
+.empty { padding: 8px 12px; font-size: 12px; color: var(--pw-muted); }
+.option { padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--pw-muted); }
+.option + .option { border-top: 1px solid var(--pw-divider); }
+.selected { color: var(--pw-text); font-weight: 800; }
+.hl { background: var(--pw-accent-tint); color: var(--pw-text); }
+.disabled { cursor: not-allowed; opacity: 0.5; }

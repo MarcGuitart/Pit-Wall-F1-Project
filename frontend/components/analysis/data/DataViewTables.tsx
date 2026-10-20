@@ -7,6 +7,8 @@ import { ChaosIndexCard } from '../ChaosIndexCard'
 import { EngineerNotes } from '../EngineerNotes'
 import { DecisionsTimeline } from '../DecisionsTimeline'
 import { ExclusionLogPanel } from './ExclusionLogPanel'
+import { buttonClass } from '@/components/ui'
+import a from '../analysis.module.css'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -47,28 +49,19 @@ export function DataViewTables({
   }
 
   return (
-    <div className="space-y-3">
-      {/* Back */}
-      <button
-        onClick={onBackToStrategy}
-        className="font-display font-bold text-[10px] uppercase tracking-[1px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-signal-blue rounded-[2px]"
-      >
-        ← Back to Strategy View
-      </button>
-
-      {/* Sticky section nav */}
-      <div
-        className="sticky top-0 z-[5] bg-bg-secondary border-b border-border-subtle flex items-center gap-1 px-2 py-1.5 -mx-2"
-      >
-        {NAV_SECTIONS.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => scrollToSection(id)}
-            className="px-3 py-1 font-display font-bold text-[10px] uppercase tracking-[0.5px] text-text-muted hover:text-text-primary transition-colors rounded-[2px] hover:bg-bg-elevated"
-          >
-            {label}
-          </button>
-        ))}
+    <div className={a.stack}>
+      {/* Back + section nav */}
+      <div className={a.sectionNav}>
+        <button type="button" onClick={onBackToStrategy} className={buttonClass('ink')}>
+          ← Back to Strategy View
+        </button>
+        <nav aria-label="Data sections" className={a.row} style={{ gap: 4, flexWrap: 'wrap' }}>
+          {NAV_SECTIONS.map(({ id, label }) => (
+            <button key={id} type="button" onClick={() => scrollToSection(id)} className={buttonClass('ghost')}>
+              {label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* a. Full pace table */}

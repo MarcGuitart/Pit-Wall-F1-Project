@@ -1,0 +1,16 @@
+{
+ "session_key": 11731,
+ "meeting_key": 1308,
+ "meeting_name": "Bahrain Grand Prix",
+ "location": "Kuala Lumpur",
+ "circuit_short_name": "Kuala Lumpur",
+ "country_name": "Bahrain",
+ "year": 2026,
+ "session_name": "Race",
+ "session_type": "Race",
+ "date_start": "2026-10-04T07:00:00+00:00",
+ "date_end": "2026-10-04T09:00:00+00:00",
+ "is_cancelled": false,
+ "analysis_cached": false,
+ "earliest_at": "2026-10-04T09:30:00+00:00"
+}

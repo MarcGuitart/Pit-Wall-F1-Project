@@ -1,9 +1,8 @@
+import { BUILD_COMMIT } from '@/lib/build'
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
-import { NotifyWatcher } from '@/components/notify/NotifyWatcher'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
-// import { RaceStartLoader } from '@/components/layout/RaceStartLoader'
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
@@ -27,8 +26,12 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical and og:image (Block 29).
+  metadataBase: new URL('https://pitwallengineer.com'),
+  // Which commit this build is: <meta name="pw-build"> (block 42, lib/build.ts).
+  other: { 'pw-build': BUILD_COMMIT },
   title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
-  description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view. 50K+ data points per session.',
+  description: 'Past F1 races analysed into strategy-grade and telemetry insights: pace, tyres, pit windows and race momentum in one engineer-style view.',
   openGraph: {
     title: 'Pit Wall Engineer | F1 Race Strategy & Telemetry Analysis',
     description: 'Past F1 races analysed into strategy-grade and telemetry insights.',
@@ -54,9 +57,7 @@ export default function RootLayout({
       <body
         className={`${barlowCondensed.variable} ${barlow.variable} ${jetbrainsMono.variable} font-body antialiased bg-bg-primary text-text-primary`}
       >
-        {/* <RaceStartLoader /> */}
         <AccessBootstrap />
-        <NotifyWatcher />
         {children}
       </body>
     </html>

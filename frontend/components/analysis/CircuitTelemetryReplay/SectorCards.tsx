@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react'
 import type { DriverTelemetry } from '@/types/telemetry'
+import { toneClass, ui } from '@/components/ui'
+import t from './telemetry.module.css'
 
 type Props = {
   drivers: DriverTelemetry[]
@@ -15,13 +17,15 @@ const SECTORS: { key: SectorKey; label: string }[] = [
   { key: 'sector_3_time', label: 'S3' },
 ]
 
+const hex = (c: string) => (c.startsWith('#') ? c : `#${c}`)
+
 export function SectorCards({ drivers }: Props) {
   const cards = useMemo(() => {
     return SECTORS.map((s) => {
       const times = drivers
         .map((d) => ({ code: d.driver_code, colour: d.team_colour, time: d[s.key] }))
         .filter((x): x is { code: string; colour: string; time: number } => x.time != null)
-        .sort((a, b) => a.time - b.time)
+        .sort((x, y) => x.time - y.time)
 
       const best = times[0] ?? null
       const second = times[1] ?? null
@@ -32,35 +36,21 @@ export function SectorCards({ drivers }: Props) {
   }, [drivers])
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={t.sectors}>
       {cards.map((c) => (
-        <div
-          key={c.label}
-          className="bg-bg-elevated border border-border-subtle rounded-[3px] p-2"
-          style={c.best ? { borderTopWidth: 2, borderTopColor: '#23D18B' } : undefined}
-        >
-          <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mb-1">
-            {c.label}
-          </div>
+        <div key={c.label} className={`${t.sector} ${c.best ? t.sectorBest : ''}`}>
+          <div className={ui.label}>{c.label}</div>
           {c.best ? (
             <>
-              <div className="flex items-center gap-1 mb-0.5">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.best.colour }} />
-                <span className="font-display font-bold text-[9px] uppercase text-text-secondary">
-                  {c.best.code}
-                </span>
+              <div className={t.group} style={{ gap: 4 }}>
+                <span className={t.dot} style={{ background: hex(c.best.colour) }} aria-hidden="true" />
+                <span style={{ fontSize: 12, fontWeight: 800 }}>{c.best.code}</span>
               </div>
-              <div className="font-mono font-bold text-[12px] text-signal-green tabular-nums">
-                {c.best.time.toFixed(3)}s
-              </div>
-              {c.delta != null && (
-                <div className="font-mono text-[9px] text-signal-amber tabular-nums mt-0.5">
-                  +{c.delta.toFixed(3)}
-                </div>
-              )}
+              <div className={toneClass('ok')} style={{ fontSize: 15, fontWeight: 800 }}>{c.best.time.toFixed(3)}s</div>
+              {c.delta != null && <div className={toneClass('warn')} style={{ fontSize: 12, fontWeight: 700 }}>+{c.delta.toFixed(3)}</div>}
             </>
           ) : (
-            <span className="font-mono text-[9px] text-text-muted">—</span>
+            <span className={ui.sub}>n/a</span>
           )}
         </div>
       ))}

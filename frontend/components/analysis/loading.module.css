@@ -1,0 +1,5 @@
+/* State 1 of the analysis loader (0 – 300 ms): nothing shown, the page's
+   height reserved so the footer does not jump. The loader itself is
+   components/analysis/loader/. */
+
+.reserve { min-height: calc(100vh - 56px); }

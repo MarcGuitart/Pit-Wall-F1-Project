@@ -1,0 +1,139 @@
+/* Block 27 — the analysis page's own structure while it loads (Loading
+   Experience spec, concept 1a). Tokens from components/ui; heights measured
+   on the real page (scripts/parity/measure_analysis.mjs, 1440 and 390 px):
+   the skeleton reserves exactly what arrives, so arrival shifts nothing.
+   Motion: transform and opacity only; easing var(--pw-ease-out). */
+
+.page { display: flex; flex-direction: column; min-width: 0; position: relative; }
+.shellIn { animation: pwShellIn 120ms var(--pw-ease-out) both; }
+@keyframes pwShellIn { from { opacity: 0; } }
+
+/* ── header: the real PageHeader; the right column holds a placeholder the
+   size of the real stats block (292 × 111, full width × 104 on mobile) ── */
+.headRight { width: 292px; height: 111px; display: grid; grid-template-rows: 1fr auto; gap: 16px; }
+@media (max-width: 860px) { .headRight { width: 100%; height: 104px; } }
+.statsGhost { border: 2px solid var(--pw-divider); }
+.badgeGhost { width: 120px; height: 24px; }
+.titleGhost { display: inline-block; width: min(60%, 640px); height: 0.8em; vertical-align: baseline; }
+.lineGhost { display: inline-block; width: 280px; max-width: 70%; height: 12px; }
+
+/* ── the grid: one cell per first-screen module, at its measured height ── */
+.grid { display: flex; flex-direction: column; min-width: 0; }
+/* What dims in waking / error / ghost: every module's placeholder content, never the status cell. */
+.dim { transition: opacity 400ms ease-out; }
+.gridWrap { position: relative; }
+.mod { position: relative; min-width: 0; border-top: 2px solid var(--pw-divider); padding: 16px var(--pw-gutter); overflow: hidden; }
+.band { height: 283px; display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.tabs { height: 54px; display: flex; gap: 28px; align-items: center; padding-top: 0; padding-bottom: 0; }
+.toggle { height: 64px; display: flex; align-items: center; }
+.brain { height: 254px; }
+.dna { height: 85px; display: flex; align-items: center; }
+.cells { height: 380px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--pw-divider); }
+.cells > div { background: var(--pw-bg); padding: 16px 20px; min-width: 0; }
+@media (max-width: 860px) {
+  .band { height: 337px; grid-template-columns: 1fr; gap: 16px; }
+  .tabs { height: 49px; gap: 18px; }
+  .toggle { height: 92px; }
+  .brain { height: 411px; }
+  .dna { height: 270px; align-items: flex-start; }
+  .cells { height: 1298px; grid-template-columns: 1fr; }
+}
+
+.modTitle { margin: 0 0 12px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--pw-muted); }
+.bars { display: grid; gap: 10px; }
+.bar { display: block; height: 12px; background: var(--pw-surface-2); }
+.barTall { height: 28px; }
+.barThin { height: 8px; }
+
+/* Breathing: one animated layer per module, staggered 120 ms × (index mod 6). */
+.breathe .bars { animation: pwBreathe 1600ms ease-in-out infinite; animation-delay: calc(var(--i, 0) * 120ms); }
+@keyframes pwBreathe { 50% { opacity: 0.5; } }
+.paused .bars, .paused .dot { animation-play-state: paused; }
+
+/* ── the time rule: over the band's top rule (the grid's first 2 px), takes no space ── */
+.rule { position: absolute; left: 0; right: 0; top: 0; height: 2px; pointer-events: none; z-index: 1; }
+.ruleGrey, .ruleAccent { position: absolute; inset: 0; transform-origin: left center; }
+.ruleGrey { background: var(--pw-muted); }
+.ruleAccent { background: var(--pw-accent); transition: transform 1000ms linear, opacity 200ms linear; }
+
+/* ── status cell (in the band's first column) ── */
+.status { border: 2px solid var(--pw-divider); padding: 14px 16px; display: grid; gap: 8px; min-height: 168px; align-content: start; }
+.statusErr { border-color: var(--pw-accent); }
+.statusIn { animation: pwRise 200ms var(--pw-ease-out) both; }
+@keyframes pwRise { from { opacity: 0; transform: translateY(6px); } }
+.statusHead { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pw-accent); }
+.dotLive { animation: pwDot 1200ms ease-in-out infinite; }
+@keyframes pwDot { 50% { opacity: 0.3; } }
+.dotWaking { background: var(--pw-amber); }
+.dotGrey { background: var(--pw-muted); }
+.clockRow { display: flex; align-items: baseline; gap: 10px; }
+.clock { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.statusBody { margin: 0; font-size: 13px; line-height: 1.5; color: var(--pw-muted); }
+.short { display: none; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 860px) {
+  .status { min-height: 148px; }
+  .clock { font-size: 26px; }
+  .statusBody { font-size: 12px; }
+  .long { display: none; }
+  .short { display: inline; }
+}
+
+/* ── method panel (the Race Brain slot) ── */
+.method { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; max-width: 760px; }
+.method li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; font-size: 14px; line-height: 1.5; }
+.method b { font-weight: 800; color: var(--pw-accent-text); }
+
+/* ── waking / error ── */
+.waking .dim { opacity: 0.6; }
+.error .dim { opacity: 0.3; transition: opacity 240ms ease-out; }
+.error .bars { animation: none; }
+.error .ruleAccent { opacity: 0; }
+
+/* ── arrival: the skeleton under the arriving page, fading module by module
+   with the content's own stagger (20 ms × index), then removed ── */
+.overlay { position: absolute; inset: 0 0 auto 0; pointer-events: none; z-index: 0; }
+.overlay .headLeftWrap header > div:first-child { visibility: hidden; }
+.leaving [data-skel] { animation: pwOut 160ms linear both; }
+.leaving [data-skel='1'] { animation-delay: 20ms; }
+.leaving [data-skel='2'] { animation-delay: 40ms; }
+.leaving [data-skel='3'] { animation-delay: 60ms; }
+.leaving [data-skel='4'] { animation-delay: 80ms; }
+.leaving [data-skel='5'] { animation-delay: 100ms; }
+.leaving [data-skel='6'] { animation-delay: 120ms; }
+.leaving .ruleAccent { transform: scaleX(1) !important; transition: transform 80ms ease-out; animation: pwOut 80ms linear 80ms both; }
+@keyframes pwOut { to { opacity: 0; } }
+
+/* ── blocked pages: the same grid as a 40 % ghost, one status panel on top ── */
+.ghost .dim { opacity: 0.4; }
+.panel {
+  position: absolute; z-index: 2; top: 0; left: var(--pw-gutter); width: min(640px, calc(100% - 2 * var(--pw-gutter)));
+  background: var(--pw-bg); border: 2px solid var(--pw-divider); padding: 32px; display: grid; gap: 14px;
+  animation: pwRise 200ms var(--pw-ease-out) both;
+}
+.panelHead { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.panelTitle { margin: 0; font-size: 44px; line-height: 0.95; letter-spacing: -0.03em; text-transform: uppercase; font-weight: 800; }
+.panelBody { margin: 0; font-size: 15px; line-height: 1.55; }
+.info { display: grid; gap: 4px; border-top: 2px solid var(--pw-divider); padding-top: 12px; }
+.infoValue { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.codeError { margin: 0; font-size: 13px; color: var(--pw-accent-text); font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) {
+  .panel { padding: 20px; }
+  .panelTitle { font-size: 28px; }
+  .actions > * { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shellIn { animation-duration: 120ms; }
+  .breathe .bars { animation: none; opacity: 0.75; }
+  .dotLive { animation: none; }
+  .ruleAccent { transition: none; }
+  .statusIn, .panel { animation: pwFade 120ms linear both; }
+  .dim { transition: none; }
+  .leaving [data-skel] { animation: none; }
+  .leaving { animation: pwOut 120ms linear both; }
+  .leaving .ruleAccent { transition: none; animation: none; }
+}
+@keyframes pwFade { from { opacity: 0; } }

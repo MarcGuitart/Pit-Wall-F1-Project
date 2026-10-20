@@ -13,6 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // next/font is compiled by Next; tests get a stub (test/next-font-stub.ts)
+      'next/font/google': path.resolve(__dirname, 'test/next-font-stub.ts'),
     },
   },
   test: {

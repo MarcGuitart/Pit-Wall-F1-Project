@@ -33,6 +33,14 @@ export const CHAOS_LEVEL_TEXT_CLASS: Record<ChaosLevel, string> = {
   Extreme: 'text-signal-red',
 }
 
+/** The same levels as design-system tones (components/ui Badge `tone`). */
+export const CHAOS_LEVEL_TONE: Record<ChaosLevel, 'ok' | 'info' | 'warn' | 'accent'> = {
+  Low: 'ok',
+  Medium: 'info',
+  High: 'warn',
+  Extreme: 'accent',
+}
+
 /** Components in display order, with their max points (backend WEIGHTS). */
 export const CHAOS_COMPONENTS: ReadonlyArray<{ key: ChaosComponentKey; label: string; short: string; weight: number }> = [
   { key: 'safety_car',          label: 'Safety Car / VSC',    short: 'SC/VSC',     weight: 30 },

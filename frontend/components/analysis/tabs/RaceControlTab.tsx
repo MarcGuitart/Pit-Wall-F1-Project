@@ -6,6 +6,8 @@ import type { SessionType } from '@/lib/utils'
 import { ChaosProfile } from '../strategy/ChaosProfile'
 import { EngineerSignalSummary } from '../strategy/EngineerSignalSummary'
 import { DataViewTables } from '../data/DataViewTables'
+import { Cells, buttonClass, ui } from '@/components/ui'
+import a from '../analysis.module.css'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -25,14 +27,14 @@ export function RaceControlTab({
   const [showDataTables, setShowDataTables] = useState(false)
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+    <div className={a.stack}>
+      <Cells cols={2}>
         <ChaosProfile chaos={analysis.chaos} />
         <EngineerSignalSummary
           notes={visibleNotes}
           onViewAll={() => setShowDataTables(true)}
         />
-      </div>
+      </Cells>
 
       {/* Data tables expand */}
       {showDataTables ? (
@@ -45,19 +47,12 @@ export function RaceControlTab({
           onBackToStrategy={() => setShowDataTables(false)}
         />
       ) : (
-        <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between">
+        <div className={a.toolbar} style={{ borderBottom: 0 }}>
           <div>
-            <div className="font-display font-bold text-[10px] uppercase tracking-[1.5px] text-text-secondary">
-              Full Data Tables
-            </div>
-            <div className="font-mono text-[9px] text-text-muted mt-0.5">
-              Lap times, stints, pit stops, exclusion logs
-            </div>
+            <h3 className={ui.h6}>Full Data Tables</h3>
+            <div className={ui.sub}>Lap times, stints, pit stops, exclusion logs</div>
           </div>
-          <button
-            onClick={() => setShowDataTables(true)}
-            className="px-3 py-1.5 rounded-[3px] border border-border-default text-text-secondary hover:border-signal-blue hover:text-signal-blue font-display font-bold text-[10px] uppercase tracking-[1px] transition-all"
-          >
+          <button type="button" onClick={() => setShowDataTables(true)} className={buttonClass('ink')}>
             Open Tables
           </button>
         </div>

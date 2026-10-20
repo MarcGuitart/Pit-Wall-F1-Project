@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { TopBar } from './TopBar'
 import { useAccessStore } from '@/stores/accessStore'
 import * as liveStatus from '@/lib/liveStatus'
+import * as ics from '@/lib/ics'
 
 /**
  * The TopBar PRO indicator: shown only when both a valid token and the
@@ -113,8 +114,10 @@ describe('the Live pill — PRO but nothing live right now', () => {
 
   it('shows the next scheduled session by name and date, reusing Block 19\'s lookup', async () => {
     vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue({
-      meetingName: 'Bahrain Grand Prix',
-      circuitShortName: 'Sakhir',
+      // The 2026 meeting OpenF1 calls "Bahrain Grand Prix": the place is Kuala Lumpur (Block 27b).
+      place: 'Kuala Lumpur',
+      circuitShortName: 'Kuala Lumpur',
+      sessionKey: 11731,
       sessionName: 'Race',
       dateStart: '2026-10-02T04:30:00Z',
       dateEnd: '2026-10-02T06:30:00Z',
@@ -123,8 +126,8 @@ describe('the Live pill — PRO but nothing live right now', () => {
     render(<TopBar />)
 
     const pill = await screen.findByLabelText(/no session live right now/i)
-    fireEvent.mouseEnter(pill)
-    expect(await screen.findByText(/Next live session: Bahrain Grand Prix Race/i)).toBeTruthy()
+    fireEvent.click(pill)
+    expect(await screen.findByText(/Next live session: Kuala Lumpur Race/i)).toBeTruthy()
   })
 
   it('says explicitly when nothing is scheduled, rather than going blank', async () => {
@@ -133,7 +136,7 @@ describe('the Live pill — PRO but nothing live right now', () => {
     render(<TopBar />)
 
     const pill = await screen.findByLabelText(/no session live right now/i)
-    fireEvent.mouseEnter(pill)
+    fireEvent.click(pill)
     expect(await screen.findByText(/No upcoming session is scheduled/i)).toBeTruthy()
   })
 })
@@ -144,5 +147,79 @@ describe('the Live pill — no PRO access', () => {
     const link = screen.getByLabelText(/PRO, open Settings/i) as HTMLAnchorElement
     expect(link.getAttribute('href')).toBe('/settings')
     expect(screen.queryByText(/not available yet/i)).toBeNull()
+  })
+})
+
+/**
+ * Phase 4 of the UI migration: the next-session tip is a popover. It used to
+ * open on hover and close when the pointer left the trigger — so its own
+ * Notify button could not be reached, and on a phone it never opened.
+ */
+describe('the next-session popover', () => {
+  const next = {
+    place: 'Austin',
+    circuitShortName: 'Austin',
+    sessionKey: 11740,
+    sessionName: 'Practice 1',
+    dateStart: '2026-10-23T17:30:00Z',
+    dateEnd: '2026-10-23T18:30:00Z',
+  }
+
+  async function openIt() {
+    vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue(next)
+    useAccessStore.setState({ pro: true, showBadge: true })
+    render(<TopBar />)
+    const trigger = await screen.findByRole('button', { name: /no session live right now/i })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(trigger)
+    await screen.findByText(/Next live session: Austin Practice 1/i)
+    return trigger
+  }
+
+  it('opens on click or tap — not on hover — as a named dialog', async () => {
+    vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue(next)
+    useAccessStore.setState({ pro: true, showBadge: true })
+    render(<TopBar />)
+    const trigger = await screen.findByRole('button', { name: /no session live right now/i })
+    fireEvent.mouseEnter(trigger)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: 'No live session right now' })).toBeTruthy()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('keeps its buttons reachable and closes on Escape, giving focus back', async () => {
+    const trigger = await openIt()
+    fireEvent.mouseLeave(trigger)
+    expect(screen.getByRole('button', { name: /add to calendar/i })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('closes on a click outside', async () => {
+    await openIt()
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('"Add to calendar" offers Google Calendar and an .ics for that session', async () => {
+    const download = vi.spyOn(ics, 'downloadIcs').mockImplementation(() => undefined)
+    await openIt()
+    fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
+    expect(screen.getByRole('link', { name: 'Google Calendar' }).getAttribute('href')).toContain('dates=20261023T173000Z')
+    fireEvent.click(screen.getByRole('button', { name: 'Apple or Outlook (.ics)' }))
+    expect(download).toHaveBeenCalledTimes(1)
+    const [filename, body] = download.mock.calls[0]
+    expect(filename).toMatch(/\.ics$/)
+    expect(body).toContain('BEGIN:VEVENT')
+    expect(body).toContain('Austin Practice 1')
+    expect(body).toContain('DTSTART:20261023T173000Z')
+  })
+
+  it('promises no alert that does not exist: no push, no email, no "we will notify you"', async () => {
+    await openIt()
+    const text = screen.getByRole('dialog').textContent ?? ''
+    expect(text).not.toMatch(/push|e-?mail|sms|we(\'|’)ll (remind|notify) you|we will (remind|notify)/i)
   })
 })

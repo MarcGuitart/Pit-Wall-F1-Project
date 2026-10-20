@@ -1,6 +1,5 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
 import type { FullRaceAnalysis } from '@/types'
 import type { SessionType } from '@/lib/utils'
 import { AnalysisModeToggle } from '../AnalysisModeToggle'
@@ -10,6 +9,8 @@ import { ModuleUnavailable } from '../ModuleUnavailable'
 import { TruePacePodium } from '../strategy/TruePacePodium'
 import { KeyDecisionCards } from '../strategy/KeyDecisionCards'
 import { DataViewTables } from '../data/DataViewTables'
+import { Cells } from '@/components/ui'
+import a from '../analysis.module.css'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -42,30 +43,27 @@ export function StrategyTab({
   const { race_brain, true_pace, decisions } = analysis
 
   return (
-    <div className="space-y-3">
-      <AnalysisModeToggle
-        mode={analysisMode}
-        sessionType={sessionType}
-        lapCount={totalLaps}
-        onChange={onAnalysisModeChange}
-      />
+    <div className={a.stack}>
+      <div data-arrive="3">
+        <AnalysisModeToggle
+          mode={analysisMode}
+          sessionType={sessionType}
+          lapCount={totalLaps}
+          onChange={onAnalysisModeChange}
+        />
+      </div>
 
-      <AnimatePresence mode="wait">
-        {analysisMode === 'strategy' ? (
-          <motion.div
-            key="strategy"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="space-y-3"
-          >
-            <RaceBrainV2 brain={race_brain} sessionType={sessionType} />
-            {analysis.race_dna
-              ? <RaceDNACard dna={analysis.race_dna} />
-              : <ModuleUnavailable title="Race DNA" analysis={analysis} field="race_dna" />
-            }
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      {analysisMode === 'strategy' ? (
+          <div key="strategy" className={a.stack}>
+            <div data-arrive="4"><RaceBrainV2 brain={race_brain} sessionType={sessionType} /></div>
+            <div data-arrive="5">
+              {analysis.race_dna
+                ? <RaceDNACard dna={analysis.race_dna} />
+                : <ModuleUnavailable title="Race DNA" analysis={analysis} field="race_dna" />
+              }
+            </div>
+            <div data-arrive="6">
+            <Cells cols={2}>
               <TruePacePodium
                 rows={true_pace}
                 classification={analysis.race_classification}
@@ -74,16 +72,11 @@ export function StrategyTab({
                 sessionType={sessionType}
               />
               <KeyDecisionCards decisions={decisions} />
+            </Cells>
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
-            key="data"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="data">
             <DataViewTables
               analysis={analysis}
               sessionType={sessionType}
@@ -92,9 +85,8 @@ export function StrategyTab({
               onDriverClick={onDriverClick}
               onBackToStrategy={() => onAnalysisModeChange('strategy')}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   )
 }
