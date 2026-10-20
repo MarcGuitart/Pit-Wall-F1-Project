@@ -45,8 +45,8 @@ backend/**/*.log
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 frontend/node_modules/
-frontend/.next/
-frontend/.next.stale/
+# Any Next.js build output: .next, .next.stale, … (block 32: .next.stale was tracked since "MVP Ready").
+frontend/.next*
 frontend/out/
 frontend/dist/
 frontend/.env
