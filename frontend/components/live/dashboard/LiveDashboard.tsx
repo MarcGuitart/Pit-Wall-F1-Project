@@ -205,11 +205,11 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
 
       {tab === 'feed' && <FeedCoverage snapshot={snapshot} isRace={isRace} />}
 
-      <footer className={s.footer}>
+      <p className={s.footer}>
         Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed
         except the Predictions tab, which is a model and says so. Team radio clips are linked from Formula 1&apos;s
         archive and are not stored here.
-      </footer>
+      </p>
     </div>
   )
 }

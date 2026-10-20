@@ -42,7 +42,7 @@ export const metadata: Metadata = {
  */
 export default function HomePage() {
   return (
-    <AppShell footerAttribution>
+    <AppShell>
       <div className={h.page}>
         <AnchorBar />
         <Hero aside={<NextSessionCard />} />

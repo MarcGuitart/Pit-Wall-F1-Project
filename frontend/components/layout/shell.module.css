@@ -85,14 +85,10 @@
   font-size: 12px; line-height: 1.6; color: var(--pw-muted);
 }
 .footer p { margin: 0; max-width: 680px; }
-.footer a { color: var(--pw-text); text-decoration: underline; text-underline-offset: 3px; }
+/* Links in the legal line only: LinkedIn and CV are buttons (buttonClass) and keep their own style. */
+.footer p a { color: var(--pw-text); text-decoration: underline; text-underline-offset: 3px; }
 .attribution { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .attribution b { display: block; color: var(--pw-text); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
-.extLink {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 2px solid var(--pw-divider);
-  color: var(--pw-text) !important; text-decoration: none; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-}
-.extLink:hover { border-color: var(--pw-text); }
 
 /* ── page enter transition (app/template.tsx) ──
    Entry only: opacity and transform, 180 ms, 8 px. No exit, no delay — the

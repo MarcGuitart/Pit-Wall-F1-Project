@@ -26,15 +26,13 @@ type BreadcrumbItem = {
 type AppShellProps = {
   children: React.ReactNode
   breadcrumb?: BreadcrumbItem[]
-  /** Show the author/LinkedIn/CV block in the footer. Home only. */
-  footerAttribution?: boolean
 }
 
 /**
  * Every page's frame: the design system's root (tokens, Archivo, dark
  * ground), the top bar, the page and the footer.
  */
-export function AppShell({ children, breadcrumb, footerAttribution = false }: AppShellProps) {
+export function AppShell({ children, breadcrumb }: AppShellProps) {
   // A race was clicked and its route has not arrived yet (lib/raceNav.ts):
   // show the analysis loader now instead of leaving this page on screen.
   const pathname = usePathname()
@@ -50,7 +48,7 @@ export function AppShell({ children, breadcrumb, footerAttribution = false }: Ap
       <main className={s.main}>
         {waiting ? <AnalysisLoadingScreen sessionKey={pending.key} /> : children}
       </main>
-      <SiteFooter attribution={footerAttribution} />
+      <SiteFooter />
     </PwRoot>
   )
 }

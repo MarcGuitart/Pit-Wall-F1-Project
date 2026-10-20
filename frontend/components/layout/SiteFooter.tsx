@@ -3,19 +3,15 @@
  *
  * It used to also be redefined, word for word, inside app/page.tsx — the home
  * page rendered both AppShell's SiteFooter and its own <footer>, so the legal
- * disclaimer appeared twice, stacked. The author/LinkedIn/CV block was the only
- * part that was genuinely home-only, so it survives here as an optional prop
- * rather than a second footer.
+ * disclaimer appeared twice, stacked. Block 32: the author line, with LinkedIn
+ * and the CV as buttons in the system's style, is on every page now, not only
+ * the home. URL and file are the ones main's footer had (public/cv.pdf).
  */
 import Link from 'next/link'
+import { buttonClass } from '@/components/ui'
 import s from './shell.module.css'
 
-type SiteFooterProps = {
-  /** The "Project Implemented by" block with LinkedIn and CV links. Home only. */
-  attribution?: boolean
-}
-
-export function SiteFooter({ attribution = false }: SiteFooterProps) {
+export function SiteFooter() {
   return (
     <footer className={s.footer}>
       <p>
@@ -27,10 +23,9 @@ export function SiteFooter({ attribution = false }: SiteFooterProps) {
         linked from Formula 1&apos;s archive and are not stored here.
       </p>
 
-      {attribution && (
-        <div className={s.attribution}>
+      <div className={s.attribution}>
           <div>
-            <span>Project Implemented by</span>
+            <span>Project implemented by</span>
             <b>Marc Guitart Frescó</b>
           </div>
 
@@ -38,7 +33,7 @@ export function SiteFooter({ attribution = false }: SiteFooterProps) {
             href="https://www.linkedin.com/in/marc-guitart-fresco/"
             target="_blank"
             rel="noopener noreferrer"
-            className={s.extLink}
+            className={buttonClass()}
             aria-label="LinkedIn profile"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -51,7 +46,7 @@ export function SiteFooter({ attribution = false }: SiteFooterProps) {
             href="/cv.pdf"
             target="_blank"
             rel="noopener noreferrer"
-            className={s.extLink}
+            className={buttonClass()}
             aria-label="Download CV"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -62,8 +57,7 @@ export function SiteFooter({ attribution = false }: SiteFooterProps) {
             </svg>
             CV
           </a>
-        </div>
-      )}
+      </div>
     </footer>
   )
 }
