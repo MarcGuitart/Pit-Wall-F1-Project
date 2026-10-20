@@ -10,7 +10,7 @@ type Props = {
 
 const FLAG_STYLE: Record<Flag, { label: string; bar: string; text: string; ring: string }> = {
   GREEN:  { label: 'Green flag',          bar: 'bg-signal-green',  text: 'text-signal-green',  ring: 'border-signal-green/40' },
-  YELLOW: { label: 'Yellow — sector',     bar: 'bg-signal-amber',  text: 'text-signal-amber',  ring: 'border-signal-amber/40' },
+  YELLOW: { label: 'Yellow · sector',     bar: 'bg-signal-amber',  text: 'text-signal-amber',  ring: 'border-signal-amber/40' },
   SC:     { label: 'Safety car',          bar: 'bg-signal-amber',  text: 'text-signal-amber',  ring: 'border-signal-amber/60' },
   VSC:    { label: 'Virtual safety car',  bar: 'bg-signal-amber',  text: 'text-signal-amber',  ring: 'border-signal-amber/60' },
   RED:    { label: 'Red flag',            bar: 'bg-signal-red',    text: 'text-signal-red',    ring: 'border-signal-red/60' },
@@ -45,7 +45,7 @@ export function TrackStatusBanner({
                   Race distance
                 </div>
                 <div className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-snug">
-                  not published live — {raceDistanceSource}
+                  not published live · {raceDistanceSource}
                 </div>
               </div>
             )}

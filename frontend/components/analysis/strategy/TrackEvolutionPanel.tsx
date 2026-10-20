@@ -50,7 +50,7 @@ export function TrackEvolutionPanel({ degradationRows, notes, sessionType }: Pro
             <div className="font-mono font-bold text-[14px] text-text-primary">
               {improvement != null
                 ? `~${(improvement * 1000).toFixed(0)}ms / stint`
-                : '–'}
+                : 'n/a'}
             </div>
             <div className="mt-0.5">
               <EstimatedLabel />

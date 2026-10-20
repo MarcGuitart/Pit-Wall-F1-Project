@@ -27,7 +27,7 @@ const SECTOR_TEXT: Record<string, string> = {
 }
 
 function lapTime(value: number | null | undefined) {
-  return value == null ? '—' : formatLapTime(value)
+  return value == null ? 'n/a' : formatLapTime(value)
 }
 
 function localTime(value: string | null | undefined) {
@@ -61,9 +61,9 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
       <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1.85fr)] gap-3">
         <LeaderCard row={leader} flag={flag} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <MetricCard label="Track temperature" value={weather?.track_temperature == null ? '—' : `${weather.track_temperature}°`} unit="C" detail={trendLabel(weather?.track_temperature_trend)} accent="amber" />
-          <MetricCard label="Air temperature" value={weather?.air_temperature == null ? '—' : `${weather.air_temperature}°`} unit="C" detail="Latest OpenF1 sample" />
-          <MetricCard label="Conditions" value={weather?.rainfall == null ? '—' : weather.rainfall > 0 ? 'RAIN' : 'DRY'} detail={weather?.rainfall == null ? 'Waiting for weather' : `${weather.rain_periods ?? 0} confirmed rain periods`} accent={weather?.rainfall ? 'blue' : 'green'} />
+          <MetricCard label="Track temperature" value={weather?.track_temperature == null ? 'n/a' : `${weather.track_temperature}°`} unit="C" detail={trendLabel(weather?.track_temperature_trend)} accent="amber" />
+          <MetricCard label="Air temperature" value={weather?.air_temperature == null ? 'n/a' : `${weather.air_temperature}°`} unit="C" detail="Latest OpenF1 sample" />
+          <MetricCard label="Conditions" value={weather?.rainfall == null ? 'n/a' : weather.rainfall > 0 ? 'RAIN' : 'DRY'} detail={weather?.rainfall == null ? 'Waiting for weather' : `${weather.rain_periods ?? 0} confirmed rain periods`} accent={weather?.rainfall ? 'blue' : 'green'} />
           <MetricCard label="Drivers timed" value={`${rows.length}`} detail={`${snapshot.drivers_known} known in feed`} />
         </div>
       </section>
@@ -125,7 +125,7 @@ export function PracticePitWall({ snapshot, focusedDriver, onFocus }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
             <Diag label="Transport" value={`${snapshot.feed.mode.toUpperCase()} · ${snapshot.feed.connected ? 'connected' : 'disconnected'}`} />
             <Diag label="Messages" value={snapshot.feed.messages_total.toLocaleString()} />
-            <Diag label="Latest feed message" value={snapshot.feed.last_message_age_s == null ? '—' : `${snapshot.feed.last_message_age_s.toFixed(1)}s ago`} />
+            <Diag label="Latest feed message" value={snapshot.feed.last_message_age_s == null ? 'n/a' : `${snapshot.feed.last_message_age_s.toFixed(1)}s ago`} />
             <Diag label="Token renewals" value={`${snapshot.feed.renewals}`} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
@@ -149,7 +149,7 @@ function SessionStatus({ snapshot, flagKey, flag }: { snapshot: LiveSnapshot; fl
             <span className="font-display font-black text-[20px] uppercase tracking-[-0.4px] text-text-primary">{location}</span>
             <span className="px-1.5 py-0.5 border border-border-default rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-secondary">{sessionName}</span>
           </div>
-          <div className="mt-1 font-mono text-[length:var(--pw-text-xs)] text-text-muted">SESSION {snapshot.session_key ?? '—'} · updated {localTime(snapshot.generated_at)} local</div>
+          <div className="mt-1 font-mono text-[length:var(--pw-text-xs)] text-text-muted">SESSION {snapshot.session_key ?? 'n/a'} · updated {localTime(snapshot.generated_at)} local</div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-[3px] ${flag.border} ${flag.surface}`}>
@@ -164,7 +164,7 @@ function SessionStatus({ snapshot, flagKey, flag }: { snapshot: LiveSnapshot; fl
       <div className="grid grid-cols-3 divide-x divide-border-subtle border-t border-border-subtle">
         <InlineMetric label="Red flags" value={`${snapshot.session_status?.red_flags ?? 0}`} />
         <InlineMetric label="Time under red" value={`${snapshot.session_status?.minutes_under_red ?? 0} min`} />
-        <InlineMetric label="Feed delay" value={snapshot.feed.last_message_age_s == null ? '—' : `${snapshot.feed.last_message_age_s.toFixed(1)}s`} />
+        <InlineMetric label="Feed delay" value={snapshot.feed.last_message_age_s == null ? 'n/a' : `${snapshot.feed.last_message_age_s.toFixed(1)}s`} />
       </div>
       <span className="sr-only">Current track flag: {flagKey}</span>
     </section>
@@ -184,7 +184,7 @@ function LeaderCard({ row, flag }: { row: PracticeTowerRow | null; flag: typeof 
           {row && <span className="px-1.5 py-0.5 border border-signal-purple/30 bg-signal-purple/10 rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-signal-purple">Lap {row.best_lap_number}</span>}
         </div>
         <div className="flex items-end justify-between gap-4">
-          <div className="font-mono font-bold text-[30px] leading-none tracking-[-1px] tabular-nums text-text-primary">{row ? lapTime(row.best_lap_s) : '—:—.———'}</div>
+          <div className="font-mono font-bold text-[30px] leading-none tracking-[-1px] tabular-nums text-text-primary">{row ? lapTime(row.best_lap_s) : 'n/a'}</div>
           {row && <div className="text-right"><div className="font-mono font-bold text-[12px] text-text-secondary">{row.clean_laps} clean laps</div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1">{row.team ?? row.compound ?? 'Session best'}</div></div>}
         </div>
       </div>
@@ -233,7 +233,7 @@ function BestLapChart({ markers }: { markers: NonNullable<LiveSnapshot['analysis
         <path d={path} fill="none" stroke="#FFB020" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {coords.map((coord, index) => <g key={`${coord.point.at}-${index}`}>
           <circle cx={coord.x} cy={coord.y} r={index === coords.length - 1 ? 4 : 2.4} fill={index === coords.length - 1 ? '#FFB020' : '#F0F2F5'} stroke="#0B0D12" strokeWidth="1.5">
-            <title>{`${coord.point.code ?? 'Driver'} · lap ${coord.point.lap_number ?? '—'} · ${lapTime(coord.point.time_s)}`}</title>
+            <title>{`${coord.point.code ?? 'Driver'} · lap ${coord.point.lap_number ?? 'n/a'} · ${lapTime(coord.point.time_s)}`}</title>
           </circle>
         </g>)}
         <text x={pad.left} y={height - 5} fill="#8A94A6" fontSize="8" fontFamily="monospace">{points[0].code ?? 'START'}</text>
@@ -245,7 +245,7 @@ function BestLapChart({ markers }: { markers: NonNullable<LiveSnapshot['analysis
 
 function TimingRow({ row, focused, onClick }: { row: PracticeTowerRow; focused: boolean; onClick: () => void }) {
   const team = row.colour ? `#${row.colour}` : '#8A94A6'
-  const gap = row.gap_to_p1 == null ? '—' : row.gap_to_p1 === 0 ? '—' : `+${row.gap_to_p1.toFixed(3)}`
+  const gap = row.gap_to_p1 == null ? 'n/a' : row.gap_to_p1 === 0 ? 'n/a' : `+${row.gap_to_p1.toFixed(3)}`
   return <tr onClick={onClick} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } }} tabIndex={0} role="button" aria-pressed={focused} className={`cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-bg-elevated ${focused ? 'bg-bg-elevated' : 'hover:bg-bg-elevated/50'}`}>
     <td className="px-3 py-2.5 text-center"><span className={`font-mono font-bold text-[12px] tabular-nums ${row.position === 1 ? 'text-signal-amber' : 'text-text-muted'}`}>{String(row.position).padStart(2, '0')}</span></td>
     <td className="px-3 py-2.5"><div className="flex items-center gap-2.5 min-w-0"><span className="w-[3px] h-8 rounded-full shrink-0" style={{ backgroundColor: team }} /><div className="min-w-0"><div className="font-display font-black text-[13px] uppercase tracking-[0.4px] text-text-primary">{row.code}<span className="font-normal text-[length:var(--pw-text-xs)] ml-2 text-text-muted">{row.team ?? ''}</span></div><div className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-0.5">L{row.best_lap_number} · {row.laps} laps · {row.clean_laps} clean</div></div></div></td>
@@ -253,7 +253,7 @@ function TimingRow({ row, focused, onClick }: { row: PracticeTowerRow; focused: 
     <td className={`px-3 py-2.5 text-right font-mono text-[length:var(--pw-text-xs)] tabular-nums ${row.position === 1 ? 'text-text-muted' : 'text-text-secondary'}`}>{gap}</td>
     {(['sector1', 'sector2', 'sector3'] as const).map((sector, index) => <td key={sector} className="px-3 py-2.5 text-right"><SectorValue row={row} sector={sector} segmentKey={`seg${index + 1}` as 'seg1' | 'seg2' | 'seg3'} /></td>)}
     <td className="px-3 py-2.5 text-right"><span className="font-mono font-bold text-[length:var(--pw-text-xs)] tabular-nums text-text-secondary">{lapTime(row.ideal_lap?.total)}</span>{row.ideal_lap && row.best_lap_s - row.ideal_lap.total > 0.001 && <span className="block font-mono text-[length:var(--pw-text-xs)] text-text-muted">+{(row.best_lap_s - row.ideal_lap.total).toFixed(3)}</span>}</td>
-    <td className="px-3 py-2.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><TyreDot compound={row.compound} /><span className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{row.compound ?? '—'}{row.tyre_age != null ? ` · ${row.tyre_age}L` : ''}</span></span></td>
+    <td className="px-3 py-2.5 text-right"><span className="inline-flex items-center justify-end gap-1.5"><TyreDot compound={row.compound} /><span className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{row.compound ?? 'n/a'}{row.tyre_age != null ? ` · ${row.tyre_age}L` : ''}</span></span></td>
   </tr>
 }
 
@@ -261,7 +261,7 @@ function SectorValue({ row, sector, segmentKey }: { row: PracticeTowerRow; secto
   const result = row.sectors[sector]
   const segments = row.segments?.[segmentKey] ?? []
   return <div className="inline-flex flex-col items-end" title={`Mini-sector codes: ${segments.join(', ') || 'not available'}`}>
-    <span className={`font-mono text-[length:var(--pw-text-xs)] tabular-nums ${SECTOR_TEXT[result.colour ?? ''] ?? 'text-text-muted'}`}>{result.time == null ? '—.———' : result.time.toFixed(3)}</span>
+    <span className={`font-mono text-[length:var(--pw-text-xs)] tabular-nums ${SECTOR_TEXT[result.colour ?? ''] ?? 'text-text-muted'}`}>{result.time == null ? 'n/a' : result.time.toFixed(3)}</span>
     <span className="mt-1 inline-flex gap-px">{segments.slice(0, 20).map((code, index) => <i key={index} className="w-[3px] h-[3px]" style={{ backgroundColor: segmentColor(code) }} />)}</span>
   </div>
 }
@@ -271,14 +271,14 @@ function DriverDetail({ row }: { row: PracticeTowerRow }) {
   return <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
     <SectionHeader title={`${row.code} lap detail`} eyebrow={row.team ?? 'Selected driver'} aside={`Lap ${row.best_lap_number} · ${row.compound ?? 'tyre unknown'}`} />
     <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-border-subtle">
-      {sectors.map((sector, index) => <InlineMetric key={index} label={`Sector ${index + 1}`} value={sector.time == null ? '—' : `${sector.time.toFixed(3)}s`} valueClass={SECTOR_TEXT[sector.colour ?? ''] ?? 'text-text-primary'} />)}
+      {sectors.map((sector, index) => <InlineMetric key={index} label={`Sector ${index + 1}`} value={sector.time == null ? 'n/a' : `${sector.time.toFixed(3)}s`} valueClass={SECTOR_TEXT[sector.colour ?? ''] ?? 'text-text-primary'} />)}
       <InlineMetric label="Ideal lap" value={lapTime(row.ideal_lap?.total)} />
     </div>
     <div className="px-3 py-2.5 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
       <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1px] text-text-muted">Speed traps · km/h</span>
       <div className="flex gap-5 font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{[
         ['Intermediate 1', row.speed_traps?.i1_speed], ['Intermediate 2', row.speed_traps?.i2_speed], ['Finish line', row.speed_traps?.st_speed],
-      ].map(([label, value]) => <span key={String(label)}>{label} <b className="text-text-primary">{value == null ? '—' : value}</b></span>)}</div>
+      ].map(([label, value]) => <span key={String(label)}>{label} <b className="text-text-primary">{value == null ? 'n/a' : value}</b></span>)}</div>
     </div>
   </section>
 }
@@ -310,7 +310,7 @@ function LongRunPanel({ rows, focusedDriver }: { rows: LongRunRow[]; focusedDriv
 function LongRunRowView({ run }: { run: LongRunRow }) {
   return <div className="px-3 py-2.5 grid grid-cols-[52px_minmax(0,1fr)_auto] gap-3 items-center">
     <span className="font-display font-black text-[12px] text-text-primary">{run.code}</span>
-    <div className="min-w-0"><div className="flex items-center gap-2"><TyreDot compound={run.compound} /><span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase text-text-secondary">{run.compound ?? 'Unknown compound'}</span><span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">L{run.lap_start}–{run.lap_end} · {run.laps} laps</span></div><div className="mt-1.5 h-[3px] w-full bg-bg-elevated rounded-full overflow-hidden"><div className="h-full bg-signal-blue/70" style={{ width: `${Math.min(run.laps / 20 * 100, 100)}%` }} /></div></div>
+    <div className="min-w-0"><div className="flex items-center gap-2"><TyreDot compound={run.compound} /><span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase text-text-secondary">{run.compound ?? 'Unknown compound'}</span><span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">L{run.lap_start} to {run.lap_end} · {run.laps} laps</span></div><div className="mt-1.5 h-[3px] w-full bg-bg-elevated rounded-full overflow-hidden"><div className="h-full bg-signal-blue/70" style={{ width: `${Math.min(run.laps / 20 * 100, 100)}%` }} /></div></div>
     <div className="text-right"><div className="font-mono font-bold text-[11px] text-text-primary">{lapTime(run.median_s)}</div><div className="mt-1"><ConfidenceChip confidence={run.confidence} /></div></div>
   </div>
 }
@@ -319,9 +319,9 @@ function WeatherPanel({ weather }: { weather: LiveSnapshot['analysis']['weather'
   return <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
     <SectionHeader title="Track conditions" eyebrow="Latest weather telemetry" />
     <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle">
-      <InlineMetric label="Track temperature" value={weather?.track_temperature == null ? '—' : `${weather.track_temperature}°C`} valueClass="text-signal-amber" />
-      <InlineMetric label="Air temperature" value={weather?.air_temperature == null ? '—' : `${weather.air_temperature}°C`} />
-      <InlineMetric label="Rainfall sensor" value={weather?.rainfall == null ? '—' : weather.rainfall > 0 ? 'WET' : 'DRY'} valueClass={weather?.rainfall ? 'text-signal-blue' : 'text-signal-green'} />
+      <InlineMetric label="Track temperature" value={weather?.track_temperature == null ? 'n/a' : `${weather.track_temperature}°C`} valueClass="text-signal-amber" />
+      <InlineMetric label="Air temperature" value={weather?.air_temperature == null ? 'n/a' : `${weather.air_temperature}°C`} />
+      <InlineMetric label="Rainfall sensor" value={weather?.rainfall == null ? 'n/a' : weather.rainfall > 0 ? 'WET' : 'DRY'} valueClass={weather?.rainfall ? 'text-signal-blue' : 'text-signal-green'} />
       <InlineMetric label="Confirmed rain periods" value={`${weather?.rain_periods ?? 0}`} />
     </div>
     <PanelFoot>{weather?.note ?? 'Weather telemetry is published roughly once per minute.'}</PanelFoot>
@@ -335,7 +335,7 @@ function SessionTimelinePanel({ snapshot }: { snapshot: LiveSnapshot }) {
     <SectionHeader title="Session events" eyebrow="Race control · live session clock" aside={`${snapshot.analysis.inputs.race_control ?? 0} messages`} />
     {markers.length || bands.length ? <div className="divide-y divide-border-subtle/70">
       {bands.map((period, index) => <EventRow key={`flag-${period.start}-${index}`} kind={period.flag} time={localTime(period.start)} title={`${period.flag} flag period`} detail={`${Math.round(period.duration_s)}s · ${localTime(period.end)} end`} />)}
-      {markers.map((marker, index) => <EventRow key={`best-${marker.at}-${index}`} kind="BEST" time={localTime(marker.at)} title={`${marker.code ?? 'Driver'} set session best`} detail={`Lap ${marker.lap_number ?? '—'} · ${lapTime(marker.time_s)}`} />)}
+      {markers.map((marker, index) => <EventRow key={`best-${marker.at}-${index}`} kind="BEST" time={localTime(marker.at)} title={`${marker.code ?? 'Driver'} set session best`} detail={`Lap ${marker.lap_number ?? 'n/a'} · ${lapTime(marker.time_s)}`} />)}
     </div> : <EmptyState title="No session events recorded" detail="Flag changes and session records will appear here as they happen." />}
   </section>
 }
@@ -356,7 +356,7 @@ function TrackOrderPanel({ snapshot, focusedDriver, onFocus }: { snapshot: LiveS
   return <section className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
     <SectionHeader title="Order on track" eyebrow="Physical position · not pace ranking" aside={`${snapshot.tower.length} cars`} />
     {rows.length ? <div className="divide-y divide-border-subtle/70">{rows.map(row => <button key={row.driver_number} onClick={() => onFocus(row.code === focusedDriver ? null : row.code)} className={`w-full px-3 py-2 text-left grid grid-cols-[32px_4px_minmax(0,1fr)_88px_84px] items-center gap-2 hover:bg-bg-elevated/50 ${focusedDriver === row.code ? 'bg-bg-elevated' : ''}`}>
-      <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">P{row.position}</span><span className="h-5 rounded-full" style={{ backgroundColor: row.colour ? `#${row.colour}` : '#4A5568' }} /><span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[length:var(--pw-text-xs)] text-text-muted">{row.gap_to_leader == null ? '' : typeof row.gap_to_leader === 'number' ? `+${row.gap_to_leader.toFixed(1)}` : row.gap_to_leader}</span></span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{lapTime(row.last_lap_s)}</span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-muted">{row.compound ?? '—'} {row.stint_laps == null ? '' : `${row.stint_laps}L`}</span>
+      <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">P{row.position}</span><span className="h-5 rounded-full" style={{ backgroundColor: row.colour ? `#${row.colour}` : '#4A5568' }} /><span className="font-display font-bold text-[11px] text-text-primary">{row.code}<span className="ml-2 font-mono font-normal text-[length:var(--pw-text-xs)] text-text-muted">{row.gap_to_leader == null ? '' : typeof row.gap_to_leader === 'number' ? `+${row.gap_to_leader.toFixed(1)}` : row.gap_to_leader}</span></span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-secondary">{lapTime(row.last_lap_s)}</span><span className="text-right font-mono text-[length:var(--pw-text-xs)] text-text-muted">{row.compound ?? 'n/a'} {row.stint_laps == null ? '' : `${row.stint_laps}L`}</span>
     </button>)}</div> : <EmptyState title="Track order unavailable" detail="No position messages have arrived yet." />}
     <PanelFoot>OpenF1 position is circuit order at the latest position update.</PanelFoot>
   </section>

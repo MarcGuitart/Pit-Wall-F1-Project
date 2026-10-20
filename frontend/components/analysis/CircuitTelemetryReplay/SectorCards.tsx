@@ -50,7 +50,7 @@ export function SectorCards({ drivers }: Props) {
               {c.delta != null && <div className={toneClass('warn')} style={{ fontSize: 12, fontWeight: 700 }}>+{c.delta.toFixed(3)}</div>}
             </>
           ) : (
-            <span className={ui.sub}>—</span>
+            <span className={ui.sub}>n/a</span>
           )}
         </div>
       ))}

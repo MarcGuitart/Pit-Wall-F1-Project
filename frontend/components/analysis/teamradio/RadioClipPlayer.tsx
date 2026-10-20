@@ -16,7 +16,7 @@ type Props = {
 }
 
 function fmt(s: number): string {
-  if (!isFinite(s) || s < 0) return '–:––'
+  if (!isFinite(s) || s < 0) return 'n/a'
   const m = Math.floor(s / 60)
   const r = Math.floor(s % 60)
   return `${m}:${r.toString().padStart(2, '0')}`
@@ -111,7 +111,7 @@ export function RadioClipPlayer({ clip, showDriver = false, compact = false }: P
       {showDriver && <b style={{ width: 36, flex: 'none', fontSize: 13 }}>{clip.driver_code}</b>}
       {unavailable ? (
         <span className={ui.accent} style={{ fontSize: 12, flex: 1 }}>
-          Recording unavailable — the F1 archive no longer serves this file.
+          Recording unavailable: the F1 archive no longer serves this file.
         </span>
       ) : (
         <>

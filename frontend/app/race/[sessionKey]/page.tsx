@@ -45,7 +45,7 @@ export default function RacePage() {
 
   useEffect(() => {
     if (analysis) document.title = `${meta ? placeOf(meta) : analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} ${analysis.race.year} · ${PRODUCT_NAME}`
-    return () => { document.title = `${PRODUCT_NAME} — Race Strategy Intelligence` }
+    return () => { document.title = `${PRODUCT_NAME} · Race Strategy Intelligence` }
   }, [analysis, meta])
 
   const again = () => {

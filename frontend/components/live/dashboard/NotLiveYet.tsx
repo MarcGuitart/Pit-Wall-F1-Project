@@ -57,7 +57,7 @@ export function NotLiveYet() {
             <div className={s.label} style={{ marginBottom: 10 }}>Or put it in your calendar</div>
             <AddToCalendarButton event={{
               uid: `pitwall-${next.dateStart}@pitwallengineer.com`,
-              summary: `${next.place} — ${next.sessionName}`,
+              summary: `${next.place} · ${next.sessionName}`,
               description: 'Live on the pit wall: https://pitwallengineer.com',
               location: next.circuitShortName ?? undefined,
               dateStart: next.dateStart,

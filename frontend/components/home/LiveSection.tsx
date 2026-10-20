@@ -74,7 +74,7 @@ function LiveCard() {
         <h3 className={h.liveTitle}>No live session</h3>
         <div className={h.nextWhen}>
           {upcoming && when
-            ? <>Next: {upcoming.place} · {upcoming.sessionName} — {when.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} local</>
+            ? <>Next: {upcoming.place} · {upcoming.sessionName} · {when.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} local</>
             : 'No upcoming session is scheduled.'}
         </div>
         <span />

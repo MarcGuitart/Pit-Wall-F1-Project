@@ -50,7 +50,7 @@ export default function LiveSessionPage() {
   useEffect(() => {
     document.title = `Live · session ${sessionKey} · ${PRODUCT_NAME}`
     return () => {
-      document.title = `${PRODUCT_NAME} — Race Strategy Intelligence`
+      document.title = `${PRODUCT_NAME} · Race Strategy Intelligence`
     }
   }, [sessionKey])
 
@@ -103,7 +103,7 @@ function WaitingForFeed({ error }: { error: string | null }) {
       </div>
       <p className="font-mono text-[11px] text-text-secondary leading-relaxed max-w-lg mx-auto">
         {error ??
-          'Waiting for the first snapshot from the live server. Nothing is shown until real data arrives — an empty tower is honest, a placeholder one is not.'}
+          'Waiting for the first snapshot from the live server. Nothing is shown until real data arrives. An empty tower is honest, a placeholder one is not.'}
       </p>
     </div>
   )

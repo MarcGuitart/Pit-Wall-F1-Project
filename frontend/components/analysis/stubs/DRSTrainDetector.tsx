@@ -13,7 +13,7 @@ export function DRSTrainDetector() {
         </span>
       </div>
       <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
-        Detecting groups of 3+ drivers within 1.0s — available in next update
+        Detecting groups of 3+ drivers within 1.0s, available in next update
       </p>
     </div>
   )

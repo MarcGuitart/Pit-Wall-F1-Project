@@ -25,7 +25,7 @@ function WindowCard({ window: cw }: { window: CrossoverWindow }) {
           <Badge tone={CONDITION_TONE[cw.to_condition] ?? 'muted'}>{cw.to_condition}</Badge>
         </span>
         <span className={a.row}>
-          <span className={ui.sub}>Laps {cw.lap_start}–{cw.lap_end}</span>
+          <span className={ui.sub}>Laps {cw.lap_start} to {cw.lap_end}</span>
           <Badge tone={IMPACT_TONE[cw.impact] ?? 'muted'}>{cw.impact}</Badge>
         </span>
       </div>
@@ -34,7 +34,7 @@ function WindowCard({ window: cw }: { window: CrossoverWindow }) {
       {cw.concurrent_sc && (
         <div className={a.warnNote} role="note">
           <span aria-hidden="true">⚠</span>
-          <span>Concurrent SC — attribution mixed. Position gains may reflect SC timing, not tyre choice alone.</span>
+          <span>Concurrent SC: attribution mixed. Position gains may reflect SC timing, not tyre choice alone.</span>
         </div>
       )}
 

@@ -62,7 +62,7 @@ export function DriverCard({ driver, stints, pits, radios = [], raceName, onClos
         className={d.card}
         role="dialog"
         aria-modal="true"
-        aria-label={`${driver.driver_code} — driver card`}
+        aria-label={`${driver.driver_code} · driver card`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -155,7 +155,7 @@ export function DriverCard({ driver, stints, pits, radios = [], raceName, onClos
                             <span style={{ width: `${Math.min((lapCount / 71) * 100, 100)}%`, background: color, opacity: 0.6 }} />
                           </div>
                           <div className={`${a.between} ${ui.sub}`} style={{ marginTop: 2, fontSize: 11 }}>
-                            <span>L{stint.lap_start}–{stint.lap_end}</span>
+                            <span>L{stint.lap_start} to {stint.lap_end}</span>
                             <span>{formatSlope(stint.degradation_slope)}</span>
                           </div>
                         </div>

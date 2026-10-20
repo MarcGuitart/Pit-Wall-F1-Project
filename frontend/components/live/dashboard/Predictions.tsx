@@ -10,19 +10,19 @@ import type { LiveSnapshot } from '@/types/live'
  * so far, re-run every frame, never a result.
  */
 
-const pct = (v: number | undefined) => (v == null ? '—' : v >= 0.995 ? '>99%' : v > 0 && v < 0.005 ? '<1%' : `${Math.round(v * 100)}%`)
+const pct = (v: number | undefined) => (v == null ? 'n/a' : v >= 0.995 ? '>99%' : v > 0 && v < 0.005 ? '<1%' : `${Math.round(v * 100)}%`)
 const colourOf = (c: string | null | undefined) => (c ? `#${c.replace('#', '')}` : '#8a94a6')
 
 export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
   const p = snapshot.projection
   const race = (snapshot.profile ?? 'race') === 'race'
   const final = !!(p as { final?: boolean } | undefined)?.final
-  const title = race ? 'Who wins from here' : final ? 'Pole position — result' : 'Who takes pole'
+  const title = race ? 'Who wins from here' : final ? 'Pole position · result' : 'Who takes pole'
   if (!p) {
     return (
       <section className={s.section}>
         <div className={`${s.secHead} ${s.secHeadWide}`}><h6 className={s.h6}>{title}</h6><span className={s.sub}>Projection</span></div>
-        <div className={s.empty}>The live server has not been updated with the projection model yet — it appears here as soon as it is redeployed.</div>
+        <div className={s.empty}>The live server has not been updated with the projection model yet, it appears here as soon as it is redeployed.</div>
       </section>
     )
   }
@@ -39,8 +39,8 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
       {race && p.total_laps != null && (
         <div className={s.cells} style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', borderBottom: '2px solid var(--pw-divider)' }}>
           <Stat label="Distance" value={`${p.total_laps} laps`} sub={p.total_laps_source ?? ''} />
-          <Stat label="Laps left" value={p.laps_left != null ? String(p.laps_left) : '—'} sub={`as of lap ${p.lap ?? '—'}`} />
-          <Stat label="Pit loss" value={p.pit_loss_s != null ? `${p.pit_loss_s.toFixed(1)} s` : '—'} sub={p.pit_loss_source ?? ''} />
+          <Stat label="Laps left" value={p.laps_left != null ? String(p.laps_left) : 'n/a'} sub={`as of lap ${p.lap ?? 'n/a'}`} />
+          <Stat label="Pit loss" value={p.pit_loss_s != null ? `${p.pit_loss_s.toFixed(1)} s` : 'n/a'} sub={p.pit_loss_source ?? ''} />
           <Stat label="Safety car chance" value={pct(p.sc_probability)} sub="at least one, over the laps left" />
         </div>
       )}
@@ -48,7 +48,7 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
       {!p.error && p.drivers.length > 0 && <Favourites drivers={p.drivers} race={race} final={final} />}
 
       {p.error ? <div className={s.empty}>The model failed on this frame ({p.error}); the next frame retries.</div>
-        : !p.drivers.length ? <div className={s.empty}>No projection yet — {p.reason ?? 'waiting for data'}.</div> : (
+        : !p.drivers.length ? <div className={s.empty}>No projection yet · {p.reason ?? 'waiting for data'}.</div> : (
         <div className={s.timingScroll}>
           <div style={{ minWidth: 860 }}>
             <div className={s.tHead} style={{ gridTemplateColumns: race ? GRID_RACE : GRID_POLE }}>
@@ -62,15 +62,15 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
                 <div className={s.td}><div style={{ height: 10, background: 'var(--pw-surface)' }}><div style={{ height: '100%', width: `${(d.win / max) * 100}%`, background: d.win === max ? 'var(--pw-accent)' : 'color-mix(in srgb, var(--pw-text) 45%, transparent)' }} /></div></div>
                 {race ? <>
                   <div className={s.td}>{pct(d.podium)}</div>
-                  <div className={s.td}><span style={{ fontWeight: 800 }}>P{d.projected_position}</span>{d.range && <span className={s.sub} style={{ fontSize: 11 }}>P{d.range[0]}–P{d.range[1]}</span>}</div>
+                  <div className={s.td}><span style={{ fontWeight: 800 }}>P{d.projected_position}</span>{d.range && <span className={s.sub} style={{ fontSize: 11 }}>P{d.range[0]} to P{d.range[1]}</span>}</div>
                   <div className={s.td}>{formatLap(d.pace_s)}</div>
-                  <div className={s.td}>{d.wear_s_per_lap != null ? `${d.wear_s_per_lap >= 0 ? '+' : ''}${Math.round(d.wear_s_per_lap * 1000)} ms/lap` : '—'}</div>
-                  <div className={s.td}>{d.stops_owed ?? '—'}</div>
-                  <div className={s.td}>{d.compound ?? '—'}{d.tyre_age != null ? ` · ${d.tyre_age}L` : ''}</div>
+                  <div className={s.td}>{d.wear_s_per_lap != null ? `${d.wear_s_per_lap >= 0 ? '+' : ''}${Math.round(d.wear_s_per_lap * 1000)} ms/lap` : 'n/a'}</div>
+                  <div className={s.td}>{d.stops_owed ?? 'n/a'}</div>
+                  <div className={s.td}>{d.compound ?? 'n/a'}{d.tyre_age != null ? ` · ${d.tyre_age}L` : ''}</div>
                 </> : <>
                   <div className={s.td}>{formatLap(d.best_s)}</div>
                   <div className={s.td}>{formatLap(d.ideal_s ?? undefined)}</div>
-                  <div className={s.td}>{d.best_s != null && d.ideal_s != null ? `−${(d.best_s - d.ideal_s).toFixed(3)}` : '—'}</div>
+                  <div className={s.td}>{d.best_s != null && d.ideal_s != null ? `−${(d.best_s - d.ideal_s).toFixed(3)}` : 'n/a'}</div>
                 </>}
               </div>
             ))}
@@ -83,7 +83,7 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
         <div className={s.foot} style={{ padding: '0 32px 16px', fontSize: 12, maxWidth: 960 }}>
           {race
             ? 'A Monte Carlo over the laps left. Each driver starts from their current gap to the leader and runs every remaining lap at the median of their last clean laps, plus the wear their current stint has measured. Stops still owed (a dry race needs two compounds; no stint runs past a compound\'s typical maximum) cost the pit-lane time measured in this race. Each simulation draws lap-to-lap noise from the driver\'s own consistency and a pace drift for the rest of the race, and may bring out a safety car that closes the field up and halves the cost of a stop. Distance is the scheduled lap count when known, otherwise 305 km over the lap length measured from this session\'s own track outline. Nothing here knows about strategy calls, damage or weather to come.'
-            : 'Each simulation gives every driver one more attempt: a lap somewhere between their ideal lap (best sectors summed) and a little slower, never worse than the best they have already set. Pole goes to the fastest; the odds are how often each driver ends up on top. It ignores track evolution, traffic and elimination — a measure of the room each driver has left on one lap.'}
+            : 'Each simulation gives every driver one more attempt: a lap somewhere between their ideal lap (best sectors summed) and a little slower, never worse than the best they have already set. Pole goes to the fastest; the odds are how often each driver ends up on top. It ignores track evolution, traffic and elimination: a measure of the room each driver has left on one lap.'}
         </div>
       </details>
     </section>
@@ -116,7 +116,7 @@ function Favourites({ drivers, race, final }: { drivers: PDriver[]; race: boolea
             </div>
             <div className={s.sub} style={{ marginTop: 8 }}>
               {race
-                ? `Podium ${pct(d.podium)} · projected P${d.projected_position}${d.range ? ` (P${d.range[0]}–P${d.range[1]})` : ''}`
+                ? `Podium ${pct(d.podium)} · projected P${d.projected_position}${d.range ? ` (P${d.range[0]} to P${d.range[1]})` : ''}`
                 : `Best ${formatLap(d.best_s)}${d.ideal_s ? ` · ideal ${formatLap(d.ideal_s)}` : ''}`}
             </div>
           </div>

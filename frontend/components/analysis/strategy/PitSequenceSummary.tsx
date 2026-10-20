@@ -11,7 +11,7 @@ type Props = {
 }
 
 function NetDelta({ delta }: { delta: number | null }) {
-  if (delta == null) return <span className={`${a.num} ${a.muted}`}>–</span>
+  if (delta == null) return <span className={`${a.num} ${a.muted}`}>n/a</span>
   if (delta > 0)  return <span className={`${a.num} ${toneClass('ok')}`}>+{delta}</span>
   if (delta < 0)  return <span className={`${a.num} ${toneClass('accent')}`}>{delta}</span>
   return <span className={`${a.num} ${a.muted}`}>±0</span>
@@ -73,7 +73,7 @@ export function PitSequenceSummary({ pitImpactRows, onDriverClick, onViewAll, se
       ) : allMissingLane ? (
         <div className={a.unavailable}>
           <h4 className={ui.h6}>Pit lane timing unavailable</h4>
-          <p className={a.para}>Showing position change only — no lane duration data from OpenF1.</p>
+          <p className={a.para}>Showing position change only: no lane duration data from OpenF1.</p>
         </div>
       ) : (
         <div className={a.kv} style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', borderLeft: 0 }}>

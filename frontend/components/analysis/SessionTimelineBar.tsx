@@ -145,7 +145,7 @@ export function SessionTimelineBar({
     return (
       <Panel title="Session Timeline" aside={<EstimatedLabel />}>
         <div className={a.phaseTrack} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 0 }}>
-          <span className={ui.sub}>Timeline — {sessionType} session</span>
+          <span className={ui.sub}>Timeline · {sessionType} session</span>
         </div>
       </Panel>
     )

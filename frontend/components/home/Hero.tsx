@@ -12,7 +12,7 @@ export function Hero({ aside }: { aside?: ReactNode }) {
       <div>
         <div className={h.kicker}><span className={h.square} aria-hidden="true" />Race strategy analysis · Unofficial</div>
         <h1 id="hero-title" className={h.display}>Every race, read like an engineer would.</h1>
-        <p className={h.lead}>True pace, tyre degradation, pit cycles, chaos — measured, never guessed.</p>
+        <p className={h.lead}>True pace, tyre degradation, pit cycles, chaos: measured, never guessed.</p>
         <div className={h.ctas}>
           <Link href={RACE_LIST_HREF} className={buttonClass('primary', true)}>Pick a race →</Link>
           <a href="#live" className={buttonClass('default', true)}>See live mode</a>

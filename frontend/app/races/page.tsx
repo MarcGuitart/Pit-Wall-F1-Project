@@ -28,7 +28,7 @@ export default function RacesPage() {
       <section className={ui.section} aria-labelledby="any-session">
         <div className={`${ui.secHead} ${ui.secHeadWide}`}>
           <h2 className={ui.h6} id="any-session">Any session</h2>
-          <span className={ui.sub}>Practice, qualifying, sprint and race — and the featured races</span>
+          <span className={ui.sub}>Practice, qualifying, sprint and race, and the featured races</span>
         </div>
         <RaceSelector />
       </section>

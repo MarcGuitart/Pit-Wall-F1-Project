@@ -42,7 +42,7 @@ function PodiumCard({
         <span className={a.swatch} style={{ background: teamColour(row.team_colour) }} />
         <span style={{ minWidth: 0 }}>
           <span className={a.podiumCode}>{row.driver_code}</span>
-          <span className={`${ui.sub} ${a.ellipsis}`}>{row.team_name ?? '–'}</span>
+          <span className={`${ui.sub} ${a.ellipsis}`}>{row.team_name ?? 'n/a'}</span>
         </span>
       </span>
       <span>
@@ -66,7 +66,7 @@ function RealPodiumRow({ classification, onDriverClick }: {
 
   return (
     <div style={{ display: 'grid', gap: 6 }}>
-      <div className={ui.label}>Real Podium — race result</div>
+      <div className={ui.label}>Real Podium · race result</div>
       <div className={a.podium}>
         {podium.map((r) => (
           <button

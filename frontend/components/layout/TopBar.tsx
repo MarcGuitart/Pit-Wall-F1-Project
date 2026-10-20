@@ -47,7 +47,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
           noise. Clicks through to Settings, where the toggle and the code
           field actually live now. */}
       {showProBadge && (
-        <Link href="/settings" className={s.proActive} aria-label="PRO access active — open Settings">PRO</Link>
+        <Link href="/settings" className={s.proActive} aria-label="PRO access active · open Settings">PRO</Link>
       )}
 
       {breadcrumb && breadcrumb.length > 0 && (
@@ -85,7 +85,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
           <span className={s.tipWrap}>
             <Popover
               trigger="Live"
-              triggerLabel="Live mode — no session live right now"
+              triggerLabel="Live mode · no session live right now"
               triggerClassName={s.navLink}
               title="No live session right now"
             >
@@ -105,7 +105,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
                       variant="system"
                       event={{
                         uid: `pitwall-live-${nextLive.dateStart}@pitwallengineer.com`,
-                        summary: `Pit Wall — ${nextLive.place} ${nextLive.sessionName}`,
+                        summary: `Pit Wall · ${nextLive.place} ${nextLive.sessionName}`,
                         description: 'Live mode on Pit Wall Engineer follows the session while it runs.',
                         location: nextLive.circuitShortName ?? '',
                         dateStart: nextLive.dateStart,
@@ -132,7 +132,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
               onFocus={() => setShowLiveTip(true)}
               onBlur={() => setShowLiveTip(false)}
               className={`${s.navLink} ${s.navOff}`}
-              aria-label="Live PRO — live mode is part of PRO, open Settings"
+              aria-label="Live PRO · live mode is part of PRO, open Settings"
             >
               Live <span className={s.pro}>PRO</span>
             </Link>
@@ -141,7 +141,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
               <div className={s.tip} style={{ pointerEvents: 'none' }} role="tooltip">
                 <div className={s.tipTitle} style={{ color: 'var(--pw-accent-text)' }}>Live mode · PRO</div>
                 <div className={s.tipBody}>
-                  Follow the race as it happens, live. Part of PRO — enter an access code in Settings to unlock it.
+                  Follow the race as it happens, live. Part of PRO: enter an access code in Settings to unlock it.
                 </div>
               </div>
             )}

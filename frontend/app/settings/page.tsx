@@ -86,8 +86,8 @@ export default function SettingsPage() {
 
               <p className={pg.small}>
                 {showBadge
-                  ? 'The toggle above only controls the PRO badge in the top bar — it is a display preference for this browser, not your access. Turning it off does not sign you out.'
-                  : 'The PRO badge is hidden in the top bar. Your access code is still active — this only changed what is displayed.'}
+                  ? 'The toggle above only controls the PRO badge in the top bar: it is a display preference for this browser, not your access. Turning it off does not sign you out.'
+                  : 'The PRO badge is hidden in the top bar. Your access code is still active. This only changed what is displayed.'}
               </p>
 
               <button type="button" onClick={signOut} className={pg.linkBtn}>Sign out of PRO</button>

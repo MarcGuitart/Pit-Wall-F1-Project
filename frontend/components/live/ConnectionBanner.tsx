@@ -59,7 +59,7 @@ export function ConnectionBanner({
           {red ? (
             <>
               {error ?? 'This page is no longer receiving updates from the live server.'}{' '}
-              Last frame {frameAge}s ago — everything below is that frame, not the current race.
+              Last frame {frameAge}s ago · everything below is that frame, not the current race.
               {connection === 'reconnecting' && ' Retrying automatically.'}
             </>
           ) : (

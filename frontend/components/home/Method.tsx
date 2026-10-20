@@ -1,7 +1,7 @@
 import h from './home.module.css'
 
 const LEVELS = [
-  { l: 'Low', n: 3, t: 'Little evidence behind the figure — for pace, few clean laps. Read it with care.' },
+  { l: 'Low', n: 3, t: 'Little evidence behind the figure (for pace, few clean laps). Read it with care.' },
   { l: 'Medium', n: 7, t: 'A moderate amount of evidence behind the figure.' },
   { l: 'High', n: 12, t: 'Plenty of evidence behind the figure.' },
 ]
@@ -18,7 +18,7 @@ export function Method() {
           <h3 className={h.h3}>Confidence</h3>
           <p className={h.p}>
             Pace, tyre and pit estimates carry a Low, Medium or High confidence label. Each module sets it from the
-            evidence behind its own figure — not only the number of clean laps. The Chaos Index is a measured score
+            evidence behind its own figure, not only the number of clean laps. The Chaos Index is a measured score
             and carries no confidence label.
           </p>
           {LEVELS.map((c) => (

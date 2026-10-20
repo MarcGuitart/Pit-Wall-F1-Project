@@ -17,7 +17,7 @@ import { PageHeader, buttonClass } from '@/components/ui'
 import pg from '@/components/layout/page.module.css'
 
 export const metadata = {
-  title: `Docs — ${PRODUCT_NAME}`,
+  title: `Docs · ${PRODUCT_NAME}`,
   description: `What ${PRODUCT_NAME} is, what is free, what PRO adds, and where the data comes from.`,
 }
 
@@ -66,8 +66,7 @@ export default function DocsPage() {
             how disordered a race was.
           </p>
           <p>
-            Pick a season, a Grand Prix and a session, and the site builds a full strategic breakdown —
-            then you can ask an AI race engineer questions about that specific race, grounded in its own
+            Pick a season, a Grand Prix and a session, and the site builds a full strategic breakdown,             then you can ask an AI race engineer questions about that specific race, grounded in its own
             computed analysis rather than a general-purpose model guessing from memory.
           </p>
         </Section>
@@ -75,7 +74,7 @@ export default function DocsPage() {
         <Section id="free" title="Free">
           <p>
             Every race from{' '}
-            <strong>{FREE_SEASONS.join(' and ')}</strong> — full
+            <strong>{FREE_SEASONS.join(' and ')}</strong> : full
             analysis, every session type, no account and no code needed.
           </p>
         </Section>
@@ -84,7 +83,7 @@ export default function DocsPage() {
           <p>{PRO_PRICE_LABEL}.</p>
           <p>
             PRO covers races from 2025 onwards, the current season as it is published (usually within a
-            few hours of the chequered flag), and Live mode. Subscriptions are not open yet — access
+            few hours of the chequered flag), and Live mode. Subscriptions are not open yet: access
             today is by a code, entered once in{' '}
             <Link href="/settings">
               Settings
@@ -96,9 +95,8 @@ export default function DocsPage() {
           <p>
             During a session, Live mode shows the race as it happens: timing and sectors, the track map
             and car telemetry, race control, weather, tyres, pit stops and team radio, updating roughly
-            every couple of seconds. Everything is a reading of the feed except the Predictions tab —
-            win and pole odds from a model run on the laps so far, labelled as a projection wherever it
-            appears — and anything that cannot be judged until the chequered flag, such as the Chaos
+            every couple of seconds. Everything is a reading of the feed except the Predictions tab (win and pole odds from a model run on the laps so far, labelled as a projection wherever it
+            appears) and anything that cannot be judged until the chequered flag, such as the Chaos
             Index, is marked as such. An AI engineer answers questions from the same live data.
           </p>
           <p>Live mode is part of PRO.</p>
@@ -106,7 +104,7 @@ export default function DocsPage() {
 
         <Section id="data" title="Data sources">
           <p>
-            Race and session data — laps, stints, pit stops, position, race control, weather — comes
+            Race and session data (laps, stints, pit stops, position, race control, weather) comes
             from{' '}
             <a href="https://openf1.org" target="_blank" rel="noopener noreferrer">
               OpenF1

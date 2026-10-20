@@ -51,7 +51,7 @@ export function LiveEngineerNotes({ notes }: Props) {
             >
               <div className="w-8 shrink-0 pt-0.5">
                 <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted tabular-nums">
-                  {note.lap_number != null ? `L${note.lap_number}` : '–'}
+                  {note.lap_number != null ? `L${note.lap_number}` : 'n/a'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
@@ -77,7 +77,7 @@ export function LiveEngineerNotes({ notes }: Props) {
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
-          Generated from computed metrics by fixed thresholds. No AI generation — the same rule as
+          Generated from computed metrics by fixed thresholds. No AI generation: the same rule as
           the post-race notes.
         </p>
       </div>

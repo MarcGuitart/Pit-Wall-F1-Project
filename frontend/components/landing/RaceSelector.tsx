@@ -91,7 +91,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
       fetchRaces(year)
         .then((data) => setRaces(data))
         .catch((err) => setBackendError(
-          err instanceof ApiError ? err.message : 'Backend offline — use featured races below',
+          err instanceof ApiError ? err.message : 'Backend offline: use the featured races below',
         ))
         .finally(() => setLoadingRaces(false))
     }, 400)
@@ -158,7 +158,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
     },
     ...races.map((r) => ({
       value: String(r.meeting_key),
-      label: r.circuit_short_name && r.circuit_short_name !== placeOf(r) ? `${placeOf(r)} — ${r.circuit_short_name}` : placeOf(r),
+      label: r.circuit_short_name && r.circuit_short_name !== placeOf(r) ? `${placeOf(r)} · ${r.circuit_short_name}` : placeOf(r),
     })),
   ]
 
@@ -180,7 +180,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
 
           {/* Grand Prix — search enabled when options > 8 */}
           <PitWallSelect
-            label={loadingRaces ? 'Grand Prix — loading…' : 'Grand Prix'}
+            label={loadingRaces ? 'Grand Prix · loading…' : 'Grand Prix'}
             value={selectedMeetingKey ? String(selectedMeetingKey) : ''}
             options={raceOptions}
             onChange={(v) => setSelectedMeetingKey(v ? Number(v) : null)}
@@ -203,7 +203,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                     // Nothing to open and nothing to put in a calendar.
                     return (
                       <span key={s.session_key} className={l.pill} data-cancelled="true">
-                        <button type="button" disabled className={buttonClass()} aria-label={`${s.session_name} — cancelled`}>
+                        <button type="button" disabled className={buttonClass()} aria-label={`${s.session_name} · cancelled`}>
                           {label} · Cancelled
                         </button>
                       </span>
@@ -241,7 +241,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
                           compact
                           event={{
                             uid: `pitwall-${s.session_key}@pitwallengineer.com`,
-                            summary: `Pit Wall — ${placeOf(selectedMeeting)} ${s.session_name}`,
+                            summary: `Pit Wall · ${placeOf(selectedMeeting)} ${s.session_name}`,
                             description: 'Full strategy analysis on pitwallengineer.com once published.',
                             location: placeOf(selectedMeeting),
                             dateStart: s.date_start,

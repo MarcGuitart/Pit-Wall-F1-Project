@@ -137,7 +137,7 @@ export function WeatherOverlay({ weather, totalLaps, crossoverWindows, weatherWi
             {[
               { label: 'Avg track', value: `${weather.avg_track_temp}°C` },
               { label: 'Wet laps', value: `${weather.wet_laps} / ${total}` },
-              { label: 'Peak rain', value: weather.peak_rainfall_lap ? `L${weather.peak_rainfall_lap}` : '—' },
+              { label: 'Peak rain', value: weather.peak_rainfall_lap ? `L${weather.peak_rainfall_lap}` : 'n/a' },
             ].map(({ label, value }) => (
               <div key={label} className={a.between}>
                 <span className={ui.label}>{label}</span>

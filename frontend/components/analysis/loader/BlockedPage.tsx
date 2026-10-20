@@ -134,7 +134,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
     case 'unpublished': {
       head = 'Not published yet'
       title = isRace ? 'Analysis available after the race' : `Analysis available after ${session}`
-      body = 'The analysis is published once the session results are final — normally within a few hours of the chequered flag.'
+      body = 'The analysis is published once the session results are final, normally within a few hours of the chequered flag.'
       const when = formatUtcInstant(earliest)
       extra = when ? <Info label="Earliest possible" value={when} /> : null
       const gp = meta ? placeOf(meta) : `Session ${sessionKey}`
@@ -146,7 +146,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
               className={buttonClass('primary', true)}
               onClick={() => {
                 const end = new Date(new Date(earliest).getTime() + 30 * 60_000).toISOString()
-                const summary = `Pit Wall — ${gp} ${session} analysis (earliest)`
+                const summary = `Pit Wall · ${gp} ${session} analysis (earliest)`
                 downloadIcs(icsFilename(summary), buildSessionIcs({
                   uid: `pitwall-analysis-${sessionKey}@pitwallengineer.com`,
                   summary,
@@ -160,7 +160,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
               Add to calendar · earliest
             </button>
           )}
-          {liveHere && <Link href={`/live/${sessionKey}`} className={buttonClass('ink')}>It is live now — open the pit wall</Link>}
+          {liveHere && <Link href={`/live/${sessionKey}`} className={buttonClass('ink')}>It is live now · open the pit wall</Link>}
           <NotifyButton
             label="Notify me when it is ready"
             watch={{ kind: 'analysis', id: `analysis-${sessionKey}`, label: `${gp} · ${session}`, sessionKey, readyAt: earliest }}

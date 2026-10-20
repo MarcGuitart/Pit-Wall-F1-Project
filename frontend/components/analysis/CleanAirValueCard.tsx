@@ -33,14 +33,14 @@ export function CleanAirValueCard({ data }: Props) {
 
   const rangeLabel =
     gains.length >= 2
-      ? `+${minGain.toFixed(2)}–${maxGain.toFixed(2)} s/lap`
+      ? `+${minGain.toFixed(2)} to ${maxGain.toFixed(2)} s/lap`
       : `+${(data!.estimated_gain ?? 0).toFixed(2)} s/lap`
 
   return (
     <Panel
       title="Clean Air Value"
       aside={<><ConfidenceBadge level={data!.confidence} /><MethodologyBadge module="drs" /></>}
-      foot={<span className={a.row}><EstimatedLabel /><span>estimated from pace comparison — small sample</span></span>}
+      foot={<span className={a.row}><EstimatedLabel /><span>estimated from pace comparison · small sample</span></span>}
     >
       <div style={{ display: 'grid', gap: 12 }}>
         {/* Main value */}

@@ -25,7 +25,7 @@ function bucket(slope: number): RiskBucket {
 }
 
 function dominant(rows: DriverWorstSlope[]) {
-  if (!rows.length) return '–'
+  if (!rows.length) return 'n/a'
   const counts: Record<string, number> = {}
   rows.forEach((r) => { counts[r.compound] = (counts[r.compound] ?? 0) + 1 })
   return Object.entries(counts).sort((x, y) => y[1] - x[1])[0][0].slice(0, 4)
@@ -71,7 +71,7 @@ export function TyreCliffMap({ degradationRows, onDriverClick, sessionType }: Pr
               </div>
               <div className={a.list} style={{ flex: 1 }}>
                 {drivers.length === 0 ? (
-                  <div className={`${a.item} ${a.muted}`} style={{ textAlign: 'center' }}>–</div>
+                  <div className={`${a.item} ${a.muted}`} style={{ textAlign: 'center' }}>n/a</div>
                 ) : (
                   drivers.map((d) => (
                     <button key={d.code} type="button" onClick={() => onDriverClick(d.code)} className={`${a.itemBtn} ${a.between}`} style={{ display: 'flex', padding: '8px 14px' }}>

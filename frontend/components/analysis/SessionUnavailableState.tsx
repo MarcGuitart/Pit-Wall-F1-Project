@@ -124,7 +124,7 @@ export function SessionUnavailableState({
         <div style={{ display: 'grid', gap: 14 }}>
           {liveHere && (
             <Link href={`/live/${sessionKey}`} className={buttonClass('primary', true)} style={{ justifySelf: 'start' }}>
-              It is live now — open the pit wall
+              It is live now · open the pit wall
             </Link>
           )}
           <NotifyButton

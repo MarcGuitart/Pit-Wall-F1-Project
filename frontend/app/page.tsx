@@ -14,7 +14,7 @@ import { Closing } from '@/components/home/Closing'
 import { Reveal } from '@/components/home/Reveal'
 import h from '@/components/home/home.module.css'
 
-const TITLE = 'Pit Wall Engineer — every race, read like an engineer would'
+const TITLE = 'Pit Wall Engineer · every race, read like an engineer would'
 const DESCRIPTION = `Unofficial Formula 1 race strategy analysis: true pace from clean laps, tyre degradation, pit cycles and a measured Chaos Index, with the laps excluded and a confidence label on every estimate. Seasons ${FREE_SEASONS.join(' and ')} are free.`
 
 export const metadata: Metadata = {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: 'Pit Wall Engineer',
     type: 'website',
     // Original artwork (public/og.svg, rasterised to 1200 × 630); no F1 imagery.
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Pit Wall Engineer — Every race, read like an engineer would.' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Pit Wall Engineer · Every race, read like an engineer would.' }],
   },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: ['/og.png'] },
 }

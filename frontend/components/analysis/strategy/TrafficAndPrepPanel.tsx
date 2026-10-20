@@ -11,7 +11,7 @@ export function TrafficAndPrepPanel() {
       </div>
       <div className="p-4 text-center">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary">
-          Traffic and prep analysis — qualifying sessions
+          Traffic and prep analysis · qualifying sessions
         </p>
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1">
           Detects compromised runs via is_pit_out_lap + interval data

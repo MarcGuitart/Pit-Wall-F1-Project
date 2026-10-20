@@ -58,12 +58,12 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
         {/* hazard strip: the pit lane is closed, not broken */}
         <div style={{ height: 8, background: 'repeating-linear-gradient(45deg, var(--pw-amber) 0 8px, var(--pw-bg) 8px 16px)' }} aria-hidden="true" />
         <div style={{ padding: 28, display: 'grid', gap: 14 }}>
-          <div><Badge tone="warn">Restricted — Pit Wall PRO</Badge></div>
+          <div><Badge tone="warn">Restricted · Pit Wall PRO</Badge></div>
           <h1 id="wall-title" className={ui.h1} style={{ fontSize: 'clamp(32px, 6vw, 48px)', margin: 0 }}>
             {year ? `The ${year} season` : 'This season'} is PRO
           </h1>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55 }}>2023 and 2024 are free to read. {PRO_PRICE_LABEL}.</p>
-          <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet — €2.99/month is what it will cost.</p>
+          <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet: €2.99/month is what it will cost.</p>
 
           <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 6 }}>
@@ -114,7 +114,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-signal-amber" aria-hidden="true" />
           <span className="font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[2px] text-signal-amber">
-            Restricted — Pit Wall PRO
+            Restricted · Pit Wall PRO
           </span>
         </div>
 
@@ -126,7 +126,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
           2023 and 2024 are free to read. {PRO_PRICE_LABEL}.
         </p>
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mb-6">
-          Subscriptions are not open yet — €2.99/month is what it will cost.
+          Subscriptions are not open yet: €2.99/month is what it will cost.
         </p>
 
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2 mb-2">

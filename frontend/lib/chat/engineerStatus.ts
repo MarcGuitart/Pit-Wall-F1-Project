@@ -26,6 +26,6 @@ export function engineerStatus(health: Health): EngineerStatus {
 }
 
 export const OFFLINE_COPY: Record<'server' | 'model', string> = {
-  server: 'The analysis server is not answering, so the engineer cannot read this race. It may be waking up — check again in a moment.',
+  server: 'The analysis server is not answering, so the engineer cannot read this race. It may be waking up. Check again in a moment.',
   model: 'The analysis server is up, but the engineer\'s language model is not available right now. Answers resume as soon as it is back.',
 }

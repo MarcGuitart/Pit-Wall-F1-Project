@@ -11,7 +11,7 @@ export function RunTimingPanel() {
       </div>
       <div className="p-4 text-center">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary">
-          Run timing detail — qualifying run sequences
+          Run timing detail · qualifying run sequences
         </p>
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1">
           Best lap per run, delta to session best, traffic flags

@@ -31,7 +31,7 @@ export function EngineerNotes({ notes, focusedDriver }: Props) {
           {notes.map((note, i) => (
             <div key={i} className={a.item} style={{ display: 'flex', gap: 12, boxShadow: `inset 4px 0 0 ${SEVERITY_RULE[note.severity]}` }}>
               <span className={`${a.num} ${a.muted}`} style={{ width: 32, flex: 'none', fontSize: 12 }}>
-                {note.lap_number != null ? `L${note.lap_number}` : '–'}
+                {note.lap_number != null ? `L${note.lap_number}` : 'n/a'}
               </span>
               <div className={a.grow}>
                 <div className={`${a.row} ${a.wrap}`} style={{ marginBottom: 4 }}>

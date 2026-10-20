@@ -169,7 +169,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     return (
       <div className={t.state} aria-busy="true">
         <div className={ui.h6}>Loading Telemetry</div>
-        <div className={ui.sub}>Fetching FastF1 lap data · First load: 5–15s</div>
+        <div className={ui.sub}>Fetching FastF1 lap data · First load: 5 to 15s</div>
       </div>
     )
   }
@@ -220,7 +220,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
         {/* Lap chip */}
         <div className={t.group}>
           <span className={ui.label}>Lap</span>
-          <b>{selectedTelemetry[0]?.fastest_lap_number ? `L${selectedTelemetry[0].fastest_lap_number}` : '–'}</b>
+          <b>{selectedTelemetry[0]?.fastest_lap_number ? `L${selectedTelemetry[0].fastest_lap_number}` : 'n/a'}</b>
         </div>
         {/* Lap mode toggle */}
         <Segmented
@@ -230,9 +230,9 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
           onChange={setLapMode}
           options={[
             { value: 'fastest_clean', label: 'Fastest',
-              title: 'Fastest clean lap — shows the driver at the absolute limit. Highest G-forces and speed traces.' },
+              title: 'Fastest clean lap: shows the driver at the absolute limit. Highest G-forces and speed traces.' },
             { value: 'representative', label: 'Representative',
-              title: 'Representative lap — closest to the median race lap time. Shows typical race-pace behaviour; expect lower G-forces during safety car periods.' },
+              title: 'Representative lap: closest to the median race lap time. Shows typical race-pace behaviour; expect lower G-forces during safety car periods.' },
           ]}
         />
         <MetricSelector
@@ -278,7 +278,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
         <section className={t.pane} aria-label="Telemetry channels">
           <div className={t.paneHead}>
             <span className={ui.label}>Telemetry Channels · {selectedTelemetry[0]?.driver_code ?? 'Driver'}</span>
-            <span className={ui.sub}>L{selectedTelemetry[0]?.fastest_lap_number ?? '–'} fastest</span>
+            <span className={ui.sub}>L{selectedTelemetry[0]?.fastest_lap_number ?? 'n/a'} fastest</span>
           </div>
           <div className={t.paneBody} style={{ padding: 0 }}>
             <TelemetryChannels

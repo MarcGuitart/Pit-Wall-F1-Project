@@ -22,7 +22,7 @@ function TrainCard({ train, isHighlight }: { train: MeaningfulDRSTrain; isHighli
       {/* Header */}
       <div className={`${a.between} ${a.wrap}`}>
         <span className={a.row}>
-          <span className={ui.sub}>Laps {train.lap_start}–{train.lap_end}</span>
+          <span className={ui.sub}>Laps {train.lap_start} to {train.lap_end}</span>
           {isHighlight && <Badge tone="info" solid>Peak</Badge>}
         </span>
         <span className={a.row}>
@@ -91,7 +91,7 @@ export function DRSTrainDetector({ drs }: Props) {
     >
       {meaningful.length === 0 ? (
         <p className={ui.empty} style={{ margin: 0, textAlign: 'center' }}>
-          No sustained DRS trains detected — racing was relatively open.
+          No sustained DRS trains detected: racing was relatively open.
         </p>
       ) : (
         <>

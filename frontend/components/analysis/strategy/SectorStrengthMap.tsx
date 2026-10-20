@@ -19,7 +19,7 @@ export function SectorStrengthMap() {
           ))}
         </div>
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted text-center">
-          Sector strength analysis — top driver per sector with delta to best
+          Sector strength analysis · top driver per sector with delta to best
         </p>
       </div>
     </div>

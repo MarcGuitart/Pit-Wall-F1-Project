@@ -14,7 +14,7 @@ type Props = {
 /** OpenF1 sends the leader's interval as 0, and a lapped car as "+1 LAP". */
 function gapText(value: number | string | null, isLeader: boolean): string {
   if (isLeader) return 'LEADER'
-  if (value == null) return '–'
+  if (value == null) return 'n/a'
   if (typeof value === 'string') return value
   return `+${value.toFixed(3)}`
 }
@@ -47,7 +47,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
       <div className="divide-y divide-border-subtle/60">
         {rows.length === 0 && (
           <div className="px-3 py-8 text-center font-mono text-[11px] text-text-muted">
-            No position data yet — waiting for the first v1/position message.
+            No position data yet: waiting for the first v1/position message.
           </div>
         )}
 
@@ -100,11 +100,11 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
               </span>
 
               <span className="font-mono text-[11px] text-text-muted tabular-nums text-right">
-                {row.position === 1 ? '–' : gapText(row.interval, false)}
+                {row.position === 1 ? 'n/a' : gapText(row.interval, false)}
               </span>
 
               <span className="font-mono text-[11px] text-text-primary tabular-nums text-right">
-                {row.last_lap_s ? formatLapTime(row.last_lap_s) : '–'}
+                {row.last_lap_s ? formatLapTime(row.last_lap_s) : 'n/a'}
               </span>
 
               <span className="flex items-center justify-end gap-1.5">
@@ -114,7 +114,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
                   title={row.compound ?? 'compound unknown'}
                 />
                 <span className="font-mono text-[11px] text-text-secondary tabular-nums">
-                  {row.stint_laps != null ? `${row.stint_laps}L` : '–'}
+                  {row.stint_laps != null ? `${row.stint_laps}L` : 'n/a'}
                 </span>
               </span>
             </button>
@@ -124,7 +124,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
-          Tyre column is laps on the current stint, not total tyre age — a set fitted used starts
+          Tyre column is laps on the current stint, not total tyre age: a set fitted used starts
           above zero and the feed reports that separately.
         </p>
       </div>

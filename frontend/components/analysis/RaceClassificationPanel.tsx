@@ -11,7 +11,7 @@ type Props = {
 }
 
 function GainedBadge({ gained }: { gained: number | null }) {
-  if (gained == null) return <span className={a.muted}>–</span>
+  if (gained == null) return <span className={a.muted}>n/a</span>
   const tone = gained > 0 ? toneClass('ok') : gained < 0 ? toneClass('accent') : a.muted
   const sign = gained > 0 ? '+' : ''
   return <span className={`${a.num} ${tone}`}>{sign}{gained}</span>
@@ -33,18 +33,18 @@ export function RaceClassificationPanel({ rows, onDriverClick }: Props) {
       <DataTable label="Race classification" columns={COLUMNS}>
         {rows.map((row) => (
           <Row key={row.driver_number} onActivate={() => onDriverClick(row.driver_code, row.team_name ?? row.driver_code)}>
-            <Cell><span className={`${a.num} ${a.muted}`}>{row.finishing_position ?? '–'}</span></Cell>
+            <Cell><span className={`${a.num} ${a.muted}`}>{row.finishing_position ?? 'n/a'}</span></Cell>
             <Cell>
               <span className={a.row}>
                 <span className={a.dot} style={{ background: teamColour(row.team_colour) }} aria-hidden="true" />
                 <span style={{ minWidth: 0 }}>
                   <span className={a.code} style={{ display: 'block' }}>{row.driver_code}</span>
-                  <span className={`${ui.sub} ${a.ellipsis}`}>{row.team_name ?? '–'}</span>
+                  <span className={`${ui.sub} ${a.ellipsis}`}>{row.team_name ?? 'n/a'}</span>
                 </span>
               </span>
             </Cell>
-            <Cell><span className={a.muted}>P{row.grid_position ?? '–'}</span></Cell>
-            <Cell><span className={a.num}>P{row.finishing_position ?? '–'}</span></Cell>
+            <Cell><span className={a.muted}>P{row.grid_position ?? 'n/a'}</span></Cell>
+            <Cell><span className={a.num}>P{row.finishing_position ?? 'n/a'}</span></Cell>
             <Cell num><GainedBadge gained={row.positions_gained} /></Cell>
           </Row>
         ))}

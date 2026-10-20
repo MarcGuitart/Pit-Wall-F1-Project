@@ -43,7 +43,7 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
             return (
               <div key={id} className="px-3 py-2 flex items-center gap-2.5">
                 <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted tabular-nums w-8 shrink-0">
-                  {clip.lap_number != null ? `~L${clip.lap_number}` : '–'}
+                  {clip.lap_number != null ? `~L${clip.lap_number}` : 'n/a'}
                 </span>
                 <span className="font-display font-bold text-[12px] tracking-[0.5px] text-text-primary w-10 shrink-0">
                   {clip.code}
@@ -83,7 +83,7 @@ export function RadioFeed({ clips, focusedDriver }: Props) {
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
-          Lap is approximate — OpenF1 publishes a timestamp and an audio URL, not a lap number or a
+          Lap is approximate: OpenF1 publishes a timestamp and an audio URL, not a lap number or a
           transcript.
         </p>
       </div>

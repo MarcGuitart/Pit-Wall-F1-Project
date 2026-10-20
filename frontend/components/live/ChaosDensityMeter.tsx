@@ -27,7 +27,7 @@ export function ChaosDensityMeter({ chaos }: Props) {
       <Panel title="Chaos density">
         <p className="px-3 py-6 text-center font-mono text-[11px] text-text-muted leading-relaxed">
           {chaos?.caveat ??
-            'Not computable yet — the timeline needs at least one completed lap.'}
+            'Not computable yet: the timeline needs at least one completed lap.'}
         </p>
       </Panel>
     )

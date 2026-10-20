@@ -52,7 +52,7 @@ export function TyreDegradationPanel({ rows, onDriverClick, focusedDriver }: Pro
               </span>
 
               <span className={`${a.row} ${ui.sub}`} style={{ gap: 12 }}>
-                <span>L{row.lap_start}–{row.lap_end} ({lapCount} laps)</span>
+                <span>L{row.lap_start} to {row.lap_end} ({lapCount} laps)</span>
                 {row.tyre_age_start != null && <span>Age +{row.tyre_age_start}</span>}
                 <span className={toneClass(CONF_TONE[row.confidence])} style={{ marginLeft: 'auto' }}>{row.confidence} conf.</span>
               </span>

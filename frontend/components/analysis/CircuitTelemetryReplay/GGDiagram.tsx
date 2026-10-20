@@ -47,7 +47,7 @@ function pointColor(p: TelemetryPoint): string {
 
 // ── Stats helpers ─────────────────────────────────────────────────────────────
 function pct(n: number, total: number): string {
-  return total > 0 ? `${Math.round((n / total) * 100)}%` : '—'
+  return total > 0 ? `${Math.round((n / total) * 100)}%` : 'n/a'
 }
 
 type Props = {

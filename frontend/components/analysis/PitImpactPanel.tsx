@@ -10,7 +10,7 @@ type Props = {
 }
 
 function PositionDeltaBadge({ delta }: { delta: number | null }) {
-  if (delta == null) return <span className={a.muted}>–</span>
+  if (delta == null) return <span className={a.muted}>n/a</span>
   if (delta === 0) return <span className={`${ui.small} ${a.muted}`}>±0</span>
   if (delta > 0)  return <span className={`${ui.small} ${toneClass('ok')}`}>+{delta}</span>
   return <span className={`${ui.small} ${toneClass('accent')}`}>{delta}</span>
@@ -43,7 +43,7 @@ export function PitImpactPanel({ rows, onDriverClick, focusedDriver }: Props) {
     >
       {redFlagStops > 0 && (
         <p className={ui.sub} style={{ margin: 0, padding: '8px 20px', borderBottom: '1px solid var(--pw-divider)' }}>
-          {redFlagStops} stop{redFlagStops === 1 ? '' : 's'} under red flag not shown — tyres changed during the suspension.
+          {redFlagStops} stop{redFlagStops === 1 ? '' : 's'} under red flag not shown: tyres changed during the suspension.
         </p>
       )}
       <div className={a.list}>

@@ -43,7 +43,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
               <div key={cycle.cycle_id} className="px-3 py-2.5">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="font-mono font-bold text-[11px] text-text-primary tabular-nums">
-                    L{cycle.lap_start}–{cycle.lap_end}
+                    L{cycle.lap_start} to {cycle.lap_end}
                   </span>
                   <span
                     className={[
@@ -102,8 +102,7 @@ export function PitCyclesLive({ cycles, settleLaps, currentLap }: Props) {
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
         <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
-          Currently on lap {currentLap}. An open cycle shows its stops but no gains or losses —
-          positions are still moving and any delta published now would change.
+          Currently on lap {currentLap}. An open cycle shows its stops but no gains or losses:           positions are still moving and any delta published now would change.
         </p>
       </div>
     </div>

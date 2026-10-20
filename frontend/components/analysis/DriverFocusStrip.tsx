@@ -17,7 +17,7 @@ export function DriverFocusStrip({ driverCode, driverName, onClear }: DriverFocu
       <span>
         Focused on:{' '}
         <b>{driverCode}</b>
-        {driverName && <span> — {driverName}</span>}
+        {driverName && <span> · {driverName}</span>}
         <span className={a.muted}> · showing driver-specific signals</span>
       </span>
       <button

@@ -72,7 +72,7 @@ export function EngineerSignalSummary({ notes, onViewAll }: Props) {
           {filtered.map((note, i) => (
             <div key={i} className={a.item} style={{ display: 'flex', gap: 12 }}>
               <span className={`${a.num} ${a.muted}`} style={{ width: 30, flex: 'none', fontSize: 12 }}>
-                {note.lap_number != null ? `L${note.lap_number}` : '–'}
+                {note.lap_number != null ? `L${note.lap_number}` : 'n/a'}
               </span>
               <div className={a.grow}>
                 <div className={a.row} style={{ marginBottom: 4 }}>

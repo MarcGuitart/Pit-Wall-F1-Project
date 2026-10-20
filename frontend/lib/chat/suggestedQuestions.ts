@@ -34,7 +34,7 @@ export function generateSuggestedQuestions(
   const crossovers = analysis.crossover_windows ?? []
   if (crossovers.length > 0) {
     const cw = crossovers[0]
-    questions.push(`Who gained the most from the lap ${cw.lap_start}–${cw.lap_end} weather transition?`)
+    questions.push(`Who gained the most from the lap ${cw.lap_start} to ${cw.lap_end} weather transition?`)
     if ((cw.best_timed_drivers ?? []).length > 0) {
       questions.push(`Why did ${cw.best_timed_drivers[0]} get the weather crossover right?`)
     }
@@ -73,7 +73,7 @@ export function generateSuggestedQuestions(
   // ── Key decisions — always answerable ───────────────────────────────────
   if (analysis.decisions.length > 0) {
     const top = analysis.decisions[0]
-    questions.push(`Explain "${top.title}" — was it the right call?`)
+    questions.push(`Explain "${top.title}". Was it the right call?`)
   }
 
   // ── Tyre cliff — only when High cliff risk exists ────────────────────────

@@ -16,7 +16,7 @@ export function ExclusionLogPanel({ rows }: Props) {
               <span className={ui.sub}>{row.team_name ?? ''}</span>
             </div>
             {row.exclusion_log.length === 0 ? (
-              <span className={`${ui.sub} ${toneClass('ok')}`}>No exclusions — all laps valid</span>
+              <span className={`${ui.sub} ${toneClass('ok')}`}>No exclusions · all laps valid</span>
             ) : (
               <ul className={`${a.footList} ${ui.sub}`}>
                 {row.exclusion_log.map((log, i) => <li key={i}>· {log}</li>)}

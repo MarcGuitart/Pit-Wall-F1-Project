@@ -86,7 +86,7 @@ function PhaseSegment({
     <div
       tabIndex={0}
       role="img"
-      aria-label={`${phase.phase}: laps ${phase.lap_start}–${phase.lap_end} · ${phase.reason}`}
+      aria-label={`${phase.phase}: laps ${phase.lap_start} to ${phase.lap_end} · ${phase.reason}`}
       className={a.phaseSeg}
       style={{ left: `${left}%`, width: `${width}%`, background: fill(token) }}
       onMouseEnter={() => setHovered(true)}
@@ -110,7 +110,7 @@ function PhaseSegment({
           }}
         >
           <div className={a.phaseTipTitle} style={{ color: ink(token) }}>{phase.phase}</div>
-          <div className={ui.sub}>Laps {phase.lap_start}–{phase.lap_end} · {phase.reason}</div>
+          <div className={ui.sub}>Laps {phase.lap_start} to {phase.lap_end} · {phase.reason}</div>
         </div>
       )}
     </div>

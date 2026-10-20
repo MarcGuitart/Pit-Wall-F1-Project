@@ -190,7 +190,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
           if (err.code === 'RATE_LIMITED') {
             const secs = Number(err.details?.retry_after_seconds ?? 60)
             setCooldownUntil(Date.now() + secs * 1000)
-            content = `Radio silence — message limit reached. Channel reopens in ${formatWait(secs)}.`
+            content = `Radio silence: message limit reached. Channel reopens in ${formatWait(secs)}.`
           }
         }
         setMessages((prev) => [...prev, { role: 'engineer', content }])
@@ -293,8 +293,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                     <div className={ui.label} style={{ color: 'inherit', fontWeight: 800 }}>Race Engineer</div>
                     <p className={r.bubbleText}>
                       Ready. I have full context for{' '}
-                      <b>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`}</b> —
-                      chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
+                      <b>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`}</b>: chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
                       analysed, {analysis.tyre_degradation.length} stints mapped.
                       {focusedDriver && (
                         <> Focused on <b>{focusedDriver.code}</b>.</>
@@ -368,7 +367,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                     }
                   }}
                   aria-label="Question for the race engineer"
-                  placeholder={rateLimited ? `Message limit reached — reopens in ${formatWait(cooldownLeft)}` : 'Ask about strategy, tyres, pit timing…'}
+                  placeholder={rateLimited ? `Message limit reached · reopens in ${formatWait(cooldownLeft)}` : 'Ask about strategy, tyres, pit timing…'}
                   rows={2}
                   className={r.textarea}
                   disabled={isSending || rateLimited}

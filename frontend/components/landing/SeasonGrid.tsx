@@ -63,7 +63,7 @@ export function SeasonGrid() {
     <section className={ui.section} aria-labelledby="season-title">
       <div className={`${ui.secHead} ${ui.secHeadWide}`} style={{ alignItems: 'center' }}>
         <h2 className={ui.h6} id="season-title">{season} season</h2>
-        <span className={ui.sub}>{locked ? 'PRO season — enter an access code in Settings to open these races' : 'Pick a race for the full analysis'}</span>
+        <span className={ui.sub}>{locked ? 'PRO season: enter an access code in Settings to open these races' : 'Pick a race for the full analysis'}</span>
         <span className={ui.secAside}>
           {races ? `${rounds} grands prix${offCount ? ` · ${offCount} cancelled` : ''}` : ''}
           <Segmented

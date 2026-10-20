@@ -29,7 +29,7 @@ import l from '@/components/landing/landing.module.css'
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
   { label: 'The current season', sub: 'on the site within hours of the flag' },
-  { label: 'Live mode', sub: 'the race as it happens — in build' },
+  { label: 'Live mode', sub: 'the race as it happens, in build' },
 ]
 
 export function ProSection() {
@@ -95,13 +95,12 @@ export function ProSection() {
             <p>
               {nextRace.status === 'processing' ? (
                 <>
-                  <b>{nextRace.place}</b> has finished —
-                  analysis processing. It publishes automatically once the data settles; no fixed time.
+                  <b>{nextRace.place}</b> has finished: analysis processing. It publishes automatically once the data settles; no fixed time.
                 </>
               ) : (
                 <>
                   Next: <b>{nextRace.place}</b>
-                  {nextRace.circuitShortName && nextRace.circuitShortName !== nextRace.place ? ` (${nextRace.circuitShortName})` : ''} — runs from{' '}
+                  {nextRace.circuitShortName && nextRace.circuitShortName !== nextRace.place ? ` (${nextRace.circuitShortName})` : ''} · runs from{' '}
                   <b>{formatLocalDateTime(nextRace.dateStart)}</b>
                   {nextRace.dateEnd && <> · race ends {formatUtcTime(nextRace.dateEnd)}</>}
                 </>
@@ -112,7 +111,7 @@ export function ProSection() {
                 variant="system"
                 event={{
                   uid: `pitwall-next-${currentSeasonYear}-race@pitwallengineer.com`,
-                  summary: `Pit Wall — ${nextRace.place} Race`,
+                  summary: `Pit Wall · ${nextRace.place} Race`,
                   description: 'Full strategy analysis on pitwallengineer.com once published.',
                   location: nextRace.place,
                   dateStart: nextRace.dateStart,
@@ -128,18 +127,18 @@ export function ProSection() {
           <p className={l.proText}>
             {liveSessionKey !== null ? (
               <Link href={`/live/${liveSessionKey}`} className={ui.accent} style={{ fontWeight: 800 }}>
-                ● Live now — open the pit wall →
+                ● Live now · open the pit wall →
               </Link>
             ) : liveChecked && nextLive ? (
               <>
-                No live session right now — next:{' '}
+                No live session right now. Next:{' '}
                 <b>
                   {nextLive.place} {nextLive.sessionName}
                 </b>
                 , {formatLocalDateTime(nextLive.dateStart)}
               </>
             ) : liveChecked ? (
-              <>No live session right now — no upcoming session is scheduled.</>
+              <>No live session right now. No upcoming session is scheduled.</>
             ) : (
               <>Checking live status…</>
             )}
@@ -176,9 +175,9 @@ function SettingsLink({ pro, expiresAt }: { pro: boolean; expiresAt: number | nu
   const until = formatExpiry(expiresAt)
   if (pro) {
     return (
-      <Link href="/settings" className={l.settingsLink} aria-label="PRO access active — manage in Settings">
+      <Link href="/settings" className={l.settingsLink} aria-label="PRO access active · manage in Settings">
         <span className={`${ui.badge} ${ui.badgeSolid} ${ui.toneAccent}`}>PRO access active</span>
-        <span className={ui.sub}>{until ? `valid until ${until}` : 'valid on this browser'} — manage in Settings →</span>
+        <span className={ui.sub}>{until ? `valid until ${until}` : 'valid on this browser'} · manage in Settings →</span>
       </Link>
     )
   }
@@ -188,7 +187,7 @@ function SettingsLink({ pro, expiresAt }: { pro: boolean; expiresAt: number | nu
         <span className={ui.label} style={{ color: 'var(--pw-text)', fontWeight: 800 }}>Coming soon</span>
         <span className={l.price}>€2.99 / month</span>
       </span>
-      <span className={ui.sub} style={{ maxWidth: 240 }}>{PRO_PRICE_LABEL} — have a code? Settings →</span>
+      <span className={ui.sub} style={{ maxWidth: 240 }}>{PRO_PRICE_LABEL} · have a code? Settings →</span>
     </Link>
   )
 }
@@ -206,7 +205,7 @@ function Bay({ label, sub, unlocked, accent }: {
         <span className={unlocked ? l.on : l.lock} aria-hidden="true" />
       </div>
       <div className={ui.label}>{sub}</div>
-      <span className={ui.srOnly}>{unlocked ? 'unlocked' : 'locked — PRO'}</span>
+      <span className={ui.srOnly}>{unlocked ? 'unlocked' : 'locked · PRO'}</span>
     </div>
   )
 }

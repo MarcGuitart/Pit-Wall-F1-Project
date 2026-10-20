@@ -28,7 +28,7 @@ function parts(ms: number) {
 export function sessionIcs(next: NextLiveSessionInfo) {
   return {
     uid: `pitwall-${next.sessionKey}@pitwallengineer.com`,
-    summary: `Pit Wall — ${next.place} ${next.sessionName}`,
+    summary: `Pit Wall · ${next.place} ${next.sessionName}`,
     description: 'Live mode on Pit Wall Engineer follows the session while it runs.',
     location: next.place,
     dateStart: next.dateStart,
@@ -66,7 +66,7 @@ export function NextSessionCard() {
         <div className={h.countdown} role="timer" aria-label={left ? `Starts in ${left.d} days, ${left.h} hours, ${left.m} minutes` : 'Starts in'}>
           {(['d', 'h', 'm'] as const).map((k) => (
             <div key={k}>
-              <span className={h.cdValue}>{left ? String(left[k]).padStart(2, '0') : '––'}</span>
+              <span className={h.cdValue}>{left ? String(left[k]).padStart(2, '0') : 'n/a'}</span>
               <span className={h.cdUnit}>{k === 'd' ? 'Days' : k === 'h' ? 'Hours' : 'Minutes'}</span>
             </div>
           ))}
