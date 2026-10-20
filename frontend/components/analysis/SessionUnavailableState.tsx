@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { ErrorCode } from '@/lib/errors'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
-import { buttonClass, ui } from '@/components/ui'
+import { buttonClass, ui, PageContainer } from '@/components/ui'
 import st from './states.module.css'
 
 type SessionUnavailableStateProps = {
@@ -97,7 +97,8 @@ export function SessionUnavailableState({
     : null
 
   return (
-    <section className={st.card} style={{ boxShadow: `inset 0 4px 0 ${cfg.accentColor}` }} aria-labelledby="unavailable-title">
+    <PageContainer width="narrow">
+    <section className={st.card} style={{ boxShadow: `inset 0 4px 0 ${cfg.accentColor}`, marginInline: 'auto' }} aria-labelledby="unavailable-title">
       {/* Icon */}
       <div className={st.icon} aria-hidden="true">{cfg.icon}</div>
 
@@ -143,5 +144,6 @@ export function SessionUnavailableState({
         </button>
       </div>
     </section>
+    </PageContainer>
   )
 }

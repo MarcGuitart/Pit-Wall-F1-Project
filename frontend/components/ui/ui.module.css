@@ -240,3 +240,8 @@
 .input:focus-visible { outline: 2px solid var(--pw-accent); outline-offset: 2px; }
 
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* PageContainer (block 32): centred, capped; the content keeps its own gutter. */
+.pageContainer { box-sizing: border-box; width: 100%; margin-inline: auto; }
+.pageReading { max-width: calc(1200px + 2 * var(--pw-gutter)); }
+.pageNarrow { max-width: calc(40rem + 2 * var(--pw-gutter)); }

@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { useAccessStore } from '@/stores/accessStore'
 import { formatExpiry } from '@/lib/format'
-import { Badge, PageHeader } from '@/components/ui'
+import { Badge, PageContainer, PageHeader } from '@/components/ui'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
 import pg from '@/components/layout/page.module.css'
 
@@ -47,6 +47,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell breadcrumb={[{ label: 'Settings' }]}>
+      <PageContainer width="narrow">
       <PageHeader kicker="This browser" title="Settings" meta={<span>Preferences for this browser only.</span>} />
       <div className={pg.page}>
         <section className={pg.card} aria-labelledby="pro-access-heading">
@@ -103,6 +104,7 @@ export default function SettingsPage() {
           )}
         </section>
       </div>
+      </PageContainer>
     </AppShell>
   )
 }

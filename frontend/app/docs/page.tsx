@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { FREE_SEASONS, PRO_PRICE_LABEL } from '@/lib/access'
 import { PRODUCT_NAME } from '@/lib/brand'
-import { PageHeader, buttonClass } from '@/components/ui'
+import { PageContainer, PageHeader, buttonClass } from '@/components/ui'
 import pg from '@/components/layout/page.module.css'
 
 export const metadata = {
@@ -42,10 +42,12 @@ const NAV = [
 export default function DocsPage() {
   return (
     <AppShell breadcrumb={[{ label: 'Docs' }]}>
+      <PageContainer width="reading">
       <PageHeader kicker="Documentation" title="Docs" meta={<span>What {PRODUCT_NAME} is, what is free, and what PRO adds.</span>} />
       <div className={pg.page}>
 
-        {/* Section jump links */}
+        <div className={pg.docLayout}>
+        {/* Section jump links: an index beside the column from 1024 px */}
         <nav aria-label="Sections" className={pg.docNav}>
           {NAV.map((n) => (
             <a
@@ -57,6 +59,7 @@ export default function DocsPage() {
             </a>
           ))}
         </nav>
+        <div className={pg.docBody}>
 
         <Section id="what-it-is" title="What it is">
           <p>
@@ -117,7 +120,10 @@ export default function DocsPage() {
             and related marks are trademarks of Formula One Licensing B.V.
           </p>
         </Section>
+        </div>
+        </div>
       </div>
+      </PageContainer>
     </AppShell>
   )
 }

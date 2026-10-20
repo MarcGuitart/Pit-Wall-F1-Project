@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation'
 import { redeemAccessCode } from '@/lib/api'
 import { PRO_PRICE_LABEL } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
-import { Badge, buttonClass, ui } from '@/components/ui'
+import { Badge, buttonClass, ui, PageContainer } from '@/components/ui'
 
 export const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
@@ -54,7 +54,8 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
 
   if (variant === 'system') {
     return (
-      <section className={ui.panelBoxed} style={{ maxWidth: 560, width: '100%', background: 'var(--pw-bg)' }} aria-labelledby="wall-title">
+      <PageContainer width="narrow">
+      <section className={ui.panelBoxed} style={{ maxWidth: 560, width: '100%', marginInline: 'auto', background: 'var(--pw-bg)' }} aria-labelledby="wall-title">
         {/* hazard strip: the pit lane is closed, not broken */}
         <div style={{ height: 8, background: 'repeating-linear-gradient(45deg, var(--pw-amber) 0 8px, var(--pw-bg) 8px 16px)' }} aria-hidden="true" />
         <div style={{ padding: 28, display: 'grid', gap: 14 }}>
@@ -97,11 +98,13 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
           </div>
         </div>
       </section>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="bg-bg-panel border border-border-default rounded-[4px] max-w-lg w-full overflow-hidden">
+    <PageContainer width="narrow">
+    <div className="bg-bg-panel border border-border-default rounded-[4px] max-w-lg w-full mx-auto overflow-hidden">
       {/* hazard strip: the pit lane is closed, not broken */}
       <div
         className="h-1.5"
@@ -181,5 +184,6 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
         </button>
       </div>
     </div>
+    </PageContainer>
   )
 }
