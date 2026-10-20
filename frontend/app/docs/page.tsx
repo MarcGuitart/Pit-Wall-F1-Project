@@ -105,13 +105,8 @@ export default function DocsPage() {
         <Section id="data" title="Data sources">
           <p>
             Race and session data (laps, stints, pit stops, position, race control, weather) comes
-            from{' '}
-            <a href="https://openf1.org" target="_blank" rel="noopener noreferrer">
-              OpenF1
-            </a>, an open, free timing feed. Circuit telemetry (speed, throttle, brake, gear) comes from{' '}
-            <a href="https://docs.fastf1.dev" target="_blank" rel="noopener noreferrer">
-              FastF1
-            </a>. Team radio clips are linked from Formula&nbsp;1&apos;s own archive and are never
+            from OpenF1, an open, free timing feed. Circuit telemetry (speed, throttle, brake, gear) comes
+            from FastF1. Team radio clips are linked from Formula&nbsp;1&apos;s own archive and are never
             copied or stored on this site.
           </p>
         </Section>

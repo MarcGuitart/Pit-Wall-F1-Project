@@ -20,7 +20,7 @@ const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
     <p>Everything is a reading of the feed except the <b>Predictions</b> tab — win and pole odds from a model run on the laps so far, labelled as a projection wherever it appears and checked against past races. The <b>Engineer AI</b> answers questions from the same live data, and its team-radio mode is a clearly marked role-play.</p>
     <p>Not live yet? Ask to be notified when the session starts.</p>
   </> },
-  { id: 'data', title: 'Data sources', body: <p>Timing, laps, stints, pit stops, positions, race control, weather and live car data come from <a href="https://openf1.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pw-accent-text)' }}>OpenF1</a>; historical circuit telemetry from <a href="https://docs.fastf1.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pw-accent-text)' }}>FastF1</a>. Team radio is linked from Formula 1&apos;s archive, never copied.</p> },
+  { id: 'data', title: 'Data sources', body: <p>Timing, laps, stints, pit stops, positions, race control, weather and live car data come from OpenF1; historical circuit telemetry from FastF1. Team radio is linked from Formula 1&apos;s archive, never copied.</p> },
   { id: 'legal', title: 'Legal', body: <p>Unofficial project, not associated in any way with the Formula 1 companies. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.</p> },
 ]
 
