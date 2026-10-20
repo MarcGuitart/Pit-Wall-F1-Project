@@ -2,7 +2,6 @@ import h from './home.module.css'
 
 const LINKS = [
   ['#questions', 'Questions'],
-  ['#analysis', 'Sample analysis'],
   ['#live', 'Live mode'],
   ['#plans', 'Plans'],
   ['#method', 'Method'],

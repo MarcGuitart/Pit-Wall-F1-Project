@@ -17,7 +17,7 @@ export function Plans() {
   return (
     <section id="plans" className={`${h.section} ${h.anchored}`} aria-labelledby="plans-title">
       <div className={h.secHead}>
-        <span className={h.secNum}>04 · Plans</span>
+        <span className={h.secNum}>03 · Plans</span>
         <h2 id="plans-title" className={h.secTitle}>Free and PRO</h2>
         <p className={h.secLead}>Subscriptions are not open yet. PRO is available with an access code.</p>
       </div>

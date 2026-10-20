@@ -102,7 +102,7 @@ export function LiveSection() {
   return (
     <section id="live" className={`${h.section} ${h.anchored}`} aria-labelledby="live-title">
       <div className={h.secHead}>
-        <span className={h.secNum}>03 · Live mode</span>
+        <span className={h.secNum}>02 · Live mode</span>
         <h2 id="live-title" className={h.secTitle}>Follow a session as it happens</h2>
         <p className={h.secLead}>
           Live mode is part of PRO. Browser notifications only work while a Pit Wall Engineer tab is open; if you
@@ -112,12 +112,6 @@ export function LiveSection() {
       <div style={{ padding: '0 var(--pw-gutter) 32px' }}>
         <LiveCard />
       </div>
-      <figure className={h.capture}>
-        {/* A still of the live pit wall, rendered from a recording — not live data. */}
-        <img src="/landing/live-baku.webp" width={1440} height={900} loading="lazy" decoding="async"
-          alt="The live pit wall during a recorded session: timing tower, race control and the circuit." />
-        <figcaption>Recorded session · Baku 2026 · a still of the live page, not live data</figcaption>
-      </figure>
     </section>
   )
 }

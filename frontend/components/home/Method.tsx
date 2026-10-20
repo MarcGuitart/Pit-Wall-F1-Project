@@ -10,7 +10,7 @@ export function Method() {
   return (
     <section id="method" className={`${h.section} ${h.anchored}`} aria-labelledby="method-title">
       <div className={h.secHead}>
-        <span className={h.secNum}>05 · How it is measured</span>
+        <span className={h.secNum}>04 · How it is measured</span>
         <h2 id="method-title" className={h.secTitle}>Signals, not predictions</h2>
       </div>
       <div className={`${h.grid} ${h.g3}`}>

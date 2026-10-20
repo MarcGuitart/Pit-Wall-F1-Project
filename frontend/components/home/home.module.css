@@ -105,25 +105,6 @@
 .fn { font-size: 11px; vertical-align: super; margin-left: 2px; color: var(--pw-muted); }
 .footList { margin: 0; padding: 0 0 0 18px; display: grid; gap: 4px; list-style: decimal; }
 
-/* sample analysis */
-.sampleHead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 0 var(--pw-gutter) 20px; }
-.samplePlace { font-size: 24px; font-weight: 800; }
-.chaosValue { font-size: 72px; line-height: 1; font-weight: 800; color: var(--pw-accent-text); font-variant-numeric: tabular-nums; }
-.scale { position: relative; height: 8px; background: var(--pw-surface-2); margin: 16px 0 6px; }
-.scale > span { position: absolute; inset: 0 auto 0 0; background: var(--pw-accent); }
-.scaleTicks { display: flex; justify-content: space-between; font-size: 11px; color: var(--pw-muted); }
-.paceRow { display: grid; grid-template-columns: 28px 4px 48px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--pw-divider); font-size: 14px; }
-.paceRow:first-of-type { border-top: 0; }
-.paceTeam { width: 4px; height: 28px; }
-.paceCode { font-weight: 800; }
-.paceSub { font-size: 12px; color: var(--pw-muted); }
-.paceVal { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
-.byReason { display: flex; height: 18px; gap: 2px; margin: 14px 0; }
-.byReason > span { display: block; min-width: 4px; }
-.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
-.legend li { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: center; }
-.swatch { width: 12px; height: 12px; }
-.noteNum { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border: 2px solid var(--pw-divider); font-size: 12px; font-weight: 800; margin-bottom: 10px; }
 
 /* live */
 .liveCard { border: 2px solid var(--pw-divider); padding: 24px; height: 276px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 10px; overflow: hidden; }
@@ -133,9 +114,6 @@
 .liveDotSoon { background: var(--pw-amber); }
 .liveTitle { margin: 0; font-size: 32px; line-height: 1.05; font-weight: 800; }
 .liveBig { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-.capture { margin: 0; border-top: 2px solid var(--pw-divider); }
-.capture img { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; background: var(--pw-surface); }
-.capture figcaption { padding: 12px var(--pw-gutter); font-size: 13px; color: var(--pw-muted); border-top: 2px solid var(--pw-divider); }
 
 /* plans */
 .plan { background: var(--pw-bg); padding: 28px; display: grid; gap: 14px; align-content: start; min-width: 0; }

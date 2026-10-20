@@ -16,7 +16,7 @@ export function Faq() {
   return (
     <section id="faq" className={`${h.section} ${h.anchored}`} aria-labelledby="faq-title">
       <div className={h.secHead}>
-        <span className={h.secNum}>06 · FAQ</span>
+        <span className={h.secNum}>05 · FAQ</span>
         <h2 id="faq-title" className={h.secTitle}>Questions</h2>
       </div>
       <div className={h.faq}>

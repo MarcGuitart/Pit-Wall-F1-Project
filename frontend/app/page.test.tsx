@@ -57,11 +57,22 @@ describe('"/"', () => {
     expect(t).not.toMatch(/\d:\d\d|\bP\d\b|\blap\b|\b[A-Z]{3}\b(?<!PRO)/)
   })
 
-  it('the sample is São Paulo 2024 from the stored analysis, titled by place', async () => {
+  it('has no sample analysis and no recorded capture (Block 32)', async () => {
     const { container } = await renderHome()
-    const sample = container.querySelector('#analysis')!
-    expect(sample.textContent).toContain('São Paulo 2024')
-    expect(sample.textContent).not.toMatch(/Brazil|São Paulo Grand Prix/)
-    expect(sample.querySelector('a[href="/race/9636"]')).toBeTruthy()
+    expect(container.querySelector('#analysis')).toBeNull()
+    const text = container.textContent ?? ''
+    expect(text).not.toMatch(/Sample analysis|Recorded session/)
+    expect(container.querySelector('img[src*="live-baku"]')).toBeNull()
+  })
+
+  it('the anchor bar points at the sections in order, and they are numbered 01…N', async () => {
+    const { container } = await renderHome()
+    const anchors = Array.from(container.querySelectorAll('nav[aria-label="On this page"] a')).map((a) => a.getAttribute('href')!.slice(1))
+    const sections = Array.from(container.querySelectorAll('section[id]')).map((s) => s.id).filter((id) => anchors.includes(id))
+    expect(sections).toEqual(anchors)
+    const nums = Array.from(container.querySelectorAll('section[id]'))
+      .map((s) => s.querySelector('span')?.textContent ?? '')
+      .filter((t) => /^\d\d · /.test(t)).map((t) => t.slice(0, 2))
+    expect(nums).toEqual(anchors.map((_, i) => String(i + 1).padStart(2, '0')))
   })
 })
