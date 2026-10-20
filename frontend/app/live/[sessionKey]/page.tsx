@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { useLiveSession } from '@/hooks/useLiveSession'
 import { ConnectionBanner } from '@/components/live/ConnectionBanner'
-import { ProWall } from '@/components/access/ProWall'
+import { LiveProWall } from '@/components/access/LiveProWall'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { LiveDashboard } from '@/components/live/dashboard/LiveDashboard'
 import { NotLiveYet } from '@/components/live/dashboard/NotLiveYet'
@@ -66,7 +66,7 @@ export default function LiveSessionPage() {
     return (
       <AppShell breadcrumb={[{ label: 'Live', href: '/' }]}>
         <div className="min-h-[calc(100vh-48px)] flex items-center justify-center px-6">
-          <ProWall year={new Date().getFullYear()} onUnlocked={() => reconnect()} />
+          <LiveProWall onUnlocked={() => reconnect()} />
         </div>
       </AppShell>
     )
