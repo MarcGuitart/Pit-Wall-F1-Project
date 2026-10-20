@@ -128,8 +128,14 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
   const [tab, setTabState] = useState<TabId>('timing')
   useEffect(() => {
     const h = window.location.hash.slice(1) as TabId
-    if (TABS.some(t => t.id === h)) setTabState(h)
+    if (liveTabs(snapshot).some(t => t.id === h)) setTabState(h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // The Predictions tab exists only while the snapshot carries a projection;
+  // if it goes away under an open tab, back to Timing.
+  const hasProjection = Boolean(snapshot.projection)
+  const tabs = useMemo(() => liveTabs({ projection: hasProjection ? snapshot.projection : undefined }), [hasProjection]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tabs.some(t => t.id === tab)) setTabState('timing') }, [tabs, tab])
   const setTab = (t: TabId) => {
     setTabState(t)
     try { window.history.replaceState(null, '', `#${t}`) } catch { /* ignore */ }
@@ -141,7 +147,7 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
         themeToggle={<ThemeToggle theme={theme} onChange={setTheme} />} />
       <Header snapshot={snapshot} now={now} profile={profile} />
       <KpiRow snapshot={snapshot} dash={dash} profile={profile} />
-      <TabBar tab={tab} onTab={setTab} isRace={isRace} />
+      <TabBar tab={tab} onTab={setTab} isRace={isRace} tabs={tabs} />
 
       {tab === 'timing' && <>
         <TimingTable snapshot={snapshot} dash={dash} isRace={isRace} selected={sel} onSelect={setSelected} />
@@ -206,9 +212,9 @@ export function LiveDashboard({ snapshot, connection, frameAge, error, onRetry }
       {tab === 'feed' && <FeedCoverage snapshot={snapshot} isRace={isRace} />}
 
       <p className={s.footer}>
-        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed
-        except the Predictions tab, which is a model and says so. Team radio clips are linked from Formula 1&apos;s
-        archive and are not stored here.
+        Live data via OpenF1 over MQTT, relayed by this project&apos;s live server. Every panel is a reading of the feed{snapshot.projection
+          ? <> except the Predictions tab, which is a model and says so</>
+          : null}. Team radio clips are linked from Formula 1&apos;s archive and are not stored here.
       </p>
     </div>
   )
@@ -228,10 +234,15 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'feed', label: 'Feed' },
 ]
 
-function TabBar({ tab, onTab }: { tab: TabId; onTab: (t: TabId) => void; isRace: boolean }) {
+/** The tabs a snapshot can show: Predictions only when the live server sends a projection (block 32, addendum). */
+export function liveTabs(snapshot: Pick<LiveSnapshot, 'projection'>): { id: TabId; label: string }[] {
+  return TABS.filter(t => t.id !== 'predict' || Boolean(snapshot.projection))
+}
+
+function TabBar({ tab, onTab, tabs }: { tab: TabId; onTab: (t: TabId) => void; isRace: boolean; tabs: { id: TabId; label: string }[] }) {
   return (
     <nav className={s.tabs} aria-label="Live views">
-      {TABS.map(t => (
+      {tabs.map(t => (
         <button key={t.id} className={`${s.tab} ${tab === t.id ? s.tabOn : ''}`} onClick={() => onTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
           {t.label}{t.id === 'engineer' && <span className={s.tabNew}>AI</span>}
         </button>

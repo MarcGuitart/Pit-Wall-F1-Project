@@ -18,14 +18,8 @@ export function Predictions({ snapshot }: { snapshot: LiveSnapshot }) {
   const race = (snapshot.profile ?? 'race') === 'race'
   const final = !!(p as { final?: boolean } | undefined)?.final
   const title = race ? 'Who wins from here' : final ? 'Pole position · result' : 'Who takes pole'
-  if (!p) {
-    return (
-      <section className={s.section}>
-        <div className={`${s.secHead} ${s.secHeadWide}`}><h6 className={s.h6}>{title}</h6><span className={s.sub}>Projection</span></div>
-        <div className={s.empty}>The live server has not been updated with the projection model yet, it appears here as soon as it is redeployed.</div>
-      </section>
-    )
-  }
+  // Only reached with a projection: without one the tab does not exist (liveTabs).
+  if (!p) return null
   const max = Math.max(0.01, ...p.drivers.map(d => d.win))
   return (
     <section className={s.section}>
