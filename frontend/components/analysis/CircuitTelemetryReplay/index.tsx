@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { FullRaceAnalysis } from '@/types'
 import type { TelemetryData } from '@/types/telemetry'
-import { getTelemetry } from '@/lib/api'
+import { getTelemetry, type TelemetryResult } from '@/lib/api'
 import type { SelectableDriver } from './DriverSelector'
 import { DriverSelector } from './DriverSelector'
 import { MetricSelector } from './MetricSelector'
@@ -30,7 +30,8 @@ type Props = {
 export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
   const [data, setData] = useState<TelemetryData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<'race_only' | 'not_precomputed' | string | null>(null)
+  // null while loading or once data is in; otherwise why there is none (block 32, task 7)
+  const [problem, setProblem] = useState<Exclude<TelemetryResult, { kind: 'data' }> | null>(null)
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>([])
   const [metric, setMetric] = useState<ActiveMetric>('speed')
   const [progress, setProgress] = useState(0)
@@ -56,34 +57,31 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     return m
   }, [analysis.true_pace])
 
+  // One loader for the first fetch, a lap-mode change and Retry.
+  const load = useCallback(async (isCancelled: () => boolean = () => false) => {
+    setLoading(true)
+    setProblem(null)
+    setProgress(0)
+    setPlaying(false)
+    const result = await getTelemetry(sessionKey, topCodes, lapMode)
+    if (isCancelled()) return
+    if (result.kind === 'data') {
+      setData(result.data)
+      setSelectedDrivers(result.data.drivers.slice(0, 1).map((d: { driver_code: string }) => d.driver_code))
+    } else {
+      setData(null)
+      setProblem(result)
+    }
+    setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionKey, lapMode])
+
   // Fetch when sessionKey or lapMode changes
   useEffect(() => {
     let cancelled = false
-    async function load() {
-      setLoading(true)
-      setError(null)
-      setProgress(0)
-      setPlaying(false)
-      const result = await getTelemetry(sessionKey, topCodes, lapMode)
-      if (cancelled) return
-      if (result === 'race_only' || result === 'not_precomputed' || result === 'production_unavailable') {
-        setError(result)
-        setLoading(false)
-        return
-      }
-      if (!result || result.drivers.length === 0) {
-        setError('FastF1 telemetry not available for this session.')
-        setLoading(false)
-        return
-      }
-      setData(result)
-      setSelectedDrivers(result.drivers.slice(0, 1).map((d: { driver_code: string }) => d.driver_code))
-      setLoading(false)
-    }
-    load()
+    load(() => cancelled)
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey, lapMode])
+  }, [load])
 
   // Animation loop
   useEffect(() => {
@@ -145,70 +143,38 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
 
   const primaryLapTime = Math.max(1, selectedTelemetry[0]?.lap_time ?? 90)
 
-  const handleRetry = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    const result = await getTelemetry(sessionKey, topCodes)
-    if (result === 'race_only' || result === 'not_precomputed' || result === 'production_unavailable') {
-      setError(result)
-      setLoading(false)
-      return
-    }
-    if (!result || result.drivers.length === 0) {
-      setError('FastF1 telemetry not available for this session.')
-      setLoading(false)
-      return
-    }
-    setData(result)
-    setSelectedDrivers(result.drivers.slice(0, 1).map((d: { driver_code: string }) => d.driver_code))
-    setLoading(false)
-  }, [sessionKey, topCodes])
-
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className={t.state} aria-busy="true">
+      <div className={t.state} aria-busy="true" data-telemetry-panel="loading">
         <div className={ui.h6}>Loading Telemetry</div>
         <div className={ui.sub}>Fetching FastF1 lap data · First load: 5 to 15s</div>
       </div>
     )
   }
 
-  // ── Error state ───────────────────────────────────────────────────────────
-  if (error || !data) {
-    const isRaceOnly = error === 'race_only'
-    const isNotPrecomputed = error === 'not_precomputed' || error === 'production_unavailable'
-
+  // ── No telemetry: a permanent fact, or an error worth one more try ─────────
+  if (problem || !data) {
+    const reason = problem?.kind === 'unavailable' ? problem.reason : null
+    const text = reason === 'race_only'
+      ? 'Circuit telemetry is only available for race sessions.'
+      : reason === 'not_prepared'
+        ? 'Telemetry for this race has not been prepared, so there is nothing to replay.'
+        : reason === 'no_data'
+          ? 'FastF1 has no telemetry for this session.'
+          : 'The analysis server did not answer, so the telemetry could not be loaded.'
     return (
-      <div className={t.state}>
-        <div className={ui.h6}>Telemetry Unavailable</div>
-        <p className={ui.sub} style={{ margin: 0, maxWidth: 420, fontSize: 13, lineHeight: 1.5 }}>
-          {isRaceOnly
-            ? 'Circuit telemetry is only available for Race sessions.'
-            : isNotPrecomputed
-              ? "Telemetry for this session hasn't been precomputed yet. To visualise it locally, follow the setup guide in the repository."
-              : (error ?? 'FastF1 data not found for this session.')}
-        </p>
-        {isNotPrecomputed && (
-          <a
-            href="https://github.com/MarcGuitart/Pit-Wall-F1-Project#local-setup"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--pw-text)', fontWeight: 700, fontSize: 13 }}
-          >
-            View local setup guide →
-          </a>
-        )}
-        {!isRaceOnly && !isNotPrecomputed && (
-          <button type="button" onClick={handleRetry} className={buttonClass('ink')}>Retry</button>
-        )}
+      <div className={t.state} data-telemetry-panel={reason ? 'unavailable' : 'error'}>
+        <div className={ui.h6}>{reason ? 'Telemetry not available' : 'Telemetry did not load'}</div>
+        <p className={ui.sub} style={{ margin: 0, maxWidth: 420, fontSize: 13, lineHeight: 1.5 }}>{text}</p>
+        {!reason && <button type="button" onClick={() => load()} className={buttonClass('ink')}>Retry</button>}
       </div>
     )
   }
 
   // ── Main view ─────────────────────────────────────────────────────────────
   return (
-    <div>
+    <div data-telemetry-panel="data">
       {/* ── Full-width header: drivers · lap · mode · metric ── */}
       <div className={t.controls}>
         <DriverSelector

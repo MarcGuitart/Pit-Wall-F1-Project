@@ -14,7 +14,11 @@
 .bottom { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 720px); gap: 2px; background: var(--pw-divider); justify-content: center; border-top: 2px solid var(--pw-divider); }
 @media (max-width: 1180px) { .bottom { grid-template-columns: 1fr; } }
 .bottom > * { background: var(--pw-bg); }
-.state { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px; text-align: center; }
+/* Block 32, task 7: loading, "not available" and "did not load" are as tall as
+   the panel with data, so opening the tab or switching race moves nothing below.
+   Measured on 9636 with the data panel: 1223 px at 1440, 1455 at 1100, 2470 at
+   900, 2129 at 390. */
+.state { min-height: 1223px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px; text-align: center; }
 
 /* replay controls */
 .player { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 2px solid var(--pw-divider); background: var(--pw-bg); }
@@ -30,3 +34,6 @@
 .sectors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .sector { padding: 8px 10px; border: 2px solid var(--pw-divider); background: var(--pw-surface); min-width: 0; }
 .sectorBest { border-top-color: var(--pw-green); }
+@media (max-width: 1180px) { .state { min-height: 1455px; } }
+@media (max-width: 1000px) { .state { min-height: 2470px; } }
+@media (max-width: 800px) { .state { min-height: 2129px; } }
