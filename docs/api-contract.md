@@ -13,7 +13,19 @@ Response: {"status": "ok"}
 ### GET /races?year=2024
 Returns list of race meetings for the year, newest first. Each item:
 `meeting_key`, `meeting_name`, `country_name`, `circuit_short_name`,
-`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`.
+`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`,
+and (since Block 43, additive) `date_end`.
+
+#### date_end (/races)
+The weekend's end, ISO 8601, or `null` when nothing knows it. OpenF1's meetings
+carry no end, so it is, in order: the meeting's own `date_end` if OpenF1 sends
+one; for a list fetched from OpenF1, the latest `date_end` among the season's
+sessions (one `sessions?year=` request per season, never one per meeting; if it
+fails the list is still served, with `null`); for a cached list, the latest
+`date_end` the local cache knows for that meeting (its cached session list, or
+a published session's meta), read from disk without calling OpenF1. The
+frontend shows "29 Feb to 2 Mar 2024" when it has it, and the start date with
+the year when it is `null`.
 
 ### GET /races/{meeting_key}/sessions
 Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint). Each

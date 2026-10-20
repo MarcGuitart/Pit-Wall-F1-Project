@@ -8,6 +8,8 @@ from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLi
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as race_cache
+from typing import Optional
+
 from app.domain.models import RaceListItem, SessionInfo
 from app.services.autopublish import (
     EXCLUSIONS_FILE, excluded_meetings, is_cancelled, parse_exclusions,
@@ -36,11 +38,48 @@ def _has_meta(rows: list) -> bool:
     return all(isinstance(r, dict) and "is_cancelled" in r for r in rows)
 
 
-def _races_out(rows: list) -> list[RaceListItem]:
+class RaceListItemOut(RaceListItem):
+    """/races row (block 43), additive: the weekend's end, so the season grid
+    can show "29 Feb to 2 Mar 2024". Defined here rather than in
+    app/domain/models.py; null when no source has it."""
+    date_end: Optional[str] = None
+
+
+def _weekend_ends_from_cache() -> dict[int, str]:
+    """meeting_key → the latest date_end the local cache knows: each cached
+    session list (meeting_<k>_sessions.json) and each published session's meta.
+    Reads files only, never OpenF1."""
+    ends: dict[int, str] = {}
+
+    def keep(key, end):
+        if isinstance(key, int) and isinstance(end, str) and end > ends.get(key, ""):
+            ends[key] = end
+
+    root = settings.cache_path
+    for f in root.glob("meeting_*_sessions.json"):
+        try:
+            key = int(f.name.split("_")[1])
+            for row in json.loads(f.read_text(encoding="utf-8")) or []:
+                keep(key, (row or {}).get("date_end"))
+        except (ValueError, OSError, json.JSONDecodeError, AttributeError, TypeError):
+            continue
+    for f in root.glob("*/_session_meta.json"):
+        try:
+            meta = json.loads(f.read_text(encoding="utf-8"))
+            keep(meta.get("meeting_key"), meta.get("date_end"))
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+    return ends
+
+
+def _races_out(rows: list, ends: dict[int, str] | None = None) -> list[RaceListItemOut]:
     off = excluded_meetings(read_exclusions())
-    out = [RaceListItem(**r) if isinstance(r, dict) else r for r in rows]
+    ends = _weekend_ends_from_cache() if ends is None else ends
+    out = [RaceListItemOut(**r) if isinstance(r, dict) else RaceListItemOut(**r.model_dump()) for r in rows]
     for item in out:
         item.is_cancelled = item.is_cancelled is True or item.meeting_key in off
+        if not item.date_end:
+            item.date_end = ends.get(item.meeting_key)
     return out
 
 
@@ -68,8 +107,8 @@ def _openf1_error(exc: OpenF1Error, what: str, **extra) -> AppError:
     return AppError("OPENF1_ERROR", f"OpenF1 unreachable while {what}.", status=503, details=details)
 
 
-@router.get("/races", response_model=list[RaceListItem])
-async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
+@router.get("/races", response_model=list[RaceListItemOut])
+async def list_races(year: int = Query(default=2024)) -> list[RaceListItemOut]:
     # Fast path: serve any cached season list immediately. This keeps the UI
     # stable when OpenF1 has a transient failure and avoids hard-coded season
     # cutoffs becoming stale.
@@ -84,12 +123,23 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
             return _races_out(cached)
         raise _openf1_error(exc, f"listing {year} races", year=year) from exc
 
-    items: list[RaceListItem] = []
+    # The weekend's end (block 43): one request for the whole season's
+    # sessions, never one per meeting; if it fails the list is served without it.
+    season_ends: dict[int, str] = {}
+    try:
+        for row in await fetch_json("sessions", year=year) or []:
+            key, end = (row or {}).get("meeting_key"), (row or {}).get("date_end")
+            if isinstance(key, int) and isinstance(end, str) and end > season_ends.get(key, ""):
+                season_ends[key] = end
+    except (OpenF1Error, TypeError, AttributeError):
+        pass
+
+    items: list[RaceListItemOut] = []
     for m in meetings:
         if not m.get("meeting_name"):
             continue
         items.append(
-            RaceListItem(
+            RaceListItemOut(
                 meeting_key=m["meeting_key"],
                 meeting_name=m.get("meeting_name", ""),
                 country_name=m.get("country_name"),
@@ -98,6 +148,7 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
                 year=m.get("year", year),
                 location=m.get("location"),
                 is_cancelled=is_cancelled(m),
+                date_end=m.get("date_end") or season_ends.get(m["meeting_key"]),
             )
         )
 
