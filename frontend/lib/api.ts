@@ -194,6 +194,33 @@ export async function redeemAccessCode(code: string): Promise<AccessStatus> {
   }
 }
 
+/** PRO by subscription (block 44). Every call answers 503 while payments are off. */
+type BillingToken = { token: string; expires_at: number; expires_in: number; free_seasons: number[] }
+
+/** A Stripe Checkout url for the monthly PRO price. */
+export async function startCheckout(): Promise<string> {
+  return (await apiFetch<{ url: string }>('/billing/checkout', { method: 'POST' })).url
+}
+
+/** After Checkout: the backend checks the session with Stripe and answers the PRO token. */
+export async function completeCheckout(sessionId: string): Promise<void> {
+  const body = await apiFetch<BillingToken>(`/billing/success?session_id=${encodeURIComponent(sessionId)}`)
+  storeToken(body.token, body.expires_at)
+  announceAccessChange()
+}
+
+/** A fresh token while the subscription is still paid; throws when it is not. */
+export async function renewSubscription(): Promise<void> {
+  const body = await apiFetch<BillingToken>('/billing/renew', { method: 'POST' })
+  storeToken(body.token, body.expires_at)
+  announceAccessChange()
+}
+
+/** A Stripe Customer Portal url (cancel, card, invoices). */
+export async function billingPortalUrl(): Promise<string> {
+  return (await apiFetch<{ url: string }>('/billing/portal', { method: 'POST' })).url
+}
+
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)

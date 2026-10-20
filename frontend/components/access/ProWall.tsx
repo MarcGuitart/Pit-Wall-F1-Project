@@ -18,6 +18,8 @@ import { redeemAccessCode } from '@/lib/api'
 import { PRO_PRICE_LABEL } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
 import { Badge, buttonClass, ui, PageContainer } from '@/components/ui'
+import { SubscribeButton } from '@/components/billing/SubscribeButton'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 
 export const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
@@ -64,7 +66,9 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
             {year ? `The ${year} season` : 'This season'} is PRO
           </h1>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55 }}>2023 and 2024 are free to read. {PRO_PRICE_LABEL}.</p>
-          <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet: €2.99/month is what it will cost.</p>
+          {PAYMENTS_ENABLED
+            ? <SubscribeButton id="wall-subscribe" />
+            : <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet: €2.99/month is what it will cost.</p>}
 
           <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 6 }}>
