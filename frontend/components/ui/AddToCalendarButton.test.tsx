@@ -25,6 +25,15 @@ describe('Add to calendar', () => {
     expect(body).toContain('DTEND:20261025T210000Z')
   })
 
+  it('with a session key, the .ics comes from the API (block 33), not from the browser', () => {
+    render(<AddToCalendarButton event={event} sessionKey={11400} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add to calendar: Austin · Race' }))
+    const file = screen.getByRole('link', { name: 'Apple or Outlook (.ics)' })
+    expect(file.getAttribute('href')).toMatch(/\/sessions\/11400\/calendar\.ics$/)
+    fireEvent.click(file)
+    expect(ics.downloadIcs).not.toHaveBeenCalled()
+  })
+
   it('promises no reminder', () => {
     render(<AddToCalendarButton event={event} />)
     fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }))

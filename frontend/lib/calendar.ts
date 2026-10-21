@@ -5,11 +5,12 @@ import { formatIcsUtc, type IcsEventInput } from '@/lib/ics'
  * Outlook by an .ics file. Nothing is sent anywhere and nothing reminds anyone:
  * the event goes into the visitor's own calendar.
  *
- * The .ics is built in the browser (lib/ics.ts) until the API serves
- * GET /sessions/{key}/calendar.ics (block 33). Flip ICS_FROM_API then; events
- * without a session key keep the browser-built file.
+ * Since block 33 the API serves GET /sessions/{key}/calendar.ics (same UID,
+ * UTC, served inline so a phone opens its calendar). Events without a session
+ * key keep the browser-built file (lib/ics.ts). This needs the API deployed
+ * with ops/session-index: the two ship in the same release.
  */
-export const ICS_FROM_API = false
+export const ICS_FROM_API = true
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 

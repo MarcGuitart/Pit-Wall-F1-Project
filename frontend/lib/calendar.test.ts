@@ -30,7 +30,8 @@ describe('Google Calendar URL', () => {
 
 describe('.ics', () => {
   it('is built in the browser until the API serves it (block 33)', () => {
-    expect(icsUrl(11740)).toBeNull()
+    expect(icsUrl(11740)).toMatch(/\/sessions\/11740\/calendar\.ics$/)   // on by default since block 33
+    expect(icsUrl(11740, false)).toBeNull()
     expect(icsUrl(11740, true)).toMatch(/\/sessions\/11740\/calendar\.ics$/)
     expect(icsUrl(undefined, true)).toBeNull()
   })
