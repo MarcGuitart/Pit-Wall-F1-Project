@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, waitFor } from '@testing-library/react'
 
 // Block 29, task 7: "/" as rendered — one global header and footer, none of
 // the prototype's placeholders, and a live card that never shows timing.
@@ -45,7 +45,8 @@ describe('"/"', () => {
   it('shows real figures from /stats', async () => {
     const { container } = await renderHome()
     expect(container.querySelector('[data-island="stats"]')?.getAttribute('data-state')).toBe('ok')
-    expect(container.textContent).toContain('27,303')
+    // The figures count up once the data is in (block 37): wait for the end.
+    await waitFor(() => expect(container.textContent).toContain('27,303'), { timeout: 3000 })
   })
 
   it('a live session gives state and a link, never times, positions or drivers', async () => {
