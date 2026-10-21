@@ -65,7 +65,7 @@ describe('/races meeting panel', () => {
     // Sorted by start: practice, sprint, race.
     expect(within(panel).getAllByRole('listitem').map((li) => li.firstChild!.textContent)).toEqual(['Practice 1', 'Sprint', 'Race'])
     fireEvent.click(within(row('Race')).getByRole('button', { name: 'Open analysis' }))
-    expect(openRace).toHaveBeenCalledWith(11377)
+    expect(openRace).toHaveBeenCalledWith(11377, expect.objectContaining({ label: 'Baku · Race', click: expect.anything() }))
   })
 
   it('keeps one panel open, caches per meeting, and Escape closes it back to its cell', async () => {

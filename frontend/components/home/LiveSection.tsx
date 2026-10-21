@@ -1,12 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { fetchLivePublicState } from '@/lib/liveStatus'
 import { useIsland } from '@/lib/island'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { buttonClass } from '@/components/ui'
 import { loadNextSession, sessionIcs, useClientNow } from './NextSessionCard'
 import h from './home.module.css'
+import { SweepLink } from '@/components/layout/SweepLink'
 
 const HOUR = 3_600_000
 
@@ -49,7 +49,7 @@ function LiveCard() {
         <h3 className={h.liveTitle}>A session is on track</h3>
         <span />
         <span />
-        <div><Link href={`/live/${live.data.sessionKey}`} className={buttonClass('primary', true)}>Open live mode</Link></div>
+        <div><SweepLink href={`/live/${live.data.sessionKey}`} label="Live mode" className={buttonClass('primary', true)}>Open live mode</SweepLink></div>
       </>
     )
   } else if (state === 'soon' && upcoming) {
@@ -60,7 +60,7 @@ function LiveCard() {
         <div className={h.nextWhen}>{upcoming.place} · {upcoming.sessionName}</div>
         <span />
         <div className={h.ctas}>
-          <Link href={`/live/${upcoming.sessionKey}`} className={buttonClass('primary', true)}>Open live mode</Link>
+          <SweepLink href={`/live/${upcoming.sessionKey}`} label={`Live · ${upcoming.place} · ${upcoming.sessionName}`} className={buttonClass('primary', true)}>Open live mode</SweepLink>
           {upcoming.dateEnd && <AddToCalendarButton variant="system" event={sessionIcs(upcoming)} />}
         </div>
       </>

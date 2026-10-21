@@ -158,7 +158,7 @@ export function SeasonGrid() {
                 data={panels[openCell.race.meeting_key] ?? { status: 'loading' }}
                 ctx={{ ...ctxBase, published: publishedSet }}
                 onRetry={() => load(openCell.race.meeting_key)}
-                onOpen={(k) => openRace(k)}
+                onOpen={(k, click, label) => openRace(k, { click, label })}
               />
             ) : null
             if (cancelled) {

@@ -26,7 +26,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
   data: PanelData
   ctx: StateContext
   onRetry: () => void
-  onOpen: (sessionKey: number) => void
+  onOpen: (sessionKey: number, click: React.MouseEvent, label: string) => void
 }) {
   return (
     <div id={id} className={l.panel} role="region" aria-labelledby={cellId} aria-busy={data.status === 'loading'}>
@@ -58,7 +58,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
                 <span className={l.panelState}>{st.label}</span>
                 <span className={l.panelAction}>
                   {st.action === 'open' && (
-                    <button type="button" className={buttonClass('primary')} onClick={() => onOpen(s.session_key)}>
+                    <button type="button" className={buttonClass('primary')} onClick={(e) => onOpen(s.session_key, e, `${place} · ${s.session_name}`)}>
                       Open analysis
                     </button>
                   )}

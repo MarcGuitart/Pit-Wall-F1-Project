@@ -25,6 +25,7 @@ import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { ui } from '@/components/ui'
 import l from '@/components/landing/landing.module.css'
+import { SweepLink } from '@/components/layout/SweepLink'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -126,9 +127,9 @@ export function ProSection() {
         {pro && (
           <p className={l.proText}>
             {liveSessionKey !== null ? (
-              <Link href={`/live/${liveSessionKey}`} className={ui.accent} style={{ fontWeight: 800 }}>
+              <SweepLink href={`/live/${liveSessionKey}`} label="Live mode" className={ui.accent} style={{ fontWeight: 800 }}>
                 ● Live now · open the pit wall →
-              </Link>
+              </SweepLink>
             ) : liveChecked && nextLive ? (
               <>
                 No live session right now. Next:{' '}

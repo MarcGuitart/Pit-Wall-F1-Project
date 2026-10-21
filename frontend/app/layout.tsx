@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
+import { SweepOverlay } from '@/components/layout/SweepOverlay'
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
@@ -59,6 +60,7 @@ export default function RootLayout({
       >
         <AccessBootstrap />
         {children}
+        <SweepOverlay />
       </body>
     </html>
   )

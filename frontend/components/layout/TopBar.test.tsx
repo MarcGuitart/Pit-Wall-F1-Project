@@ -6,6 +6,10 @@ import { useAccessStore } from '@/stores/accessStore'
 import * as liveStatus from '@/lib/liveStatus'
 import * as ics from '@/lib/ics'
 
+// The Live pill is a SweepLink (block 34), which navigates through the router.
+const push = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }), usePathname: () => '/' }))
+
 /**
  * The TopBar PRO indicator: shown only when both a valid token and the
  * display preference say so, on more than one route (it is the same

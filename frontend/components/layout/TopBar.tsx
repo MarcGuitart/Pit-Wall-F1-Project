@@ -11,6 +11,7 @@ import { Popover } from '@/components/ui'
 import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
 import s from './shell.module.css'
+import { SweepLink } from './SweepLink'
 
 type BreadcrumbItem = {
   label: string
@@ -76,10 +77,10 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             to Settings without PRO. Status shared with the landing page's Live
             bay via useLiveStatus. */}
         {pro && liveSessionKey !== null ? (
-          <Link href={`/live/${liveSessionKey}`} className={`${s.navLink} ${s.liveOn}`}>
+          <SweepLink href={`/live/${liveSessionKey}`} label="Live mode" className={`${s.navLink} ${s.liveOn}`}>
             <span className={s.liveDot} aria-hidden="true" />
             Live
-          </Link>
+          </SweepLink>
         ) : pro ? (
           <span className={s.tipWrap}>
             <Popover
