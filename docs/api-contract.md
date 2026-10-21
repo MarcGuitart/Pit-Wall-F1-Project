@@ -79,6 +79,17 @@ joins are free). Never writes to the cache.
 Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503,
 RATE_LIMITED 429 (details: `retry_after_seconds`, `scope` ip, `limit`, `window_seconds`).
 
+### GET /published
+Sessions with a published analysis (an `_analysis.json` on this server). Public, never calls OpenF1.
+`{"count": n, "sessions": [{"session_key", "meeting_key", "year", "session_name", "session_type"}]}`,
+sorted by `session_key`; fields other than the key are null when the session has no `_session_meta.json`.
+Indexed in memory, rebuilt when a session directory changes.
+
+### GET /sessions/{session_key}/calendar.ics
+One session as an RFC 5545 file (`text/calendar`, served inline). Times in UTC, `UID:pitwall-<key>@pitwallengineer.com`
+(stable: re-adding updates the event), end from `date_end` (or 2 h for a race, 1 h otherwise when OpenF1 has none).
+Facts as in `/sessions/{key}/meta` (disk first). 410 `SESSION_CANCELLED`, 404 when unknown or unscheduled.
+
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`
 and `frontend/types/index.ts`).
