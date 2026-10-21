@@ -1,0 +1,87 @@
+'use client'
+
+import Link from 'next/link'
+import type { SessionInfo } from '@/types'
+import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
+import { buttonClass } from '@/components/ui'
+import { sessionState, type StateContext } from '@/lib/sessionStates'
+import l from './landing.module.css'
+
+const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+export type PanelData =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; sessions: SessionInfo[] }
+
+/**
+ * The sessions of one meeting, in line under its row on /races (block 33).
+ * Fetched when opened, never before; the grid keeps them per meeting.
+ */
+export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, onOpen }: {
+  id: string
+  cellId: string
+  place: string
+  gpName: string
+  data: PanelData
+  ctx: StateContext
+  onRetry: () => void
+  onOpen: (sessionKey: number) => void
+}) {
+  return (
+    <div id={id} className={l.panel} role="region" aria-labelledby={cellId} aria-busy={data.status === 'loading'}>
+      <h3 className={l.panelTitle}>Sessions, {place}</h3>
+      {data.status === 'loading' && (
+        <ul className={l.panelList} aria-hidden="true">
+          {Array.from({ length: 5 }, (_, i) => (
+            <li key={i} className={`${l.panelRow} ${l.panelSkeleton}`}><span /><span /><span /></li>
+          ))}
+        </ul>
+      )}
+      {data.status === 'error' && (
+        <div className={l.panelError} role="alert">
+          <span>{data.message}</span>
+          <button type="button" className={buttonClass('default')} onClick={onRetry}>Retry</button>
+        </div>
+      )}
+      {data.status === 'ready' && data.sessions.length === 0 && (
+        <p className={l.panelEmpty}>No sessions are listed for this meeting yet.</p>
+      )}
+      {data.status === 'ready' && data.sessions.length > 0 && (
+        <ul className={l.panelList}>
+          {[...data.sessions].sort((a, b) => a.date_start.localeCompare(b.date_start)).map((s) => {
+            const st = sessionState(s, ctx)
+            return (
+              <li key={s.session_key} className={l.panelRow} data-state={st.kind}>
+                <span className={l.panelName}>{s.session_name}</span>
+                <span className={l.panelWhen}>{WHEN.format(new Date(s.date_start))}</span>
+                <span className={l.panelState}>{st.label}</span>
+                <span className={l.panelAction}>
+                  {st.action === 'open' && (
+                    <button type="button" className={buttonClass('primary')} onClick={() => onOpen(s.session_key)}>
+                      Open analysis
+                    </button>
+                  )}
+                  {st.action === 'unlock' && <Link href="/settings" className={buttonClass('default')}>Unlock PRO</Link>}
+                  {st.action === 'calendar' && s.date_end && (
+                    <AddToCalendarButton
+                      variant="system"
+                      sessionKey={s.session_key}
+                      event={{
+                        uid: `pitwall-${s.session_key}@pitwallengineer.com`,
+                        summary: `${gpName}: ${s.session_name}`,
+                        location: place,
+                        dateStart: s.date_start,
+                        dateEnd: s.date_end,
+                      }}
+                    />
+                  )}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}

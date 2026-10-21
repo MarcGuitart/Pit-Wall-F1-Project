@@ -10,9 +10,10 @@ import races2026 from '@/test/fixtures/races_2026.json'
 vi.mock('@/lib/api', () => ({
   fetchRaces: vi.fn(async () => races2026),
   fetchSessions: vi.fn(async () => []),
+  fetchPublished: vi.fn(async () => null),
 }))
 vi.mock('@/lib/raceNav', () => ({ useOpenRace: () => vi.fn() }))
-vi.mock('@/lib/seasons', () => ({ seasonYears: () => [2026, 2025, 2024, 2023] }))
+vi.mock('@/lib/seasons', () => ({ seasonYears: () => [2026, 2025, 2024, 2023], currentSeason: () => 2026 }))
 vi.mock('@/stores/accessStore', () => ({
   useAccessStore: (pick: (s: { pro: boolean }) => unknown) => pick({ pro: true }),
 }))

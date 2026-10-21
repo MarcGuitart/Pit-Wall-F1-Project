@@ -194,6 +194,25 @@ export async function redeemAccessCode(code: string): Promise<AccessStatus> {
   }
 }
 
+export type PublishedIndex = { count: number; sessions: { session_key: number; meeting_key: number | null; year: number | null; session_name: string | null; session_type: string | null }[] }
+
+/**
+ * Which sessions have a published analysis (block 33). Null when the API does
+ * not answer within timeoutMs: the /races cells then show no state rather than
+ * wait, and never say Published or Processing on a guess.
+ */
+export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await apiFetch<PublishedIndex>('/published', { signal: ctrl.signal })
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)
