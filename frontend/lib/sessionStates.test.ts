@@ -31,10 +31,10 @@ describe('sessionState', () => {
     expect(sessionState(cancelled, ctx2026)).toEqual({ kind: 'cancelled', label: 'Cancelled', action: null })
   })
 
-  it('a 2023 race is Available on request, never Processing', () => {
+  it('a 2023 race Opens on demand, never Processing', () => {
     const abuDhabi = s(9197, 'Race', 'Race', '2023-11-26T13:00:00Z', '2023-11-26T15:00:00Z')
     const ctx = { ...ctx2026, season: 2023, published: new Set<number>() }
-    expect(sessionState(abuDhabi, ctx)).toEqual({ kind: 'available', label: 'Available', action: 'open' })
+    expect(sessionState(abuDhabi, ctx)).toEqual({ kind: 'available', label: 'Opens on demand', action: 'open' })
   })
 
   it('a future session is Not run yet and offers the calendar', () => {

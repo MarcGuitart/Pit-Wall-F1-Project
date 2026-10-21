@@ -5,7 +5,7 @@ import type { SessionInfo } from '@/types'
  *
  * Published and Processing only mean something for the current season, which
  * the publish job writes up after each race. Earlier seasons are analysed when
- * someone opens them, so their races are "Available", never "Processing".
+ * someone opens them, so their races say "Opens on demand", never "Processing".
  * Practice and qualifying are not analysed at all: "Not analysed yet".
  * `published` is null when /published did not answer in time: then nothing
  * claims Published or Processing, and races keep their Open action.
@@ -29,7 +29,7 @@ export type StateContext = {
 const LABEL: Record<SessionStateKind, string> = {
   published: 'Published',
   processing: 'Processing',
-  available: 'Available',
+  available: 'Opens on demand',
   'not-run': 'Not run yet',
   'under-way': 'Under way',
   cancelled: 'Cancelled',
