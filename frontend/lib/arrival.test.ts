@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { arrivalPlan, useArrival } from './arrival'
-import { ARRIVAL_MS, ruleTargetAt, progressAt } from './loadPhase'
+import { ARRIVAL_MS } from './loadPhase'
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-16T12:00:00Z')) })
 afterEach(() => vi.useRealTimers())
@@ -46,17 +46,5 @@ describe('useArrival', () => {
   it('data already in when the page mounts: no loader, no arrival', () => {
     const { result } = renderHook(() => useArrival(Date.now(), true))
     expect(result.current).toBe('done')
-  })
-})
-
-describe('ruleTargetAt', () => {
-  it('targets the next second (1 s linear transition), capped below 0.94', () => {
-    expect(ruleTargetAt(3_200)).toBeCloseTo(progressAt(4_000))
-    expect(ruleTargetAt(600_000)).toBeLessThanOrEqual(0.94)
-    expect(ruleTargetAt(600_000)).toBeLessThan(1)
-  })
-  it('reduced motion: 2 s steps', () => {
-    expect(ruleTargetAt(3_900, true)).toBeCloseTo(progressAt(2_000))
-    expect(ruleTargetAt(4_000, true)).toBeCloseTo(progressAt(4_000))
   })
 })

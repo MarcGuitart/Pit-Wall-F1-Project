@@ -31,7 +31,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 const at = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 const state = (c: HTMLElement) => c.querySelector('[data-state]')?.getAttribute('data-state')
-const ruleScale = (c: HTMLElement) => Number(/scaleX\(([\d.]+)\)/.exec((c.querySelector('[class*="ruleAccent"]') as HTMLElement).style.transform)![1])
+const strip = (c: HTMLElement) => c.querySelector('[data-settle-strip]')?.getAttribute('data-settle-strip') ?? null
 
 describe('AnalysisLoadingScreen — states by elapsed time', () => {
   it('state 1: nothing for the first 300 ms, only the reserved space', () => {
@@ -52,7 +52,7 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     expect(screen.getByText('2024 · Race · 23 Jun 2024')).toBeTruthy()
     expect(screen.getByLabelText('Elapsed 3 seconds').textContent).toBe('00:03')
     expect(screen.getByText('How this is measured')).toBeTruthy()
-    expect(screen.getByText('Pit, safety-car, red/yellow-flag and outlier laps are excluded from pace.')).toBeTruthy()
+    expect(screen.getByText('Pit, safety car, red or yellow flag and outlier laps are excluded from pace.')).toBeTruthy()
     expect(screen.getByText('Pace, tyre and pit estimates carry a confidence label.')).toBeTruthy()
     expect(screen.getByText('n is the number of clean laps behind a pace figure.')).toBeTruthy()
   })
@@ -77,6 +77,7 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     await act(async () => {})
     expect(state(container)).toBe('waking')
     expect(screen.getByText('Waking up the analysis server')).toBeTruthy()
+    expect(screen.getByText('The server is not answering yet. The page opens by itself when it does.')).toBeTruthy()
     ping.answer = true
     at(8_000)                                  // asked again while it stays silent
     await act(async () => {})
@@ -103,16 +104,6 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     expect(state(container)).toBe('error')
   })
 
-  it('the time rule creeps every second and never completes', () => {
-    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
-    at(300)
-    const first = ruleScale(container)
-    at(1_000)
-    expect(ruleScale(container)).toBeGreaterThan(first)
-    at(43_000)
-    expect(ruleScale(container)).toBeLessThan(0.94)
-  })
-
   it('without facts yet, the header keeps bars instead of inventing a name', () => {
     render(<AnalysisLoadingScreen sessionKey={9539} />)
     at(300)
@@ -123,5 +114,65 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
     at(20_000)
     expect(container.textContent ?? '').not.toMatch(/found|\b\d+\s+(laps?|modules?|drivers?|stints?|signals?)\b/i)
+  })
+})
+
+describe('concept A "Settle": the strip beside the title', () => {
+  it('is not drawn in the first 300 ms, then stands in every waiting state', async () => {
+    ping.answer = false
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    expect(strip(container)).toBeNull()
+    at(300)
+    expect(strip(container)).toBe('loading')
+    at(7_700)
+    await act(async () => {})
+    expect(state(container)).toBe('waking')
+    expect(strip(container)).toBe('waking')
+    at(67_000)
+    expect(state(container)).toBe('error')
+    expect(strip(container)).toBe('error')
+    ping.answer = true
+  })
+
+  it('stays while the analysis is being computed (the API answers)', async () => {
+    ping.answer = true
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(9_000)
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    expect(strip(container)).toBe('loading')
+  })
+
+  it('is gone once the data is in (the arrival overlay draws none)', () => {
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} leaving />)
+    expect(container.querySelector('[data-skeleton="leaving"]')).toBeTruthy()
+    expect(strip(container)).toBeNull()
+  })
+
+  it('sits inside the title, hidden from assistive tech, and adds no text', () => {
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(300)
+    const el = container.querySelector('[data-settle-strip]')!
+    expect(el.closest('h1')).toBeTruthy()
+    expect(el.getAttribute('aria-hidden')).toBe('true')
+    expect(el.textContent).toBe('')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Barcelona')
+  })
+
+  it('draws no progress: no time rule, no percentage, and the only numbers are the clock and the 75 s fact', async () => {
+    ping.answer = true
+    const retry = vi.fn()
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} onRetry={retry} />)
+    let now = 0
+    for (const t of [300, 3_000, 9_000, 30_000, 75_000]) {
+      at(t - now)
+      now = t
+      await act(async () => {})
+      expect(container.querySelector('[data-skel-rule]')).toBeNull()
+      const status = container.querySelector('[data-state]')!.textContent ?? ''
+      expect(status).not.toMatch(/%/)
+      const numbers = (status.match(/\d+(?::\d+)?/g) ?? []).filter((n) => !/^\d\d:\d\d$/.test(n))
+      expect(numbers.every((n) => n === '75')).toBe(true)
+    }
   })
 })

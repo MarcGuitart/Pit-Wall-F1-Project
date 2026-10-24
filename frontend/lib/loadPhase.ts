@@ -28,26 +28,11 @@ export function phaseAt(elapsedMs: number): LoadPhase {
   return 'timeout'
 }
 
-/**
- * Time-based progress for a request that reports none: rises quickly, then
- * slows, and never reaches 1 — 0.94 at t → ∞ — so a bar never claims the
- * analysis is done before it has actually arrived.
+/*
+ * No progress is drawn: /analysis reports none, so concept A "Settle" (24 Oct)
+ * dropped the time rule that crept towards 0.94. What moves is the real clock
+ * and the strip's opacity, neither of which claims how far along it is.
  */
-export function progressAt(elapsedMs: number): number {
-  return 0.94 * (1 - Math.exp(-elapsedMs / 10_000))
-}
-
-/**
- * Where the time rule under the header points for the second now running
- * (Block 27). The rule is a transform (scaleX) with a 1 s linear transition,
- * retargeted once a second to the NEXT second's value, so it creeps without
- * stopping and never completes. Reduced motion: 2 s steps, no transition, so
- * the target is the value at the start of the current 2 s step.
- */
-export function ruleTargetAt(elapsedMs: number, reduced = false): number {
-  if (reduced) return progressAt(Math.floor(elapsedMs / 2000) * 2000)
-  return progressAt((Math.floor(elapsedMs / 1000) + 1) * 1000)
-}
 
 /** Once the loader is on screen it stays at least this long: an answer at 350 ms must not flash it. */
 export const MIN_VISIBLE_MS = 300
