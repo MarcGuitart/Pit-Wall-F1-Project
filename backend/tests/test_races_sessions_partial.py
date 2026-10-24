@@ -90,3 +90,72 @@ def test_a_list_without_is_cancelled_is_served_whole_when_openf1_refuses(barcelo
     (barcelona_race_only / "meeting_1238_sessions.json").write_text(json.dumps(rows))
     r = client.get("/races/1238/sessions")
     assert keys(r) == FIVE and len(no_openf1) == 1
+
+
+# ── hardening: the versioned copy is the floor ──────────────────────────────
+
+def _one_row(cache: Path, keep_meta: bool = True) -> Path:
+    rows = json.loads((REPO_CACHE / "meeting_1238_sessions.json").read_text())
+    race = [r for r in rows if r["session_key"] == 9539]
+    if not keep_meta:
+        race[0].pop("is_cancelled")
+    p = cache / "meeting_1238_sessions.json"
+    p.write_text(json.dumps(race))
+    return p
+
+
+def test_a_partial_file_in_the_cache_dir_is_completed_from_the_versioned_copy(barcelona_race_only, no_openf1):
+    p = _one_row(barcelona_race_only)
+    before = p.read_text()
+    r = client.get("/races/1238/sessions")
+    assert keys(r) == FIVE                                        # the copy's 5, not the file's 1
+    assert no_openf1 == []
+    assert p.read_text() == before                                # served, not rewritten
+
+
+def test_openf1_401_with_a_partial_file_does_not_rewrite_it(barcelona_race_only, no_openf1):
+    p = _one_row(barcelona_race_only, keep_meta=False)            # old format: OpenF1 is asked
+    before = p.read_text()
+    r = client.get("/races/1238/sessions")
+    assert len(no_openf1) == 1
+    assert keys(r) == FIVE
+    assert p.read_text() == before
+
+
+def test_a_shorter_openf1_answer_is_never_saved_over_a_longer_list(barcelona_race_only, monkeypatch, tmp_path_factory):
+    monkeypatch.setattr(races, "_REPO_CACHE", tmp_path_factory.mktemp("no-repo-copy"))
+    rows = json.loads((REPO_CACHE / "meeting_1238_sessions.json").read_text())
+    for r in rows:
+        r.pop("is_cancelled")                                     # forces the OpenF1 refresh
+    p = barcelona_race_only / "meeting_1238_sessions.json"
+    p.write_text(json.dumps(rows))
+    before = p.read_text()
+
+    async def two_rows(*args, **kwargs):
+        return [{"session_key": 9535, "session_name": "Qualifying", "session_type": "Qualifying",
+                 "date_start": "2024-06-22T14:00:00+00:00", "is_cancelled": False},
+                {"session_key": 9539, "session_name": "Race", "session_type": "Race",
+                 "date_start": "2024-06-23T13:00:00+00:00", "is_cancelled": False}]
+    monkeypatch.setattr(races, "fetch_json", two_rows)
+    r = client.get("/races/1238/sessions")
+    assert sorted(keys(r)) == FIVE
+    assert p.read_text() == before
+
+
+def test_a_complete_openf1_answer_is_saved(barcelona_race_only, monkeypatch, tmp_path_factory):
+    monkeypatch.setattr(races, "_REPO_CACHE", tmp_path_factory.mktemp("no-repo-copy"))
+    rows = json.loads((REPO_CACHE / "meeting_1238_sessions.json").read_text())
+
+    async def five(*args, **kwargs):
+        return rows
+    monkeypatch.setattr(races, "fetch_json", five)
+    assert keys(client.get("/races/1238/sessions")) == FIVE
+    saved = json.loads((barcelona_race_only / "meeting_1238_sessions.json").read_text())
+    assert [r["session_key"] for r in saved] == FIVE
+
+
+def test_union_keeps_one_row_per_session_in_date_order():
+    a = [{"session_key": 2, "date_start": "2024-01-02"}, {"session_key": 1, "date_start": "2024-01-01"}]
+    b = [{"session_key": 2, "date_start": "2024-01-02", "x": 1}, {"session_key": 3, "date_start": "2024-01-03"}]
+    out = races._union(a, b)
+    assert [r["session_key"] for r in out] == [1, 2, 3] and out[1]["x"] == 1

@@ -33,26 +33,74 @@ def read_exclusions() -> dict | None:
 
 
 # The versioned session lists (backend/cache in the repo). settings.cache_path is
-# this same directory unless CACHE_DIR moves it (app/core/config.py); a list
-# missing there is still read from here before asking OpenF1.
+# this same directory unless CACHE_DIR moves it (app/core/config.py). The
+# versioned copy is the floor: a list in the cache directory that lacks any of
+# its sessions is completed from it, and no write may leave fewer rows than
+# there are now.
 _REPO_CACHE = Path(__file__).resolve().parents[2] / "cache"
 
 
-def _cached_sessions(meeting_key: int) -> list | None:
-    """meeting_<k>_sessions.json from the cache directory, else the repo's copy (read only)."""
-    rows = race_cache.get_sessions_for_meeting(meeting_key)
-    if rows:
-        return rows
+def _versioned_sessions(meeting_key: int) -> list | None:
+    """The repo's meeting_<k>_sessions.json (read only); None when it is the cache directory's own file."""
     repo = _REPO_CACHE / f"meeting_{meeting_key}_sessions.json"
     if repo.resolve() == (settings.cache_path / repo.name).resolve():
-        return rows
+        return None
     try:
         data = json.loads(repo.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return rows
-    if isinstance(data, list) and data:
-        logger.info("[SESSIONS] meeting %s read from the versioned copy %s", meeting_key, repo)
-        return data
+        return None
+    return data if isinstance(data, list) and data else None
+
+
+def _key(row) -> int | None:
+    return row.get("session_key") if isinstance(row, dict) else None
+
+
+def _union(base: list, over: list) -> list:
+    """Every session of both lists, one row per session_key; `over` wins a tie. In date order when
+    every row has a start, else base's order then over's new sessions."""
+    rows = {_key(r): r for r in base if _key(r) is not None}
+    order = list(rows)
+    for r in over:
+        k = _key(r)
+        if k is None:
+            continue
+        if k not in rows:
+            order.append(k)
+        rows[k] = r
+    out = [rows[k] for k in order]
+    if all(isinstance(r.get("date_start"), str) for r in out):
+        out.sort(key=lambda r: r["date_start"])
+    return out
+
+
+def _cached_sessions(meeting_key: int) -> list | None:
+    """The meeting's list from the cache directory, completed from the versioned copy when it lacks
+    any session that copy has (a partial file gets the copy's rows, or the union by session_key)."""
+    local = race_cache.get_sessions_for_meeting(meeting_key)
+    repo = _versioned_sessions(meeting_key)
+    if not repo:
+        return local
+    if not local:
+        logger.info("[SESSIONS] meeting %s read from the versioned copy", meeting_key)
+        return repo
+    if {_key(r) for r in repo} <= {_key(r) for r in local}:
+        return local
+    merged = _union(repo, local)
+    logger.warning("[SESSIONS] meeting %s: cached list has %d row(s), the versioned copy %d; serving %d",
+                   meeting_key, len(local), len(repo), len(merged))
+    return merged
+
+
+def _save_sessions(meeting_key: int, rows: list) -> list:
+    """Save a list fetched from OpenF1, never one with fewer rows than the meeting has now.
+    Returns what to serve: the fresh rows, completed from the current list when shorter."""
+    current = _cached_sessions(meeting_key) or []
+    if len(rows) < len(current):
+        logger.warning("[SESSIONS] meeting %s: OpenF1 gave %d row(s), %d known; not saved",
+                       meeting_key, len(rows), len(current))
+        return _union(current, rows)
+    race_cache.set_sessions_for_meeting(meeting_key, rows)
     return rows
 
 
@@ -280,8 +328,8 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     ]
 
     if result:
-        race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in result])
-    elif cached:
+        return _sessions_out(_save_sessions(meeting_key, [s.model_dump() for s in result]))
+    if cached:
         return _sessions_out(cached)
 
     return _sessions_out(result)
