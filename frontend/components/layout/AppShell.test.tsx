@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import * as liveStatus from '@/lib/liveStatus'
+import { __resetLiveStatusForTests } from '@/hooks/useLiveStatus'
 import { usePendingRace } from '@/lib/raceNav'
 import { resetLoadClock } from '@/lib/loadPhase'
 
@@ -11,6 +12,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () =
 import { AppShell } from './AppShell'
 
 beforeEach(() => {
+  __resetLiveStatusForTests()   // the poller and its calendar are shared per tab: one per test
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-16T12:00:00Z'))
   vi.spyOn(liveStatus, 'fetchLiveServerStatus').mockResolvedValue({ reachable: false, sessionKey: null })

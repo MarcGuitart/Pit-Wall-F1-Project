@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { TopBar } from './TopBar'
 import { useAccessStore } from '@/stores/accessStore'
 import * as liveStatus from '@/lib/liveStatus'
+import { __resetLiveStatusForTests } from '@/hooks/useLiveStatus'
 import * as ics from '@/lib/ics'
 
 // The Live pill is a SweepLink (block 34), which navigates through the router.
@@ -25,6 +26,7 @@ function resetStore() {
 }
 
 beforeEach(() => {
+  __resetLiveStatusForTests()   // the poller and its calendar are shared per tab: one per test
   resetStore()
   // Safe default for every test that doesn't care about the Live pill
   // specifically: no live session, nothing scheduled — so a test that merely
