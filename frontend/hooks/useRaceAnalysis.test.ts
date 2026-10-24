@@ -2,13 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useRaceStore } from '@/stores/raceStore'
-import { resetLoadClock } from '@/lib/loadPhase'
+import { TIMEOUT_AFTER_MS, resetLoadClock } from '@/lib/loadPhase'
 import type { FullRaceAnalysis } from '@/types'
 
 const fetchAnalysis = vi.fn()
 vi.mock('@/lib/api', () => ({ fetchAnalysis: (...a: unknown[]) => fetchAnalysis(...a) }))
 
-import { useRaceAnalysis } from './useRaceAnalysis'
+import { TIMEOUT_ERROR, useRaceAnalysis } from './useRaceAnalysis'
 
 const analysis = (key: number) => ({ race: { session_key: key } }) as unknown as FullRaceAnalysis
 
@@ -39,11 +39,12 @@ describe('useRaceAnalysis', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('aborts at 45 s and reports a timeout the page can retry', async () => {
+  it('aborts at TIMEOUT_AFTER_MS (75 s) and reports a timeout the page can retry', async () => {
+    expect(TIMEOUT_AFTER_MS).toBe(75_000)
     fetchAnalysis.mockImplementation(answerAfter(null))
     const { result } = renderHook(() => useRaceAnalysis(9636))
     const signal = fetchAnalysis.mock.calls[0][1] as AbortSignal
-    await act(async () => { await vi.advanceTimersByTimeAsync(44_999) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(TIMEOUT_AFTER_MS - 1) })
     expect(signal.aborted).toBe(false)
     expect(result.current.error).toBeNull()
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
@@ -52,10 +53,10 @@ describe('useRaceAnalysis', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('retries with a fresh request and a fresh 45 s budget', async () => {
+  it('retries with a fresh request and a fresh 75 s budget', async () => {
     fetchAnalysis.mockImplementationOnce(answerAfter(null)).mockImplementationOnce(answerAfter(5_000))
     const { result } = renderHook(() => useRaceAnalysis(9636))
-    await act(async () => { await vi.advanceTimersByTimeAsync(45_000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(TIMEOUT_AFTER_MS) })
     expect(result.current.error?.code).toBe('ANALYSIS_TIMEOUT')
     await act(async () => { result.current.retry() })
     expect(fetchAnalysis).toHaveBeenCalledTimes(2)
@@ -71,5 +72,9 @@ describe('useRaceAnalysis', () => {
     renderHook(() => useRaceAnalysis(9636))
     renderHook(() => useRaceAnalysis(9636))
     expect(fetchAnalysis).toHaveBeenCalledTimes(1)
+  })
+
+  it('the timeout message names the same 75 s the loader shows', () => {
+    expect(TIMEOUT_ERROR.message).toContain('within 75 seconds')
   })
 })

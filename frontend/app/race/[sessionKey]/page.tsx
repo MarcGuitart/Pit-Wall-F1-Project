@@ -96,7 +96,7 @@ export default function RacePage() {
     }
   }
 
-  // Loading, the 300 ms hold before arrival, or state 4 (aborted at 45 s).
+  // Loading, the 300 ms hold before arrival, or state 4 (aborted at TIMEOUT_AFTER_MS, 75 s).
   return (
     <AppShell breadcrumb={raceBreadcrumb(meta)}>
       <AnalysisLoadingScreen
