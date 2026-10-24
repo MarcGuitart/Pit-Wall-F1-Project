@@ -8,6 +8,7 @@
  * session's date_end. It puts the session in the visitor's own calendar and
  * promises nothing else: no reminders, no notifications from this site.
  */
+import { useState } from 'react'
 import { buildSessionIcs, downloadIcs, icsFilename, type IcsEventInput } from '@/lib/ics'
 import { googleCalendarUrl, icsUrl } from '@/lib/calendar'
 import { Popover } from './Popover'
@@ -42,9 +43,33 @@ export function AddToCalendarButton({ event, sessionKey, compact = false, classN
     ? `${ui.btn} ${className}`
     : `inline-flex items-center gap-1.5 px-2 py-1 rounded-[3px] border border-border-default text-text-muted hover:text-signal-blue hover:border-signal-blue transition-colors font-mono text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px] ${className}`
   const fromApi = icsUrl(sessionKey)
+  const [icsFailed, setIcsFailed] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const download = (e: React.MouseEvent) => {
     e.stopPropagation()
     downloadIcs(icsFilename(event.summary), buildSessionIcs(event))
+  }
+  // The API's file is fetched rather than linked, so an API without
+  // calendar.ics (an older deploy) is said here instead of opening an error
+  // page; Google Calendar stays on offer either way.
+  const downloadFromApi = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!fromApi) return
+    setIcsFailed(false)
+    setFetching(true)
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 8000)
+    try {
+      const res = await fetch(fromApi, { signal: ctrl.signal })
+      const text = res.ok ? await res.text() : ''
+      if (!text.startsWith('BEGIN:VCALENDAR')) throw new Error('not a calendar file')
+      downloadIcs(icsFilename(event.summary), text)
+    } catch {
+      setIcsFailed(true)
+    } finally {
+      clearTimeout(timer)
+      setFetching(false)
+    }
   }
 
   return (
@@ -60,8 +85,11 @@ export function AddToCalendarButton({ event, sessionKey, compact = false, classN
           Google Calendar
         </a>
         {fromApi
-          ? <a className={ui.btn} href={fromApi} onClick={(e) => e.stopPropagation()}>Apple or Outlook (.ics)</a>
+          ? <button type="button" className={ui.btn} onClick={downloadFromApi} disabled={fetching}>Apple or Outlook (.ics)</button>
           : <button type="button" className={ui.btn} onClick={download}>Apple or Outlook (.ics)</button>}
+        <p role="status" aria-live="polite" style={{ margin: 0, fontSize: 12 }}>
+          {icsFailed ? 'Calendar file is not available right now' : ''}
+        </p>
       </div>
     </Popover>
   )
