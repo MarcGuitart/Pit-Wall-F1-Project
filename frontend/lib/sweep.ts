@@ -4,6 +4,9 @@ import { WAKING_AFTER_MS } from '@/lib/loadPhase'
 /**
  * The diagonal sweep (block 34): three skewed bands cross the screen when a
  * click opens a race or live mode, and leave over the destination's loader.
+ * Block 48: also into the race list, /races, from the landing's calls to
+ * action and the top bar ("Races" on the bands). Docs and Settings keep the
+ * page fade.
  *
  *   cover    0 to 260 ms      the bands come in
  *   hold     at least 120 ms, then until the route has arrived
@@ -15,7 +18,8 @@ import { WAKING_AFTER_MS } from '@/lib/loadPhase'
  *
  * Only a plain click sweeps. Not a modified or middle click (a new tab), not
  * back or forward (nothing calls navigateWithSweep then), not with reduced
- * motion, not to the page already open, not to any other route.
+ * motion, not to the page already open, not to any other route. A first
+ * load is never a click, so it never sweeps either.
  */
 export const COVER_MS = 260
 export const HOLD_MS = 120
@@ -25,8 +29,11 @@ export const GIVE_UP_MS = WAKING_AFTER_MS
 export type SweepPhase = 'idle' | 'cover' | 'hold' | 'uncover'
 export type SweepDirection = 'forward' | 'reverse'
 
-export function sweepTarget(href: string): 'race' | 'live' | null {
+export const RACES_LABEL = 'Races'
+
+export function sweepTarget(href: string): 'race' | 'live' | 'races' | null {
   const path = href.split(/[?#]/)[0]
+  if (path === '/races') return 'races'
   if (/^\/race\/\d+$/.test(path)) return 'race'
   if (/^\/live\/\d+$/.test(path)) return 'live'
   return null

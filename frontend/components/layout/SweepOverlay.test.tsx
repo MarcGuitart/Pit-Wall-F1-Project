@@ -106,6 +106,36 @@ describe('SweepLink', () => {
 })
 
 
+describe('block 48: the sweep into /races', () => {
+  it('a landing call to action sweeps with "Races" on the bands, forward, no pending race', () => {
+    nav.pathname = '/'
+    usePendingRace.getState().set(null)
+    render(<><SweepLink href="/races" label="Races">Pick a race</SweepLink><SweepOverlay /></>)
+    fireEvent.click(screen.getByRole('link', { name: 'Pick a race' }), { button: 0 })
+    expect(nav.push).toHaveBeenCalledWith('/races')
+    expect(phase()).toBe('cover')
+    expect(layer()!.dataset.direction).toBe('forward')
+    expect(layer()!.textContent).toContain('Races')
+    expect(usePendingRace.getState().pending).toBeNull()
+  })
+
+  it('reduced motion: /races is a plain navigation', () => {
+    nav.pathname = '/'
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia
+    render(<><SweepLink href="/races" label="Races">Pick a race</SweepLink><SweepOverlay /></>)
+    const link = screen.getByRole('link', { name: 'Pick a race' })
+    fireEvent.click(link, { button: 0 })
+    expect(phase()).toBe('idle')
+  })
+
+  it('a route change on its own (back, forward, first load) never sweeps', () => {
+    nav.pathname = '/'
+    const { rerender } = render(<SweepOverlay />)
+    arrive(rerender, '/races')
+    expect(phase()).toBe('idle')
+  })
+})
+
 describe('block 34 audit fixes', () => {
   it('the bands and the destination use the design tokens, no fixed colours', () => {
     const css = readFileSync(join(__dirname, 'sweep.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')

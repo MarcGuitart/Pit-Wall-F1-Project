@@ -6,6 +6,7 @@ import { useAccessStore } from '@/stores/accessStore'
 import * as liveStatus from '@/lib/liveStatus'
 import { __resetLiveStatusForTests } from '@/hooks/useLiveStatus'
 import * as ics from '@/lib/ics'
+import { useSweep } from '@/lib/sweep'
 
 // The Live pill is a SweepLink (block 34), which navigates through the router.
 const push = vi.fn()
@@ -227,5 +228,34 @@ describe('the next-session popover', () => {
     await openIt()
     const text = screen.getByRole('dialog').textContent ?? ''
     expect(text).not.toMatch(/push|e-?mail|sms|we(\'|’)ll (remind|notify) you|we will (remind|notify)/i)
+  })
+})
+
+describe('block 48: the top bar sweeps into /races', () => {
+  beforeEach(() => {
+    useSweep.getState().reset()
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
+    push.mockReset()
+  })
+
+  it('Historical sweeps with "Races" on the bands', () => {
+    render(<TopBar />)
+    fireEvent.click(screen.getByRole('link', { name: 'Historical' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('cover')
+    expect(useSweep.getState().label).toBe('Races')
+    expect(push).toHaveBeenCalledWith('/races')
+  })
+
+  it('the breadcrumb links to the race list sweep too', () => {
+    render(<TopBar breadcrumb={[{ label: '2024', href: '/races' }, { label: 'Race' }]} />)
+    fireEvent.click(screen.getByRole('link', { name: '2024' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('cover')
+    expect(useSweep.getState().label).toBe('Races')
+  })
+
+  it('Docs keeps the page fade: no sweep', () => {
+    render(<TopBar />)
+    fireEvent.click(screen.getByRole('link', { name: 'Docs' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('idle')
   })
 })
