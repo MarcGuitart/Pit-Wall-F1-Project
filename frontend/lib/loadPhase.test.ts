@@ -7,15 +7,16 @@ import {
 } from './loadPhase'
 
 describe('phaseAt — the brief\'s boundaries', () => {
-  it('shows nothing under 300 ms, loads to 8 s, wakes to 45 s, then times out', () => {
+  it('shows nothing under 300 ms, loads to 8 s, waits to 75 s, then times out', () => {
     expect(phaseAt(0)).toBe('hidden')
     expect(phaseAt(299)).toBe('hidden')
     expect(phaseAt(300)).toBe('loading')
     expect(phaseAt(7_999)).toBe('loading')
     expect(phaseAt(8_000)).toBe('waking')
     expect(phaseAt(44_999)).toBe('waking')
-    expect(phaseAt(45_000)).toBe('timeout')
-    expect([SHOW_AFTER_MS, WAKING_AFTER_MS, TIMEOUT_AFTER_MS]).toEqual([300, 8_000, 45_000])
+    expect(phaseAt(74_999)).toBe('waking')
+    expect(phaseAt(75_000)).toBe('timeout')
+    expect([SHOW_AFTER_MS, WAKING_AFTER_MS, TIMEOUT_AFTER_MS]).toEqual([300, 8_000, 75_000])
   })
 })
 

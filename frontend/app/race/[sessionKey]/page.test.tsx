@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   fetchAnalysis: vi.fn(),
   fetchSessionMeta: vi.fn(),
   redeemAccessCode: vi.fn(),
+  pingApi: vi.fn(async () => true),   // a long wait asks whether the API answers
 }))
 vi.mock('@/lib/api', () => api)
 
@@ -149,7 +150,7 @@ describe('loader → page', () => {
     expect(container.querySelector('[data-skeleton]')).toBeNull()
   })
 
-  it('aborted at 45 s: state 4 in the loader; Retry asks again', async () => {
+  it('aborted at 75 s, not at 45 s: state 4 in the loader; Retry asks again', async () => {
     api.fetchAnalysis.mockImplementation((_k: number, signal?: AbortSignal) => new Promise((_r, reject) => {
       signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
     }))
@@ -157,6 +158,9 @@ describe('loader → page', () => {
     const { container } = open(27009)
     await flush()
     await at(45_000)
+    await flush()
+    expect(container.querySelector('[data-state="error"]')).toBeNull()   // still waiting: "up to a minute"
+    await at(30_000)
     await flush()
     expect(container.querySelector('[data-state="error"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))

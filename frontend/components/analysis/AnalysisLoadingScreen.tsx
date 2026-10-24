@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { SessionMeta } from '@/types'
-import { loadStartedAt, ruleTargetAt, useLoadPhase } from '@/lib/loadPhase'
+import { TIMEOUT_AFTER_MS, loadStartedAt, ruleTargetAt, useLoadPhase } from '@/lib/loadPhase'
 import { pingApi } from '@/lib/api'
 import { useSessionMeta } from '@/lib/sessionMeta'
 import { useReducedMotion } from '@/lib/motion'
@@ -21,7 +21,7 @@ type Props = {
   startedAt?: number
   /** When the page already holds it; otherwise read from /sessions/{key}/meta. */
   meta?: SessionMeta | null
-  /** State 4 decided by the page (the request was aborted at 45 s): show the error now. */
+  /** State 4 decided by the page (the request was aborted at TIMEOUT_AFTER_MS): show the error now. */
   failed?: boolean
   onRetry?: () => void
   /** Arrival: the loader under the arriving page, fading module by module (lib/arrival.ts). */
@@ -41,12 +41,12 @@ type Props = {
  *   2. 0.3 – 8 s    the page's own skeleton (real header facts, bars where data
  *                   goes), a time rule that never completes, the real elapsed
  *                   clock, and the method panel's static copy
- *   3. 8 – 45 s     a long wait. The API is asked whether it answers (GET /health):
+ *   3. 8 – 75 s     a long wait. The API is asked whether it answers (GET /health):
  *                   if it does, or until it is known, "This analysis is being
  *                   computed and can take up to a minute" (the OpenF1 rate limit
  *                   is the usual cause, see the 24 Oct sweep); only when it does
  *                   not answer, "Waking up the analysis server". No ETA either way.
- *   4. 45 s         the page aborts; the fact, Retry and Back to race list
+ *   4. 75 s         the page aborts; the fact, Retry and Back to race list
  */
 /**
  * During a long wait, whether the API has stopped answering: null until known
@@ -116,7 +116,7 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
             <span className={k.short}>The first request after idle can take up to about 30 seconds. The page opens by itself.</span>
           </>
         )}
-        {state === 'error' && 'The server did not answer within 45 seconds.'}
+        {state === 'error' && `The server did not answer within ${TIMEOUT_AFTER_MS / 1000} seconds.`}
       </p>
       {state === 'error' && (
         <div className={k.actions}>
@@ -134,7 +134,7 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
         meta={meta ?? null}
         mode={leaving ? 'leaving' : state === 'computing' ? 'loading' : state}
         status={status}
-        rule={leaving ? 1 : ruleTargetAt(state === 'error' ? 45_000 : elapsedMs, reduced)}
+        rule={leaving ? 1 : ruleTargetAt(state === 'error' ? TIMEOUT_AFTER_MS : elapsedMs, reduced)}
       />
     </div>
   )

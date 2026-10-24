@@ -84,12 +84,14 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     ping.answer = true
   })
 
-  it('state 4: at 45 s the fact, Retry and Back to race list; the clock goes', () => {
+  it('state 4: at 75 s the fact, Retry and Back to race list; the clock goes', () => {
     const retry = vi.fn()
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} onRetry={retry} />)
-    at(45_000)
+    at(74_999)
+    expect(state(container)).not.toBe('error')   // "up to a minute" is kept: no cut before 75 s
+    at(1)
     expect(state(container)).toBe('error')
-    expect(screen.getByText('The server did not answer within 45 seconds.')).toBeTruthy()
+    expect(screen.getByText('The server did not answer within 75 seconds.')).toBeTruthy()
     expect(screen.queryByText(/Elapsed/)).toBeNull()
     screen.getByRole('button', { name: 'Retry' }).click()
     expect(retry).toHaveBeenCalled()

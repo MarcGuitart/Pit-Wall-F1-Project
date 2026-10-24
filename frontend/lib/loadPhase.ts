@@ -11,12 +11,13 @@ import { useEffect, useState } from 'react'
  *   hidden    0 – 300 ms    nothing: a cache hit answers in ~150 ms, and a
  *                           loader that flashes for a frame reads as a glitch
  *   loading   300 ms – 8 s  the loader
- *   waking    8 – 45 s      the free-tier server is probably asleep: say so
- *   timeout   45 s          give up (the request is aborted) and offer a retry
+ *   waking    8 – 75 s      a long wait: being computed (the OpenF1 rate limit makes a
+ *                           cold analysis take up to a minute), or the server asleep
+ *   timeout   75 s          give up (the request is aborted) and offer a retry
  */
 export const SHOW_AFTER_MS = 300
 export const WAKING_AFTER_MS = 8_000
-export const TIMEOUT_AFTER_MS = 45_000
+export const TIMEOUT_AFTER_MS = 75_000
 
 export type LoadPhase = 'hidden' | 'loading' | 'waking' | 'timeout'
 
