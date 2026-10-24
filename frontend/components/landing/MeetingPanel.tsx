@@ -4,6 +4,7 @@ import type { SessionInfo } from '@/types'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { Badge, buttonClass } from '@/components/ui'
 import { sessionState, showsProChip, type StateContext } from '@/lib/sessionStates'
+import { useWarmRace } from '@/lib/warm'
 import l from './landing.module.css'
 
 const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -30,6 +31,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
   onRetry: () => void
   onOpen: (sessionKey: number, click: React.MouseEvent, label: string) => void
 }) {
+  const warm = useWarmRace()
   return (
     <div id={id} className={l.panel} role="region" aria-labelledby={cellId} aria-busy={data.status === 'loading'}>
       <h3 className={l.panelTitle}>Sessions, {place}</h3>
@@ -66,6 +68,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
                   {st.action === 'open' && (
                     <a
                       href={`/race/${s.session_key}`}
+                      {...warm(`/race/${s.session_key}`)}
                       className={buttonClass('primary')}
                       onClick={(e) => {
                         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
