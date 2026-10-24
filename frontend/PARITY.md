@@ -488,7 +488,7 @@ Decidido el 20 de octubre (bloque 43): se dejan como están en este deploy. El s
 | Feature | Motivo | Estado |
 |---|---|---|
 | `/preview/*` (prototipo del rediseño) | No es parte de la app; se deja intacto. Hereda los restilados de los componentes compartidos. | descartado: prototipo, sin cambios |
-| `app/api/engineer-chat/route.ts` | Ruta de API, no UI; ningún componente la llama. | descartado: no es UI |
+| `app/api/engineer-chat/route.ts` | Ruta de API, no UI; ningún componente la llama ni otra cosa leía ANTHROPIC_API_KEY. | eliminada (24 Oct) |
 
 ### Inalcanzables desde cualquier ruta en main (no son features visibles; no se tocan)
 
