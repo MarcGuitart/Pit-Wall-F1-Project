@@ -49,17 +49,20 @@ and (since Block 26d, additive) `location`, `is_cancelled`.
 
 ### GET /stats
 Public (no PRO), counts only (Block 29) — the landing's proof strip. Read from
-the cached `_analysis.json` files with `analysis_version == ANALYSIS_VERSION`
-(an older or unreadable file is not counted):
-- `sessions`: how many such analyses exist;
+the published `_analysis.json` files (see "Published" below) with
+`analysis_version == ANALYSIS_VERSION` (an older or unreadable file is not counted):
+- `sessions`: published analyses, the analyses versioned in the repo
+  (definition: "Published analyses: the analyses versioned in the repo, built
+  with the current pipeline.");
 - `driver_laps`: Σ over those analyses and over True Pace rows of the clean
   laps used (`sample_size`) plus the laps the exclusion log removed;
 - `seasons`: distinct `race.year` values;
 - `modules` / `module_names`: the fields of `FullRaceAnalysis` minus its
   envelope (`race`, `analysis_version`, `modules`) — the pipeline's registry;
 - `analysis_version`, `definitions` (one sentence per figure, for footnotes).
-Cached in memory, recomputed when ANALYSIS_VERSION or any analysis file's
-mtime or size changes.
+Cached in memory, recomputed when ANALYSIS_VERSION or a published analysis
+file's mtime or size changes. An analysis computed on demand after the server
+started changes no figure.
 
 ### GET /sessions/{session_key}/meta
 Public (no PRO), light (Block 27). What a page can say about a session before
@@ -80,10 +83,18 @@ Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503,
 RATE_LIMITED 429 (details: `retry_after_seconds`, `scope` ip, `limit`, `window_seconds`).
 
 ### GET /published
-Sessions with a published analysis (an `_analysis.json` on this server). Public, never calls OpenF1.
+Sessions with a published analysis. Public, never calls OpenF1.
+
+**Published** means an `_analysis.json` that was in the cache directory when the server started
+(`backend/app/api/published_set.py`, snapshot taken in the startup hook). On Render the API has no disk, so
+that is exactly what the built commit carries in `backend/cache/`: the analyses versioned in the repo. An
+analysis computed on demand afterwards is written to the same directory and served by `/analysis`, but
+`/published` and `/stats` leave it out; the next deploy is what publishes. The `/races` panel keeps showing
+such a session as "Opens on demand".
+
 `{"count": n, "sessions": [{"session_key", "meeting_key", "year", "session_name", "session_type"}]}`,
 sorted by `session_key`; fields other than the key are null when the session has no `_session_meta.json`.
-Indexed in memory, rebuilt when a session directory changes.
+Indexed in memory, rebuilt when a session directory changes (a rewritten meta, a removed analysis).
 
 ### GET /sessions/{session_key}/calendar.ics
 One session as an RFC 5545 file (`text/calendar`, served inline). Times in UTC, `UID:pitwall-<key>@pitwallengineer.com`

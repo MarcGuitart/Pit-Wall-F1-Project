@@ -3,11 +3,13 @@ GET /published                      which sessions have a published analysis (bl
 GET /sessions/{session_key}/calendar.ics   one session as an RFC 5545 calendar file
 
 /published answers the /races panel's cell states without asking for any
-analysis: a session is published when its _analysis.json is on disk. Public,
+analysis: a session is published when its _analysis.json was on disk when the
+server started (app.api.published_set: on Render, the analyses versioned in
+the repo); one computed on demand afterwards is not listed. Public,
 not PRO: it lists session keys and calendar facts, never analysis content.
 It never touches OpenF1. The index lives in memory and is rebuilt only when
-the cache directory, or one of its session directories, changes mtime (a new
-_analysis.json changes its directory's mtime), so a request costs a stat per
+the cache directory, or one of its session directories, changes mtime (a
+rewritten meta or a removed analysis), so a request costs a stat per
 directory, not a read per file.
 
 calendar.ics reuses /sessions/{key}/meta for the facts (disk first, OpenF1
@@ -29,6 +31,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.api import published_set
 from app.api.session_meta import session_meta
 from app.core.config import settings
 from app.core.errors import AppError
@@ -36,7 +39,7 @@ from app.core.errors import AppError
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["sessions"])
 
-ANALYSIS_FILE = "_analysis.json"
+ANALYSIS_FILE = published_set.ANALYSIS_FILE
 META_FILE = "_session_meta.json"
 PRODUCT = "Pit Wall Engineer"
 UID_DOMAIN = "pitwallengineer.com"
@@ -78,9 +81,8 @@ class _Index:
     def _build(root: Path) -> PublishedIndex:
         rows: list[PublishedSession] = []
         if root.is_dir():
-            for d in root.iterdir():
-                if not (d.is_dir() and d.name.isdigit() and (d / ANALYSIS_FILE).is_file()):
-                    continue
+            for f in published_set.files(root):
+                d = f.parent
                 meta: dict = {}
                 try:
                     meta = json.loads((d / META_FILE).read_text())
@@ -115,6 +117,7 @@ _index = _Index()
 def _reset_for_tests() -> None:
     global _index
     _index = _Index()
+    published_set._reset_for_tests()
 
 
 @router.get("/published", response_model=PublishedIndex)

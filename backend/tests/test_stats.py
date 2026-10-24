@@ -88,9 +88,9 @@ def test_cached_until_a_file_changes(cache, client, monkeypatch):
     os.utime(p, ns=(p.stat().st_atime_ns, p.stat().st_mtime_ns + 1_000_000))
     assert client.get("/stats").json()["driver_laps"] == 2 * 69
     assert calls["n"] == 2
-    cache(11377, analysis(2026, [ROW]))                   # a new publication
-    assert client.get("/stats").json()["sessions"] == 2
-    assert calls["n"] == 3
+    cache(11377, analysis(2026, [ROW]))                   # computed on demand after boot
+    assert client.get("/stats").json()["sessions"] == 1
+    assert calls["n"] == 2                                # not a publication: nothing to recompute
 
 
 def test_a_new_pipeline_version_invalidates(cache, client, monkeypatch):
@@ -106,3 +106,32 @@ def test_the_real_cache(client):
     body = client.get("/stats").json()
     assert body["sessions"] > 0 and body["driver_laps"] > body["sessions"]
     assert 2024 in body["seasons"]
+
+
+def test_an_analysis_computed_after_boot_changes_no_figure(cache, client, monkeypatch):
+    """The figures are the published analyses (present at boot: the repo's, on Render). An analysis
+    written later by /analysis, through the real cache writer, changes none of them."""
+    from app.core import cache as cache_store
+    cache(9636, analysis(2024, [ROW]))
+    before = client.get("/stats").json()
+    cache_store.set_full_analysis(11377, analysis(2026, [ROW, ROW]))
+    after = client.get("/stats").json()
+    assert after == before
+    assert after["sessions"] == 1 and after["seasons"] == [2024] and after["driver_laps"] == 69
+
+
+def test_the_snapshot_is_taken_at_startup_not_at_the_first_request(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "cache_dir", str(tmp_path))
+    stats_api._reset_for_tests()
+    (tmp_path / "9636").mkdir()
+    (tmp_path / "9636" / "_analysis.json").write_text(json.dumps(analysis(2024, [ROW])))
+    with TestClient(app) as c:                            # runs the startup hook
+        (tmp_path / "11377").mkdir()                       # before any request, after boot
+        (tmp_path / "11377" / "_analysis.json").write_text(json.dumps(analysis(2026, [ROW])))
+        assert c.get("/stats").json()["sessions"] == 1
+        assert c.get("/published").json()["count"] == 1
+    stats_api._reset_for_tests()
+
+
+def test_sessions_is_defined_as_the_analyses_versioned_in_the_repo(cache, client):
+    assert "versioned in the repo" in client.get("/stats").json()["definitions"]["sessions"]

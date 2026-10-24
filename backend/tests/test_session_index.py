@@ -62,18 +62,46 @@ def test_published_lists_only_sessions_with_an_analysis(cache):
     ]
 
 
-def test_published_is_rebuilt_when_an_analysis_lands_and_not_otherwise(cache, monkeypatch):
+def test_published_ignores_an_analysis_computed_after_boot(cache, monkeypatch):
+    """Published means present at boot (the repo's analyses on Render). One computed on demand later, by the
+    real cache writer, is served by /analysis but is not listed, and nothing is rebuilt for it."""
+    from app.core import cache as cache_store
+    _session(cache, 9636, {"year": 2024}, True)
     d = _session(cache, 11372, {"year": 2026}, False)
-    assert client.get("/published").json()["count"] == 0
+    before = client.get("/published").json()
+    assert before["count"] == 1
     builds = []
     real = session_index._Index._build
     monkeypatch.setattr(session_index._Index, "_build", staticmethod(lambda root: builds.append(1) or real(root)))
     client.get("/published")
     assert builds == []                                      # nothing changed on disk
-    (d / "_analysis.json").write_text("{}")
+    cache_store.set_full_analysis(11372, {})
     os.utime(d, ns=(time.time_ns() + 10**9,) * 2)            # mtime granularity on some filesystems
+    assert (d / "_analysis.json").is_file()
+    assert client.get("/published").json() == before
+
+
+def test_published_drops_a_boot_analysis_that_is_removed(cache):
+    d = _session(cache, 9636, {"year": 2024}, True)
     assert client.get("/published").json()["count"] == 1
-    assert builds == [1]
+    (d / "_analysis.json").unlink()
+    os.utime(d, ns=(time.time_ns() + 10**9,) * 2)
+    assert client.get("/published").json()["count"] == 0
+
+
+def test_race_sessions_and_their_published_label_do_not_change_after_an_on_demand_analysis(cache):
+    """/races/{meeting}/sessions and the set the panel labels "Published" with are the same before and
+    after an analysis of one of those sessions is computed on demand."""
+    from app.core import cache as cache_store
+    shutil.copy(REPO_CACHE / "meeting_1238_sessions.json", cache / "meeting_1238_sessions.json")
+    _session(cache, 9539, {"meeting_key": 1238, "year": 2024, "session_name": "Race", "session_type": "Race"}, True)
+    rows = client.get("/races/1238/sessions")
+    assert rows.status_code == 200 and len(rows.json()) == 5
+    published = {s["session_key"] for s in client.get("/published").json()["sessions"]}
+    assert published == {9539}
+    cache_store.set_full_analysis(9535, {})                  # the Qualifying, computed on demand
+    assert client.get("/races/1238/sessions").json() == rows.json()
+    assert {s["session_key"] for s in client.get("/published").json()["sessions"]} == published
 
 
 def test_published_reads_the_repo_cache_without_writing_it():

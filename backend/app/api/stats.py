@@ -2,9 +2,12 @@
 GET /stats — the landing's proof strip, from what this server has actually
 published (Block 29). Public, not PRO: counts only, no race content.
 
-Every figure is read from the cached _analysis.json files written by the
-current pipeline (analysis_version == ANALYSIS_VERSION); an older or unreadable
-file is not counted, because it is not what /analysis would serve.
+Every figure is read from the published _analysis.json files (those present
+when the server started, app.api.published_set: on Render, the analyses
+versioned in the repo; one computed on demand afterwards changes nothing here)
+written by the current pipeline (analysis_version == ANALYSIS_VERSION); an
+older or unreadable file is not counted, because it is not what /analysis
+would serve.
 
   sessions      how many such analyses exist
   driver_laps   Σ over those analyses, Σ over True Pace rows, of the driver's
@@ -29,6 +32,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app.api import published_set
 from app.core.config import settings
 from app.core.version import ANALYSIS_VERSION
 from app.domain.models import FullRaceAnalysis
@@ -41,7 +45,7 @@ ENVELOPE = {"race", "analysis_version", "modules"}
 EXCLUDED = re.compile(r"^\s*(\d+)\s+laps?\s+excluded\b", re.I)
 
 DEFINITIONS = {
-    "sessions": "Sessions whose analysis this server has published with the current pipeline.",
+    "sessions": "Published analyses: the analyses versioned in the repo, built with the current pipeline.",
     "driver_laps": "Laps examined for True Pace, summed over every driver of every analysed session: the clean laps used plus the laps the exclusion log removed.",
     "seasons": "Seasons with at least one analysed session.",
     "modules": "Sections every analysis is built from, as the pipeline defines them.",
@@ -72,9 +76,7 @@ def _excluded_laps(log: list) -> int:
 
 
 def _analysis_files(root: Path) -> list[Path]:
-    if not root.is_dir():
-        return []
-    return sorted(p for p in root.glob("*/_analysis.json") if p.parent.name.isdigit())
+    return published_set.files(root)
 
 
 def _fingerprint(files: list[Path]) -> tuple:
@@ -121,6 +123,7 @@ _cached: tuple[tuple, Stats] | None = None
 def _reset_for_tests() -> None:
     global _cached
     _cached = None
+    published_set._reset_for_tests()
 
 
 @router.get("/stats", response_model=Stats)
