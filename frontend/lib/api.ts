@@ -213,6 +213,24 @@ export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex |
   }
 }
 
+/**
+ * Whether the API answers at all (GET /health, no token). The analysis loader
+ * asks once a long wait has begun: an answer means the server is up and the
+ * analysis is being computed; silence means it is asleep or unreachable.
+ */
+export async function pingApi(timeoutMs = 4000): Promise<boolean> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/health`, { signal: ctrl.signal })
+    return res.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)

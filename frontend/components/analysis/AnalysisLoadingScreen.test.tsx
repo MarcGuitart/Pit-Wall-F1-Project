@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import type { SessionMeta } from '@/types'
 
-vi.mock('@/lib/api', () => ({ fetchSessionMeta: vi.fn(() => new Promise(() => {})) }))
+const ping = vi.hoisted(() => ({ answer: true as boolean }))
+vi.mock('@/lib/api', () => ({
+  fetchSessionMeta: vi.fn(() => new Promise(() => {})),
+  pingApi: vi.fn(async () => ping.answer),
+}))
 vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a href={href} {...p}>{children}</a> }))
 
 import { AnalysisLoadingScreen } from './AnalysisLoadingScreen'
@@ -53,14 +57,31 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     expect(screen.getByText('n is the number of clean laps behind a pace figure.')).toBeTruthy()
   })
 
-  it('state 3: waking at 8 s, with no ETA', () => {
+  it('state 3: at 8 s with the API answering, "being computed", with no ETA', async () => {
+    ping.answer = true
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
     at(7_999)
     expect(state(container)).toBe('loading')
     at(1)
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    expect(screen.getByText('This analysis is being computed and can take up to a minute')).toBeTruthy()
+    expect(screen.queryByText('Waking up the analysis server')).toBeNull()
+    expect(container.textContent).not.toMatch(/\bETA\b|remaining|\d+\s*%/i)
+  })
+
+  it('state 3: "waking up" only when the API does not answer', async () => {
+    ping.answer = false
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(8_000)
+    await act(async () => {})
     expect(state(container)).toBe('waking')
     expect(screen.getByText('Waking up the analysis server')).toBeTruthy()
-    expect(container.textContent).not.toMatch(/\bETA\b|remaining|\d+\s*%/i)
+    ping.answer = true
+    at(8_000)                                  // asked again while it stays silent
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    ping.answer = true
   })
 
   it('state 4: at 45 s the fact, Retry and Back to race list; the clock goes', () => {
