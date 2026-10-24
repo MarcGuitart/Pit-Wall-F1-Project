@@ -25,6 +25,24 @@ export const COVER_MS = 260
 export const HOLD_MS = 120
 export const UNCOVER_MS = 320
 export const GIVE_UP_MS = WAKING_AFTER_MS
+/** From here the bands say "This is taking longer than usual" (block 48). */
+export const LONG_WAIT_MS = WAKING_AFTER_MS
+/**
+ * The race list has no loader of its own behind the bands: they hold past
+ * 8 s (saying the wait is long) until it arrives, and give up here.
+ */
+export const LIST_GIVE_UP_MS = 20_000
+
+/** When the bands give up on a destination that has not arrived. */
+export function giveUpAfter(href: string | null): number {
+  return href !== null && sweepTarget(href) === 'races' ? LIST_GIVE_UP_MS : GIVE_UP_MS
+}
+
+/** Real elapsed time as mm:ss; never a percentage or a count of anything. */
+export function elapsedClock(ms: number): string {
+  const secs = Math.max(0, Math.floor(ms / 1000))
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
+}
 
 export type SweepPhase = 'idle' | 'cover' | 'hold' | 'uncover'
 export type SweepDirection = 'forward' | 'reverse'
@@ -62,11 +80,12 @@ export function shouldSweep(href: string, pathname: string, click: ClickLike | n
 
 /**
  * When the bands start to leave, given when the cover ended and when the
- * route arrived (null: not yet). Never later than GIVE_UP_MS from the click.
+ * route arrived (null: not yet). Never later than `limitMs` from the click
+ * (GIVE_UP_MS, or LIST_GIVE_UP_MS for the race list: giveUpAfter).
  */
-export function uncoverAt(startedAt: number, readyAt: number | null): { at: number; gaveUp: boolean } {
+export function uncoverAt(startedAt: number, readyAt: number | null, limitMs = GIVE_UP_MS): { at: number; gaveUp: boolean } {
   const earliest = startedAt + COVER_MS + HOLD_MS
-  const limit = startedAt + GIVE_UP_MS
+  const limit = startedAt + limitMs
   if (readyAt !== null && Math.max(earliest, readyAt) <= limit) return { at: Math.max(earliest, readyAt), gaveUp: false }
   return { at: limit, gaveUp: true }
 }

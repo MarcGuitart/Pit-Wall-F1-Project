@@ -48,14 +48,32 @@
 @keyframes uncoverOut { from { transform: translateX(0) skewX(-22deg); } to { transform: translateX(220vw) skewX(-22deg); } }
 @keyframes uncoverOutReverse { from { transform: translateX(0) skewX(-22deg); } to { transform: translateX(-220vw) skewX(-22deg); } }
 
-/* The destination, upright on the dark band. */
+/* The destination and the wait, upright on the dark band. */
+.upright { transform: skewX(22deg); display: grid; justify-items: center; gap: 18px; max-width: 30vw; }
+@media (max-width: 640px) { .upright { max-width: 44vw; } }
 .label {
-  transform: skewX(22deg); color: var(--pw-text); font-weight: 900; text-transform: uppercase; line-height: 1;
-  font-size: clamp(20px, 3.4vw, 48px); letter-spacing: -0.01em; max-width: 30vw; text-align: center; overflow-wrap: anywhere;
+  color: var(--pw-text); font-weight: 900; text-transform: uppercase; line-height: 1;
+  font-size: clamp(20px, 3.4vw, 48px); letter-spacing: -0.01em; text-align: center; overflow-wrap: anywhere;
   opacity: 0; animation: labelIn 120ms ease-out 140ms forwards;
 }
-@media (max-width: 640px) { .label { max-width: 44vw; } }
 .layer[data-phase="hold"] .label { opacity: 1; animation: none; }
 .layer[data-phase="uncover"] .label { opacity: 1; animation: labelOut 100ms ease-in forwards; }
 @keyframes labelIn { to { opacity: 1; } }
 @keyframes labelOut { to { opacity: 0; } }
+
+/* Block 48: the wait. Shown in the hold (the cover is too short to read),
+   gone with the uncover. The stroke's opacity is the only loop (the Settle
+   strip's pulse); the clock's text changes once a second, nothing moves. */
+.wait { display: grid; justify-items: center; gap: 8px; color: var(--pw-muted); font-size: 13px; letter-spacing: 0.04em; opacity: 0; }
+.layer[data-phase="hold"] .wait { animation: labelIn 120ms ease-out forwards; }
+.waitHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; text-align: center; }
+.stroke { width: 4px; height: 16px; flex: none; background: var(--pw-accent); transform: skewX(-22deg); }
+.layer[data-phase="hold"] .stroke { animation: strokePulse 1600ms ease-in-out infinite; }
+@keyframes strokePulse { 50% { opacity: 0.45; } }
+.clock { color: var(--pw-text); font-weight: 800; font-variant-numeric: tabular-nums; }
+.waitLong { color: var(--pw-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .layer[data-phase="hold"] .stroke { animation: none; }
+  .layer[data-phase="hold"] .wait { animation: none; opacity: 1; }
+}

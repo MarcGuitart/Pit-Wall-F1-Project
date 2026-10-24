@@ -161,3 +161,82 @@ describe('block 34 audit fixes', () => {
     usePendingRace.setState({ pending: null })
   })
 })
+
+describe('block 48: the wait on the bands', () => {
+  const css = readFileSync(join(__dirname, 'sweep.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const wait = () => document.querySelector('[data-sweep-wait]') as HTMLElement | null
+  const clock = () => document.querySelector('[data-sweep-clock]')?.textContent
+
+  function clickToRaces() {
+    nav.pathname = '/'
+    usePendingRace.getState().set(null)
+    const utils = render(<><SweepLink href="/races" label="Races">Pick a race</SweepLink><SweepOverlay /></>)
+    fireEvent.click(screen.getByRole('link', { name: 'Pick a race' }), { button: 0 })
+    return utils
+  }
+
+  it('says what is loading and the real time since the click, as mm:ss', () => {
+    clickToRaces()
+    act(() => { vi.advanceTimersByTime(400) })
+    expect(phase()).toBe('hold')
+    expect(wait()!.getAttribute('role')).toBe('status')
+    expect(wait()!.textContent).toContain('Loading Races')
+    expect(clock()).toBe('00:00')
+    act(() => { vi.advanceTimersByTime(2_700) })
+    expect(clock()).toBe('00:03')
+    expect(wait()!.dataset.sweepWait).toBe('loading')
+  })
+
+  it('claims nothing it cannot know: no percentage, no count, no advancing bar', () => {
+    clickToRaces()
+    act(() => { vi.advanceTimersByTime(5_000) })
+    const text = layer()!.textContent ?? ''
+    expect(text).not.toMatch(/%/)
+    expect((text.match(/\d+/g) ?? []).join(' ')).toBe('00 05')     // the clock, nothing else
+    expect(document.querySelector('[role="progressbar"], progress, [style*="scaleX"]')).toBeNull()
+  })
+
+  it('/races not there at 8 s: "This is taking longer than usual", the bands hold, then give up at 20 s', () => {
+    clickToRaces()
+    act(() => { vi.advanceTimersByTime(7_999) })
+    expect(screen.queryByText('This is taking longer than usual')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) })
+    act(() => { vi.advanceTimersByTime(250) })
+    expect(phase()).toBe('hold')
+    expect(wait()!.dataset.sweepWait).toBe('long')
+    expect(screen.getByText('This is taking longer than usual')).toBeTruthy()
+    expect(clock()).toBe('00:08')
+    act(() => { vi.advanceTimersByTime(11_750) })
+    expect(phase()).toBe('uncover')
+    expect(layer()!.dataset.gaveUp).toBe('true')
+    expect(wait()).toBeNull()
+  })
+
+  it('/races arriving at 2 s: the bands leave and the wait goes with them', () => {
+    const { rerender } = clickToRaces()
+    act(() => { vi.advanceTimersByTime(2_000) })
+    nav.pathname = '/races'
+    rerender(<><SweepLink href="/races" label="Races">Pick a race</SweepLink><SweepOverlay /></>)
+    act(() => { vi.advanceTimersByTime(10) })
+    expect(phase()).toBe('uncover')
+    expect(wait()).toBeNull()
+  })
+
+  it('a race still gives up at 8 s, onto its own loader (unchanged)', () => {
+    nav.pathname = '/races'
+    render(<SweepOverlay />)
+    act(() => { useSweep.getState().start('/race/9636', 'São Paulo · 2024', Date.now()) })
+    act(() => { vi.advanceTimersByTime(8_000) })
+    expect(phase()).toBe('uncover')
+  })
+
+  it('the stroke pulses in opacity only, the one loop; reduced motion stops it and keeps the clock', () => {
+    const loops = Array.from(css.matchAll(/([^{}]+)\{([^{}]*infinite[^{}]*)\}/g), (m) => m[1].trim())
+    expect(loops).toEqual(['.layer[data-phase="hold"] .stroke'])
+    expect(css).toMatch(/@keyframes strokePulse \{ 50% \{ opacity: 0\.45; \} \}/)
+    expect(css).toMatch(/\.stroke \{[^}]*background: var\(--pw-accent\)/)
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(reduced).toMatch(/\.layer\[data-phase="hold"\] \.stroke \{ animation: none; \}/)
+    expect(reduced).not.toMatch(/\.clock[^{]*\{[^}]*(display: none|visibility: hidden|opacity: 0)/)
+  })
+})
