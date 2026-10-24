@@ -105,12 +105,52 @@ def read_state(path: Path) -> dict[str, int]:
     return {k: v for k, v in (data.get("lap_counts") or {}).items() if isinstance(v, int)}
 
 
+def _read_raw(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def write_state(path: Path, lap_counts: dict[str, int]) -> None:
+    # Keeps whatever else the file holds (the error counters below).
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
+    data = _read_raw(path)
+    data.update({
         "written_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "lap_counts": lap_counts,
-    }, indent=2))
+    })
+    path.write_text(json.dumps(data, indent=2))
+
+
+# ── errors that repeat ───────────────────────────────────────────────────────
+# Hourly runs see the same failure again and again (OpenF1 refusing the season
+# list for a whole session, say). Each distinct error is counted across runs in
+# the state file: Telegram says it once when it appears and once more when it
+# has failed PERSIST_RUNS runs in a row, and that second time an issue is
+# opened. An error that stops appearing is forgotten, so a later return is new.
+PERSIST_RUNS = 3
+
+
+def error_signature(e: dict) -> str:
+    return f"{e.get('session_key') or '-'}|{e.get('error')}"
+
+
+def track_errors(path: Path, report: dict) -> None:
+    data = _read_raw(path)
+    previous = data.get("errors") if isinstance(data.get("errors"), dict) else {}
+    current: dict[str, dict] = {}
+    for e in report.get("errors", []):
+        sig = error_signature(e)
+        seen = previous.get(sig) or {"first_at": report.get("at"), "runs": 0}
+        seen = {"first_at": seen.get("first_at") or report.get("at"), "runs": int(seen.get("runs", 0)) + 1}
+        current[sig] = seen
+        e.update(runs=seen["runs"], first_at=seen["first_at"], persistent=seen["runs"] >= PERSIST_RUNS)
+    report["resolved_errors"] = sorted(sig for sig in previous if sig not in current)
+    data["errors"] = current
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2))
 
 
 # ── one session ──────────────────────────────────────────────────────────────
@@ -360,6 +400,8 @@ def main() -> int:
 
     report = asyncio.run(run(keys, Path(args.state_file), args.dry_run, args.year,
                              Path(args.exclusions_file), args.limit))
+    if not args.dry_run:
+        track_errors(Path(args.state_file), report)
     log("REPORT:" + json.dumps(report, default=str))
 
     if report["errors"]:

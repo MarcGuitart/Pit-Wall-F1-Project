@@ -49,6 +49,9 @@ sys.path.insert(0, ".")           # backend/ — for app.core.branding, nothing 
 from app.core.branding import PRODUCT_NAME  # noqa: E402
 
 API = "https://api.telegram.org"
+# Mirrors scripts/autopublish.py PERSIST_RUNS (not imported: this script runs without the app).
+PERSIST_RUNS = 3
+
 CHAOS_EMOJI = {"Low": "🟢", "Medium": "🟡", "High": "🟠", "Extreme": "🔴"}
 
 
@@ -87,7 +90,10 @@ def build_message(report: dict, env: dict) -> str | None:
     """The message, or None when there is genuinely nothing to say."""
     published = report.get("published") or []
     stuck = report.get("stuck") or []
-    errors = report.get("errors") or []
+    # Each distinct error is said when it first appears and again when it has
+    # failed PERSIST_RUNS runs in a row (autopublish.track_errors); the runs in
+    # between and after stay quiet. An error without a count is always said.
+    errors = [e for e in (report.get("errors") or []) if e.get("runs") in (None, 1) or e.get("runs") == PERSIST_RUNS]
     deferred = report.get("deferred") or []
     failed_job = (env.get("JOB_STATUS") or "success") not in ("success", "")
 
@@ -117,6 +123,13 @@ def build_message(report: dict, env: dict) -> str | None:
         for e in errors:
             where = f"session {e['session_key']}: " if e.get("session_key") else ""
             out.append(f"• {esc(where)}{esc(e.get('error'))}")
+            runs = e.get("runs")
+            if runs == PERSIST_RUNS:
+                out.append(f"  Still failing, {runs} runs in a row (since {esc(e.get('first_at'))}). "
+                           f"An issue is open: {esc(env.get('ISSUES_URL', ''))}".rstrip())
+            elif runs == 1:
+                out.append("  New: 1 run. Said once; you hear again only if it is still failing "
+                           f"after {PERSIST_RUNS} runs.")
         out.append("")
 
     if failed_job and not (stuck or errors):
