@@ -37,6 +37,14 @@ router = APIRouter(tags=["analysis"])
 
 # What OPENF1_RATE_LIMIT tells the reader to wait before retrying.
 RATE_LIMIT_RETRY_S = 60
+# At most this many cold builds at once, across all sessions. Each costs about
+# 13 OpenF1 requests against one shared limiter (27/min anonymous, 55 with an
+# account); past two, every build queues behind the others and runs into the
+# page's 45 s limit (24 Oct sweep). A request that would start a third gets 429
+# ANALYSIS_BUSY with a countdown; joining a build already running, and every
+# cached answer, never does.
+COLD_BUILD_LIMIT = 2
+BUSY_RETRY_S = 20
 logger = logging.getLogger(__name__)
 
 # ── Single-flight lock per session_key ────────────────────────────────────
@@ -348,9 +356,21 @@ def _forget_build(session_key: int, task: asyncio.Task) -> None:
         task.exception()  # retrieved: an unawaited failure must not log as "never retrieved"
 
 
+def _running_builds() -> int:
+    return sum(1 for t in _builds.values() if not t.done())
+
+
 async def _shared_build(session_key: int, session_meta: dict, force_refresh: bool) -> FullRaceAnalysis:
     task = _builds.get(session_key)
     if task is None or task.done():
+        if _running_builds() >= COLD_BUILD_LIMIT:
+            logger.info("[ANALYSIS] %s refused: %d builds already running", session_key, _running_builds())
+            raise AppError(
+                "ANALYSIS_BUSY",
+                "Other analyses are being computed right now. This one starts as soon as one finishes.",
+                status=429,
+                details={"session_key": session_key, "retry_after_seconds": BUSY_RETRY_S, "scope": "server"},
+            )
         task = asyncio.ensure_future(_build(session_key, session_meta, force_refresh))
         _builds[session_key] = task
         task.add_done_callback(lambda t, k=session_key: _forget_build(k, t))

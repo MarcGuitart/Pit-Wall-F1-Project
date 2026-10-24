@@ -46,6 +46,7 @@ const CODE_TO_STATE: Record<string, ErrorCode> = {
   SESSION_NOT_HISTORICAL_YET: 'SESSION_NOT_HISTORICAL_YET',
   SESSION_NOT_CACHED: 'SESSION_NOT_CACHED',
   OPENF1_RATE_LIMIT: 'OPENF1_RATE_LIMIT',
+  ANALYSIS_BUSY: 'OPENF1_RATE_LIMIT', // too many analyses computing at once (backend COLD_BUILD_LIMIT): same countdown
   OPENF1_ERROR: 'OPENF1_ERROR',
   ANALYSIS_FAILED: 'ANALYSIS_FAILED',
   // A crash inside /analysis is a failed analysis from the page's point of view.
