@@ -9,6 +9,7 @@ import dynamic from 'next/dynamic'
 import { usePendingRace } from '@/lib/raceNav'
 import { useSessionMeta } from '@/lib/sessionMeta'
 import { raceBreadcrumb } from '@/lib/sessionFacts'
+import { LiveShellLoading } from '@/components/live/LiveShellLoading'
 import s from './shell.module.css'
 
 // Loaded on demand: only a click on a race needs it, and every page renders
@@ -44,9 +45,9 @@ export function AppShell({ children, breadcrumb }: AppShellProps) {
 
   return (
     <PwRoot className={s.shell}>
-      <TopBar breadcrumb={waiting ? raceBreadcrumb(pendingMeta) : breadcrumb} />
+      <TopBar breadcrumb={waiting ? (pending.kind === 'live' ? [{ label: 'Live' }] : raceBreadcrumb(pendingMeta)) : breadcrumb} />
       <main className={s.main}>
-        {waiting ? <AnalysisLoadingScreen sessionKey={pending.key} /> : children}
+        {waiting ? (pending.kind === 'live' ? <LiveShellLoading /> : <AnalysisLoadingScreen sessionKey={pending.key} />) : children}
       </main>
       <SiteFooter />
     </PwRoot>

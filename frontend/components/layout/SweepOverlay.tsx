@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { COVER_MS, UNCOVER_MS, uncoverAt, useSweep } from '@/lib/sweep'
+import { ui } from '@/components/ui'
 import s from './sweep.module.css'
 
 /**
@@ -51,7 +52,10 @@ export function SweepOverlay() {
   if (phase === 'idle') return null
   return (
     <div
-      className={s.layer}
+      // The system root's class, for its tokens; its ground would cover the page, so none here.
+      className={`${ui.root} ${s.layer}`}
+      data-theme="dark"
+      style={{ background: 'transparent' }}
       data-phase={phase}
       data-direction={direction}
       data-gave-up={gaveUp ? 'true' : undefined}

@@ -40,6 +40,15 @@ describe('AppShell while a clicked race is on its way', () => {
     expect(usePendingRace.getState().pending).toBeNull()
   })
 
+  it('a pending live route shows live mode\'s shell loader, not the page being left (block 34)', () => {
+    usePendingRace.setState({ pending: { href: '/live/11400', key: 11400, kind: 'live' } })
+    pathname = '/races'
+    render(<AppShell><p>old page</p></AppShell>)
+    expect(screen.queryByText('old page')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('Opening live mode')
+    usePendingRace.setState({ pending: null })
+  })
+
   it('shows the page as usual with nothing pending', () => {
     pathname = '/docs'
     render(<AppShell><p>docs</p></AppShell>)

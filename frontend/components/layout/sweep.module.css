@@ -1,5 +1,7 @@
 /* Block 34: three diagonal bands side by side (skewX -22deg), accent, ground
-   and grey. Each is skewed about its own centre and all share the same height,
+   and the rule grey, all from the design tokens (the layer carries the system
+   root's class, see SweepOverlay.tsx). The rule grey is --pw-divider laid over
+   the ground, so the band is opaque. Each is skewed about its own centre and all share the same height,
    so their slanted edges stay parallel and the three always tile the screen.
    They travel the same distance (in vw), staggered, so the stripes arrive one
    after another. Only transform and opacity move. */
@@ -9,9 +11,9 @@
   position: absolute; top: -10vh; bottom: -10vh;
   transform: translateX(-220vw) skewX(-22deg); will-change: transform;
 }
-.accent { left: -70vw; width: 102vw; background: #ec3013; z-index: 2; }
-.ground { left: 30vw; width: 40vw; background: #05060a; z-index: 3; display: grid; place-items: center; }
-.grey { left: 68vw; width: 102vw; background: #2b2e35; z-index: 1; }
+.accent { left: -70vw; width: 102vw; background: var(--pw-accent); z-index: 2; }
+.ground { left: 30vw; width: 40vw; background: var(--pw-bg); z-index: 3; display: grid; place-items: center; }
+.grey { left: 68vw; width: 102vw; background: linear-gradient(var(--pw-divider), var(--pw-divider)), var(--pw-bg); z-index: 1; }
 @media (max-width: 640px) {
   .accent { left: -80vw; width: 102vw; }
   .ground { left: 20vw; width: 60vw; }
@@ -48,7 +50,7 @@
 
 /* The destination, upright on the dark band. */
 .label {
-  transform: skewX(22deg); color: #f0f2f5; font-weight: 900; text-transform: uppercase; line-height: 1;
+  transform: skewX(22deg); color: var(--pw-text); font-weight: 900; text-transform: uppercase; line-height: 1;
   font-size: clamp(20px, 3.4vw, 48px); letter-spacing: -0.01em; max-width: 30vw; text-align: center; overflow-wrap: anywhere;
   opacity: 0; animation: labelIn 120ms ease-out 140ms forwards;
 }

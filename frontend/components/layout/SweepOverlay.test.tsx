@@ -8,6 +8,9 @@ vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname, useRouter: 
 import { SweepOverlay } from './SweepOverlay'
 import { SweepLink } from './SweepLink'
 import { useSweep } from '@/lib/sweep'
+import { usePendingRace } from '@/lib/raceNav'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const phase = () => document.documentElement.dataset.sweep ?? 'idle'
 const layer = () => document.querySelector('[data-phase]') as HTMLElement | null
@@ -99,5 +102,32 @@ describe('SweepLink', () => {
     fireEvent.click(link, { button: 0 })
     expect(phase()).toBe('idle')
     expect(nav.push).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('block 34 audit fixes', () => {
+  it('the bands and the destination use the design tokens, no fixed colours', () => {
+    const css = readFileSync(join(__dirname, 'sweep.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(css).toMatch(/\.accent \{[^}]*var\(--pw-accent\)/)
+    expect(css).toMatch(/\.ground \{[^}]*var\(--pw-bg\)/)
+    expect(css).toMatch(/\.grey \{[^}]*var\(--pw-divider\)[^}]*var\(--pw-bg\)/)
+    expect(css).toMatch(/\.label \{[^}]*color: var\(--pw-text\)/)
+  })
+
+  it('the layer carries the token scope and stays transparent itself', () => {
+    render(<SweepOverlay />)
+    act(() => useSweep.getState().start('/race/9636', 'x'))
+    expect(layer()!.className).toMatch(/root/)
+    expect(layer()!.style.background).toBe('transparent')
+  })
+
+  it('a swept click to live mode leaves the shell its loader to show', () => {
+    usePendingRace.setState({ pending: null })
+    render(<><SweepLink href="/live/11400" label="Live · Austin · Race">Open live mode</SweepLink><SweepOverlay /></>)
+    fireEvent.click(screen.getByRole('link', { name: 'Open live mode' }), { button: 0 })
+    expect(usePendingRace.getState().pending).toEqual({ href: '/live/11400', key: 11400, kind: 'live' })
+    usePendingRace.setState({ pending: null })
   })
 })
