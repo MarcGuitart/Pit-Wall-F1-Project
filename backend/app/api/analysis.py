@@ -388,7 +388,7 @@ async def _build(session_key: int, session_meta: dict, force_refresh: bool) -> F
                 ) from exc
             raise AppError(
                 "OPENF1_UNAUTHORIZED",
-                f"OpenF1 rejected the configured credentials while fetching {exc.endpoint} ({exc.reason}).",
+                f"OpenF1 refused access while fetching {exc.endpoint} ({exc.reason}).",
                 status=503,
                 details={"endpoint": exc.endpoint},
             ) from exc

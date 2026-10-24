@@ -62,7 +62,7 @@ def _openf1_error(exc: OpenF1Error, what: str, **extra) -> AppError:
         )
     if isinstance(exc, OpenF1AuthError):
         return AppError(
-            "OPENF1_UNAUTHORIZED", f"OpenF1 requires a valid API token to {what}.",
+            "OPENF1_UNAUTHORIZED", f"OpenF1 refused the request ({exc.reason}) while {what}.",
             status=503, details=details,
         )
     return AppError("OPENF1_ERROR", f"OpenF1 unreachable while {what}.", status=503, details=details)

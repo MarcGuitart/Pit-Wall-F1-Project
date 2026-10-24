@@ -83,8 +83,18 @@ class OpenF1AuthError(OpenF1Error):
     credentials. Not retried.
     """
 
+    # What this process actually knows in each case: it saw a 401, and whether
+    # it had credentials. Never that OpenF1 "requires" anything, which is
+    # OpenF1's policy, and changes (during a live session, for one).
+    _MESSAGES = {
+        "anonymous access": "OpenF1 answered 401 to {endpoint}; no OpenF1 credentials are configured here",
+        "credentials rejected": "OpenF1 refused a token for the configured credentials ({endpoint} not fetched)",
+        "token rejected after renewal": "OpenF1 answered 401 to {endpoint} again with a newly issued token",
+    }
+
     def __init__(self, endpoint: str, reason: str = "unauthorized") -> None:
-        super().__init__(endpoint, 1, f"OpenF1 requires a valid account for {endpoint} ({reason})")
+        template = self._MESSAGES.get(reason, "OpenF1 answered 401 to {endpoint} ({reason})")
+        super().__init__(endpoint, 1, template.format(endpoint=endpoint, reason=reason))
         self.reason = reason
 
 

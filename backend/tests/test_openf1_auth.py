@@ -96,6 +96,8 @@ def test_anonymous_401_is_an_auth_error_without_token_requests(fake):
     with pytest.raises(openf1_client.OpenF1AuthError) as exc:
         asyncio.run(_get("laps"))
     assert exc.value.reason == "anonymous access"
+    assert str(exc.value).endswith("OpenF1 answered 401 to laps; no OpenF1 credentials are configured here")
+    assert "requires" not in str(exc.value)
     assert api.issued == 0
 
 
@@ -140,6 +142,7 @@ def test_401_after_renewal_is_unauthorized_without_more_retries(fake, account):
     with pytest.raises(openf1_client.OpenF1AuthError) as exc:
         asyncio.run(_get("laps"))
     assert exc.value.reason == "token rejected after renewal"
+    assert str(exc.value).endswith("OpenF1 answered 401 to laps again with a newly issued token")
     assert api.api_calls == ["tok-1", "tok-2"]         # exactly one retry
     assert api.issued == 2
 
@@ -149,6 +152,7 @@ def test_rejected_credentials_raise_without_calling_the_api(fake, account):
     with pytest.raises(openf1_client.OpenF1AuthError) as exc:
         asyncio.run(_get("laps"))
     assert exc.value.reason == "credentials rejected"
+    assert str(exc.value).endswith("OpenF1 refused a token for the configured credentials (laps not fetched)")
     assert api.api_calls == []
     assert token_manager.status()["has_token"] is False
 
@@ -278,3 +282,13 @@ def test_429_backoff_still_applies_above_the_limiter(fake, account, monkeypatch)
     fake(Throttling())
     assert asyncio.run(_get("laps")) == [{"lap_number": 1}]
     assert hits["n"] == 3                               # two 429s absorbed by the backoff, third succeeds
+
+
+def test_api_messages_claim_only_what_the_401_shows():
+    """The API's own wording: a refusal and its reason, never a policy of OpenF1's."""
+    from app.api.races import _openf1_error
+    err = _openf1_error(openf1_client.OpenF1AuthError("sessions", "anonymous access"), "listing sessions")
+    assert err.code == "OPENF1_UNAUTHORIZED"
+    assert err.message == "OpenF1 refused the request (anonymous access) while listing sessions."
+    unknown = openf1_client.OpenF1AuthError("laps", "unauthorized")
+    assert str(unknown).endswith("OpenF1 answered 401 to laps (unauthorized)")
