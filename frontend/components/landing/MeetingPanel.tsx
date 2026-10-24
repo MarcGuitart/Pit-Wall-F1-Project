@@ -1,10 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import type { SessionInfo } from '@/types'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
-import { buttonClass } from '@/components/ui'
-import { NOT_ANALYSED_REASON, sessionState, type StateContext } from '@/lib/sessionStates'
+import { Badge, buttonClass } from '@/components/ui'
+import { sessionState, showsProChip, type StateContext } from '@/lib/sessionStates'
 import l from './landing.module.css'
 
 const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -16,7 +15,10 @@ export type PanelData =
 
 /**
  * The sessions of one meeting, in line under its row on /races (block 33).
- * Fetched when opened, never before; the grid keeps them per meeting.
+ * Fetched when opened, never before; the grid keeps them per meeting. Every
+ * session that has run opens at /race/<session_key> (block 45): a real link,
+ * so a modified click opens a tab; a plain one goes through onOpen (the sweep
+ * and the analysis loader).
  */
 export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, onOpen }: {
   id: string
@@ -56,27 +58,23 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
               <li key={s.session_key} className={l.panelRow} data-state={st.kind}>
                 <span className={l.panelName}>{s.session_name}</span>
                 <span className={l.panelWhen}>{WHEN.format(new Date(s.date_start))}</span>
-                <span className={l.panelState}>{st.label || null}</span>
+                <span className={l.panelState}>
+                  {st.label || null}
+                  {showsProChip(ctx.season) && !s.is_cancelled && <> <Badge tone="warn">PRO</Badge></>}
+                </span>
                 <span className={l.panelAction}>
                   {st.action === 'open' && (
-                    <button type="button" className={buttonClass('primary')} onClick={(e) => onOpen(s.session_key, e, `${place} · ${s.session_name}`)}>
+                    <a
+                      href={`/race/${s.session_key}`}
+                      className={buttonClass('primary')}
+                      onClick={(e) => {
+                        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+                        e.preventDefault()
+                        onOpen(s.session_key, e, `${place} · ${s.session_name}`)
+                      }}
+                    >
                       Open analysis
-                    </button>
-                  )}
-                  {st.action === 'unlock' && <Link href="/settings" className={buttonClass('default')}>Unlock PRO</Link>}
-                  {st.action === 'disabled' && (
-                    <span className={l.panelDisabled}>
-                      <button
-                        type="button"
-                        className={buttonClass('default')}
-                        aria-disabled="true"
-                        aria-describedby={`why-${s.session_key}`}
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        Open analysis
-                      </button>
-                      <span id={`why-${s.session_key}`} className={l.panelWhy}>{NOT_ANALYSED_REASON}</span>
-                    </span>
+                    </a>
                   )}
                   {st.action === 'calendar' && s.date_end && (
                     <AddToCalendarButton

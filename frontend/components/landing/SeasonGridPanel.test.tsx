@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import races2026 from '@/test/fixtures/races_2026.json'
+import lusail from '@/test/fixtures/sessions_lusail_2025_sprint.json'
 
 // Block 33: a meeting's sessions in line under its row on /races.
 const api = vi.hoisted(() => ({
@@ -51,7 +52,7 @@ describe('/races meeting panel', () => {
     expect(cell('Baku').getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('opens Baku 2026 in line: race Published with Open, sprint Processing, practice Not analysed yet', async () => {
+  it('opens Baku 2026 in line: race Published, the others Opens on demand, every one a link', async () => {
     await ready()
     fireEvent.click(cell('Baku'))
     expect(cell('Baku').getAttribute('aria-expanded')).toBe('true')
@@ -60,11 +61,12 @@ describe('/races meeting panel', () => {
     await within(panel).findByText('Sprint')
     const row = (name: string) => within(panel).getByText(name).closest('li')!
     expect(within(row('Race')).getByText('Published')).toBeTruthy()
-    expect(within(row('Sprint')).getByText('Processing')).toBeTruthy()
-    expect(within(row('Practice 1')).getByText('Not analysed yet')).toBeTruthy()
+    expect(within(row('Sprint')).getByText('Opens on demand')).toBeTruthy()
+    expect(within(row('Practice 1')).getByText('Opens on demand')).toBeTruthy()
+    expect(within(row('Practice 1')).getByRole('link', { name: 'Open analysis' }).getAttribute('href')).toBe('/race/11368')
     // Sorted by start: practice, sprint, race.
     expect(within(panel).getAllByRole('listitem').map((li) => li.firstChild!.textContent)).toEqual(['Practice 1', 'Sprint', 'Race'])
-    fireEvent.click(within(row('Race')).getByRole('button', { name: 'Open analysis' }))
+    fireEvent.click(within(row('Race')).getByRole('link', { name: 'Open analysis' }))
     expect(openRace).toHaveBeenCalledWith(11377, expect.objectContaining({ label: 'Baku · Race', click: expect.anything() }))
   })
 
@@ -120,7 +122,7 @@ describe('/races meeting panel', () => {
     await within(panel).findByText('Sprint')
     expect(panel.querySelector('ul')!.textContent).not.toMatch(word)   // the heading says "Sessions, Baku"
     // The races still open.
-    expect(within(within(panel).getByText('Race').closest('li')!).getByRole('button', { name: 'Open analysis' })).toBeTruthy()
+    expect(within(within(panel).getByText('Race').closest('li')!).getByRole('link', { name: 'Open analysis' })).toBeTruthy()
   })
 
   it('the skeleton has the rows of a sprint weekend', async () => {
@@ -131,16 +133,29 @@ describe('/races meeting panel', () => {
     expect(panel.querySelectorAll('li')).toHaveLength(7)
   })
 
-  it('practice is a disabled control with its reason', async () => {
-    await ready()
+  it('a sprint weekend (Lusail 2025 fixture): all five sessions open at /race/<key>, with the PRO chip', async () => {
+    api.fetchSessions.mockResolvedValueOnce(lusail)
+    api.fetchPublished.mockResolvedValue({ count: 1, sessions: [{ session_key: 9850, meeting_key: 1275, year: 2025, session_name: 'Race', session_type: 'Race' }] })
+    render(<SeasonGrid />)
+    await screen.findByText('Baku')
     fireEvent.click(cell('Baku'))
     const panel = await screen.findByRole('region', { name: /Baku/ })
-    const row = (await within(panel).findByText('Practice 1')).closest('li')!
-    const b = within(row).getByRole('button', { name: 'Open analysis' })
-    expect(b.getAttribute('aria-disabled')).toBe('true')
-    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('Only races and sprints are analysed.')
-    fireEvent.click(b)
+    await within(panel).findByText('Sprint Qualifying')
+    const rows = within(panel).getAllByRole('listitem')
+    expect(rows.map((li) => li.firstChild!.textContent)).toEqual(['Practice 1', 'Sprint Qualifying', 'Sprint', 'Qualifying', 'Race'])
+    for (const li of rows) {
+      const link = within(li).getByRole('link', { name: 'Open analysis' })
+      expect(link.getAttribute('href')).toMatch(/^\/race\/98\d\d$/)
+      expect(within(li).getByText('PRO')).toBeTruthy()
+      expect(li.querySelector('[aria-disabled]')).toBeNull()
+    }
+    expect(within(rows[4]).getByText('Published')).toBeTruthy()
+    expect(within(rows[0]).getByText('Opens on demand')).toBeTruthy()
+    // A modified click is the browser's (a new tab); a plain one goes through openRace.
+    fireEvent.click(within(rows[1]).getByRole('link', { name: 'Open analysis' }), { metaKey: true })
     expect(openRace).not.toHaveBeenCalled()
+    fireEvent.click(within(rows[1]).getByRole('link', { name: 'Open analysis' }))
+    expect(openRace).toHaveBeenCalledWith(9841, expect.objectContaining({ label: 'Baku · Sprint Qualifying' }))
   })
 
   it('Escape inside an open popover leaves the panel open', async () => {
