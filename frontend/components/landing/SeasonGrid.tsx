@@ -97,7 +97,10 @@ export function SeasonGrid() {
   function onGridKey(e: KeyboardEvent<HTMLDivElement>) {
     const buttons = Array.from(gridRef.current?.querySelectorAll<HTMLButtonElement>('button[data-cell]') ?? [])
     const i = buttons.indexOf(document.activeElement as HTMLButtonElement)
-    if (e.key === 'Escape' && openKey !== null) {
+    // Escape inside an open popover (Add to calendar) is the popover's alone.
+    const from = e.target as HTMLElement
+    const inPopover = !!from.closest('[role="dialog"]') || (from.getAttribute('aria-haspopup') === 'dialog' && from.getAttribute('aria-expanded') === 'true')
+    if (e.key === 'Escape' && openKey !== null && !inPopover) {
       e.preventDefault()
       const cell = gridRef.current?.querySelector<HTMLButtonElement>(`button[data-cell="${openKey}"]`)
       setOpenKey(null)
@@ -193,7 +196,7 @@ export function SeasonGrid() {
                     {date}
                   </span>
                   <span className={l.place}>{place}</span>
-                  <span className={l.arrow}>{st.label}<span aria-hidden="true">{expanded ? ' ▴' : ' ▾'}</span></span>
+                  <span className={l.arrow}>{st.label}<span aria-hidden="true">{st.label ? ' ' : ''}{expanded ? '▴' : '▾'}</span></span>
                 </button>
                 {panel}
               </Fragment>

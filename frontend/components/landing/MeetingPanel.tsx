@@ -4,7 +4,7 @@ import Link from 'next/link'
 import type { SessionInfo } from '@/types'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { buttonClass } from '@/components/ui'
-import { sessionState, type StateContext } from '@/lib/sessionStates'
+import { NOT_ANALYSED_REASON, sessionState, type StateContext } from '@/lib/sessionStates'
 import l from './landing.module.css'
 
 const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -33,7 +33,8 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
       <h3 className={l.panelTitle}>Sessions, {place}</h3>
       {data.status === 'loading' && (
         <ul className={l.panelList} aria-hidden="true">
-          {Array.from({ length: 5 }, (_, i) => (
+          {/* As many rows as a sprint weekend has, so the list never grows the panel when it arrives. */}
+          {Array.from({ length: 7 }, (_, i) => (
             <li key={i} className={`${l.panelRow} ${l.panelSkeleton}`}><span /><span /><span /></li>
           ))}
         </ul>
@@ -55,7 +56,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
               <li key={s.session_key} className={l.panelRow} data-state={st.kind}>
                 <span className={l.panelName}>{s.session_name}</span>
                 <span className={l.panelWhen}>{WHEN.format(new Date(s.date_start))}</span>
-                <span className={l.panelState}>{st.label}</span>
+                <span className={l.panelState}>{st.label || null}</span>
                 <span className={l.panelAction}>
                   {st.action === 'open' && (
                     <button type="button" className={buttonClass('primary')} onClick={(e) => onOpen(s.session_key, e, `${place} · ${s.session_name}`)}>
@@ -63,6 +64,20 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
                     </button>
                   )}
                   {st.action === 'unlock' && <Link href="/settings" className={buttonClass('default')}>Unlock PRO</Link>}
+                  {st.action === 'disabled' && (
+                    <span className={l.panelDisabled}>
+                      <button
+                        type="button"
+                        className={buttonClass('default')}
+                        aria-disabled="true"
+                        aria-describedby={`why-${s.session_key}`}
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        Open analysis
+                      </button>
+                      <span id={`why-${s.session_key}`} className={l.panelWhy}>{NOT_ANALYSED_REASON}</span>
+                    </span>
+                  )}
                   {st.action === 'calendar' && s.date_end && (
                     <AddToCalendarButton
                       variant="system"

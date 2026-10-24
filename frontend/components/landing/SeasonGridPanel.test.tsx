@@ -108,13 +108,55 @@ describe('/races meeting panel', () => {
     expect(api.fetchSessions).toHaveBeenCalledTimes(2)
   })
 
-  it('without /published in time, cells claim neither Published nor Processing', async () => {
+  it('without /published in time, no labels: neither in the cells nor in the panel', async () => {
     api.fetchPublished.mockResolvedValue(null)
     render(<SeasonGrid />)
     await screen.findByText('Baku')
-    await waitFor(() => expect(within(cell('Baku')).getByText('Sessions')).toBeTruthy())
-    expect(screen.queryByText('Published')).toBeNull()
-    expect(screen.queryByText('Processing')).toBeNull()
+    await waitFor(() => expect(api.fetchPublished).toHaveBeenCalled())
+    const word = /Published|Processing|Sessions|Opens on demand/
+    expect(cell('Baku').textContent).not.toMatch(word)
+    fireEvent.click(cell('Baku'))
+    const panel = await screen.findByRole('region', { name: /Baku/ })
+    await within(panel).findByText('Sprint')
+    expect(panel.querySelector('ul')!.textContent).not.toMatch(word)   // the heading says "Sessions, Baku"
+    // The races still open.
+    expect(within(within(panel).getByText('Race').closest('li')!).getByRole('button', { name: 'Open analysis' })).toBeTruthy()
+  })
+
+  it('the skeleton has the rows of a sprint weekend', async () => {
+    api.fetchSessions.mockImplementationOnce(() => new Promise(() => {}))
+    await ready()
+    fireEvent.click(cell('Baku'))
+    const panel = await screen.findByRole('region', { name: /Baku/ })
+    expect(panel.querySelectorAll('li')).toHaveLength(7)
+  })
+
+  it('practice is a disabled control with its reason', async () => {
+    await ready()
+    fireEvent.click(cell('Baku'))
+    const panel = await screen.findByRole('region', { name: /Baku/ })
+    const row = (await within(panel).findByText('Practice 1')).closest('li')!
+    const b = within(row).getByRole('button', { name: 'Open analysis' })
+    expect(b.getAttribute('aria-disabled')).toBe('true')
+    expect(document.getElementById(b.getAttribute('aria-describedby')!)!.textContent).toBe('Only races and sprints are analysed.')
+    fireEvent.click(b)
+    expect(openRace).not.toHaveBeenCalled()
+  })
+
+  it('Escape inside an open popover leaves the panel open', async () => {
+    await ready()
+    fireEvent.click(cell('Baku'))
+    const panel = await screen.findByRole('region', { name: /Baku/ })
+    await within(panel).findByText('Sprint')
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    const inner = document.createElement('button')
+    dialog.appendChild(inner)
+    panel.appendChild(dialog)
+    fireEvent.keyDown(inner, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: /Baku/ })).not.toBeNull()
+    fireEvent.keyDown(cell('Baku'), { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: /Baku/ })).toBeNull()
   })
 
   it('a cancelled meeting has no panel to open', async () => {

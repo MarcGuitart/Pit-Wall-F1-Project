@@ -21,9 +21,9 @@ describe('sessionState', () => {
     expect(sessionState(baku.sprint, ctx2026)).toEqual({ kind: 'processing', label: 'Processing', action: null })
   })
 
-  it('practice and qualifying are Not analysed yet', () => {
-    expect(sessionState(baku.fp1, ctx2026).label).toBe('Not analysed yet')
-    expect(sessionState(baku.sq, ctx2026).label).toBe('Not analysed yet')
+  it('practice and qualifying are Not analysed yet, with a disabled Open', () => {
+    expect(sessionState(baku.fp1, ctx2026)).toEqual({ kind: 'not-analysed', label: 'Not analysed yet', action: 'disabled' })
+    expect(sessionState(baku.sq, ctx2026).action).toBe('disabled')
   })
 
   it('a cancelled session is Cancelled with no action, even in the future', () => {
@@ -53,8 +53,10 @@ describe('sessionState', () => {
 
   it('when /published did not answer, nothing claims Published or Processing', () => {
     const ctx = { ...ctx2026, published: null }
-    expect(sessionState(baku.race, ctx).kind).toBe('available')
-    expect(sessionState(baku.sprint, ctx).kind).toBe('available')
+    expect(sessionState(baku.race, ctx)).toEqual({ kind: 'unknown', label: '', action: 'open' })
+    expect(sessionState(baku.sprint, ctx)).toEqual({ kind: 'unknown', label: '', action: 'open' })
+    // Earlier seasons do not depend on /published.
+    expect(sessionState({ ...baku.race, session_key: 9197 }, { ...ctx, season: 2023 }).label).toBe('Opens on demand')
   })
 })
 
@@ -65,10 +67,10 @@ describe('meetingState (the cell, before any fetch)', () => {
     expect(meetingState({ meeting_key: 1295, date_start: '2026-09-24T08:30:00Z', date_end: '2026-09-27T13:00:00Z' }, rows, base).label).toBe('Published')
     expect(meetingState({ meeting_key: 1296, date_start: '2026-10-02T08:30:00Z', date_end: '2026-10-04T14:00:00Z' }, rows, base).label).toBe('Processing')
   })
-  it('Not run yet, PRO, and Sessions for earlier seasons or without /published', () => {
+  it('Not run yet, PRO, Sessions for earlier seasons, and no label without /published', () => {
     expect(meetingState({ meeting_key: 1, date_start: '2026-10-23T17:30:00Z' }, rows, base).label).toBe('Not run yet')
     expect(meetingState({ meeting_key: 1295, date_start: '2026-09-24T08:30:00Z' }, rows, { ...base, locked: true }).label).toBe('PRO')
     expect(meetingState({ meeting_key: 9, date_start: '2023-11-24T09:30:00Z' }, [], { ...base, season: 2023 }).label).toBe('Sessions')
-    expect(meetingState({ meeting_key: 1296, date_start: '2026-10-02T08:30:00Z' }, null, base).label).toBe('Sessions')
+    expect(meetingState({ meeting_key: 1296, date_start: '2026-10-02T08:30:00Z' }, null, base).label).toBe('')
   })
 })
