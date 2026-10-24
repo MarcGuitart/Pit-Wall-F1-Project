@@ -32,6 +32,30 @@ def read_exclusions() -> dict | None:
         return None
 
 
+# The versioned session lists (backend/cache in the repo). settings.cache_path is
+# this same directory unless CACHE_DIR moves it (app/core/config.py); a list
+# missing there is still read from here before asking OpenF1.
+_REPO_CACHE = Path(__file__).resolve().parents[2] / "cache"
+
+
+def _cached_sessions(meeting_key: int) -> list | None:
+    """meeting_<k>_sessions.json from the cache directory, else the repo's copy (read only)."""
+    rows = race_cache.get_sessions_for_meeting(meeting_key)
+    if rows:
+        return rows
+    repo = _REPO_CACHE / f"meeting_{meeting_key}_sessions.json"
+    if repo.resolve() == (settings.cache_path / repo.name).resolve():
+        return rows
+    try:
+        data = json.loads(repo.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return rows
+    if isinstance(data, list) and data:
+        logger.info("[SESSIONS] meeting %s read from the versioned copy %s", meeting_key, repo)
+        return data
+    return rows
+
+
 def _has_meta(rows: list) -> bool:
     """A cached list written before location/is_cancelled existed lacks them;
     such a list is refreshed from OpenF1 once, and served as is if that fails."""
@@ -210,7 +234,7 @@ def _sessions_from_analysis_cache(meeting_key: int) -> list[SessionInfo]:
 
 @router.get("/races/{meeting_key}/sessions", response_model=list[SessionInfo])
 async def list_sessions(meeting_key: int) -> list[SessionInfo]:
-    cached = race_cache.get_sessions_for_meeting(meeting_key)
+    cached = _cached_sessions(meeting_key)
     if cached and _has_meta(cached):
         return _sessions_out(cached)
 
@@ -219,13 +243,16 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     except OpenF1AuthError as exc:
         if cached:
             return _sessions_out(cached)
+        # Only the sessions that have an analysis on this server: a partial list.
+        # Served for this request but never saved as the meeting's list, or every
+        # later request would get the same partial answer without asking again.
         fallback = _sessions_from_analysis_cache(meeting_key)
         if fallback:
-            logger.info(
-                "[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s",
-                len(fallback), meeting_key,
+            logger.warning(
+                "[SESSIONS] OpenF1 401 and no session list for meeting %s: serving the %d session(s) "
+                "with an analysis, not saved",
+                meeting_key, len(fallback),
             )
-            race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
             return _sessions_out(fallback)
         raise AppError(
             "SESSION_NOT_CACHED",
