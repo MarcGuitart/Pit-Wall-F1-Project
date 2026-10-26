@@ -4,6 +4,7 @@ import type { SessionInfo } from '@/types'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { Badge, buttonClass } from '@/components/ui'
 import { sessionState, showsProChip, type StateContext } from '@/lib/sessionStates'
+import { useOpenAccess } from '@/lib/openAccess'
 import l from './landing.module.css'
 
 const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -30,6 +31,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
   onRetry: () => void
   onOpen: (sessionKey: number, click: React.MouseEvent, label: string) => void
 }) {
+  const openWeek = useOpenAccess((st) => st.open)   // no PRO chip while everything is free (block 50)
   return (
     <div id={id} className={l.panel} role="region" aria-labelledby={cellId} aria-busy={data.status === 'loading'}>
       <h3 className={l.panelTitle}>Sessions, {place}</h3>
@@ -60,7 +62,7 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
                 <span className={l.panelWhen}>{WHEN.format(new Date(s.date_start))}</span>
                 <span className={l.panelState}>
                   {st.label || null}
-                  {showsProChip(ctx.season) && !s.is_cancelled && <> <Badge tone="warn">PRO</Badge></>}
+                  {showsProChip(ctx.season) && !openWeek && !s.is_cancelled && <> <Badge tone="warn">PRO</Badge></>}
                 </span>
                 <span className={l.panelAction}>
                   {st.action === 'open' && (

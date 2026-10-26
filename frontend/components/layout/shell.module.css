@@ -11,6 +11,11 @@
   display: flex; align-items: stretch; flex-wrap: wrap; column-gap: 24px;
   padding: 0 var(--pw-gutter); min-height: 56px;
 }
+/* Block 50: the open week, its own row above the bar's items. */
+.openWeek {
+  order: -1; flex-basis: calc(100% + 2 * var(--pw-gutter)); margin: 0 calc(-1 * var(--pw-gutter)); padding: 6px var(--pw-gutter);
+  background: var(--pw-accent-strong); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.4;
+}
 .brand {
   display: flex; align-items: center; font-weight: 800; font-size: 16px; letter-spacing: 0.04em;
   color: var(--pw-text); text-decoration: none; white-space: nowrap; min-height: 56px;

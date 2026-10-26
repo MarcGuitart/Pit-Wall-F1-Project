@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAccessStore } from '@/stores/accessStore'
+import { formatUntil, useHasAccess, useOpenAccess } from '@/lib/openAccess'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
@@ -32,7 +33,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
   // toggle) still set to show it. A token past its expiry, or hidden by choice,
   // shows nothing here rather than a stale or unwanted badge.
   const showProBadge = useAccessStore((st) => st.pro && st.showBadge)
-  const pro = useAccessStore((st) => st.pro)
+  // PRO features in the interface: a token, or the open week (lib/openAccess.ts).
+  const pro = useHasAccess()
+  const openWeek = useOpenAccess((st) => (st.open ? st.until : null))
   const currentSeasonYear = proSeasons()[0]
   const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
   const [showLiveTip, setShowLiveTip] = useState(false)
@@ -41,6 +44,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
 
   return (
     <header className={s.bar}>
+      {openWeek && (
+        <p className={s.openWeek} role="status">Open week: everything is free until {formatUntil(openWeek)}</p>
+      )}
       <Link href="/" className={s.brand}>PIT WALL<span>ENGINEER</span></Link>
 
       {/* PRO indicator — only when active, never a permanent "Free" that adds

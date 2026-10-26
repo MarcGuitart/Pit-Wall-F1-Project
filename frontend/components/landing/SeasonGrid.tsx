@@ -9,7 +9,7 @@ import { MeetingPanel, type PanelData } from './MeetingPanel'
 import { seasonGrid, type GridRace } from '@/lib/seasonGrid'
 import { weekendLabel } from '@/lib/raceDates'
 import { useOpenRace } from '@/lib/raceNav'
-import { useAccessStore } from '@/stores/accessStore'
+import { useHasAccess } from '@/lib/openAccess'
 import { PageHeader, Segmented, ui } from '@/components/ui'
 import l from './landing.module.css'
 
@@ -38,7 +38,7 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement>, ready: boolean): n
   return cols
 }
 export function SeasonGrid() {
-  const pro = useAccessStore((st) => st.pro)
+  const pro = useHasAccess()   // a token, or the open week (block 50)
   const years = seasonYears()
   // A free reader starts on the newest free season, a PRO reader on the current one.
   const [season, setSeason] = useState(() => FREE_SEASONS[FREE_SEASONS.length - 1])

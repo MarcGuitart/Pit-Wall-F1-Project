@@ -213,6 +213,25 @@ export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex |
   }
 }
 
+/** The open week (block 50): GET /access/open, read at run time so the week opens, extends and closes with the
+ *  API's OPEN_ACCESS_UNTIL alone. Never throws: no answer reads as closed. */
+export type OpenAccess = { open: boolean; until: string | null }
+
+export async function fetchOpenAccess(timeoutMs = 4000): Promise<OpenAccess> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/access/open`, { signal: ctrl.signal })
+    if (!res.ok) return { open: false, until: null }
+    const body = await res.json()
+    return { open: body?.open === true, until: typeof body?.until === 'string' ? body.until : null }
+  } catch {
+    return { open: false, until: null }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Whether the API answers at all (GET /health, no token). The analysis loader
  * asks once a long wait has begun: an answer means the server is up and the
