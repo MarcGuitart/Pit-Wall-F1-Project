@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import statistics
 import sys
@@ -87,6 +88,16 @@ MAX_DEFAULT = 5000
 DATE_FIELDS = ("date", "date_start", "date_end", "_date_start_last_lap")
 
 FLAG_GREEN, FLAG_YELLOW, FLAG_SC, FLAG_VSC, FLAG_RED = "GREEN", "YELLOW", "SC", "VSC", "RED"
+
+# The win/pole projection (scripts/live_projection.py) is the one block of the
+# snapshot that is a model, not a reading of the feed — and Block 35 found it
+# handing a race won from the front to a car in P19 (tests/
+# test_live_projection_properties.py). Off unless LIVE_PREDICTIONS=on: with it
+# off the snapshot carries no "projection" field at all, and the page shows
+# its "not available" state. Read per snapshot, so no restart order matters.
+def predictions_enabled() -> bool:
+    return (os.environ.get("LIVE_PREDICTIONS") or "off").strip().lower() in ("on", "1", "true", "yes")
+
 
 # Word-bounded, as a project rule: "CHEQUERED FLAG" contains the substring
 # "RED FLAG", and a naive `"RED FLAG" in txt` ends a race with a red flag.
@@ -800,6 +811,10 @@ class RaceState:
                 snap["pace"] = snap["analysis"].pop("pace", [])
                 snap["long_runs"] = snap["analysis"].pop("long_runs", [])
             # The model — the only block that is not a reading of the feed.
+            # Behind LIVE_PREDICTIONS (see predictions_enabled): off, the
+            # field is not emitted at all, not emitted empty.
+            if not predictions_enabled():
+                return snap
             try:
                 from live_projection import pole_projection, race_projection
                 with self.lock:
