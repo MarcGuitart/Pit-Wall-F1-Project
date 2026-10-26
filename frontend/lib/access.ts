@@ -20,7 +20,10 @@ const SHOW_BADGE_KEY = 'pwiq_pro_show_badge'
 /** Seasons anyone may read. Mirrors FREE_SEASONS on the backend, which decides. */
 export const FREE_SEASONS = [2023, 2024]
 
-export const PRO_PRICE_LABEL = 'Races from 2025 and the current season with Live mode · €2.99/month'
+/** What PRO will cost once subscriptions open (the landing's plan card). */
+export const PRO_PRICE = '€2.99'
+export const PRO_PRICE_PERIOD = 'month'
+export const PRO_PRICE_LABEL = `Races from 2025 and the current season with Live mode · ${PRO_PRICE}/${PRO_PRICE_PERIOD}`
 
 export function isFreeSeason(year: number): boolean {
   return FREE_SEASONS.includes(year)

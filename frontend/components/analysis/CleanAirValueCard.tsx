@@ -1,15 +1,11 @@
 import type { CleanAirValue } from '@/types'
 import { MethodologyBadge } from '@/components/ui/MethodologyBadge'
 import { EstimatedLabel } from '@/components/ui/EstimatedLabel'
+import { Badge, ConfidenceBadge, Panel, toneClass, ui } from '@/components/ui'
+import a from './analysis.module.css'
 
 type Props = {
   data: CleanAirValue | null
-}
-
-const CONFIDENCE_CLS: Record<string, string> = {
-  High:   'text-signal-green border-signal-green/30 bg-signal-green/10',
-  Medium: 'text-signal-amber border-signal-amber/30 bg-signal-amber/10',
-  Low:    'text-text-muted border-border-subtle bg-transparent',
 }
 
 export function CleanAirValueCard({ data }: Props) {
@@ -21,22 +17,12 @@ export function CleanAirValueCard({ data }: Props) {
   // ── Greyed-out state ──────────────────────────────────────────────────────
   if (!isActive) {
     return (
-      <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-        <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-          <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-muted">
-            Clean Air Value
-          </span>
-          <MethodologyBadge module="drs" />
+      <Panel title={<span className={a.muted}>Clean Air Value</span>} aside={<MethodologyBadge module="drs" />}>
+        <div style={{ display: 'grid', gap: 6, textAlign: 'center', padding: '12px 0' }}>
+          <p className={a.para}>Insufficient comparison data for this session</p>
+          <p className={a.para} style={{ opacity: 0.75 }}>Requires clean laps before and after escaping traffic</p>
         </div>
-        <div className="p-3 flex flex-col items-center justify-center gap-2 min-h-[80px]">
-          <p className="font-mono text-[10px] text-text-muted text-center">
-            Insufficient comparison data for this session
-          </p>
-          <p className="font-mono text-[9px] text-text-muted text-center opacity-60">
-            Requires clean laps before and after escaping traffic
-          </p>
-        </div>
-      </div>
+      </Panel>
     )
   }
 
@@ -47,67 +33,38 @@ export function CleanAirValueCard({ data }: Props) {
 
   const rangeLabel =
     gains.length >= 2
-      ? `+${minGain.toFixed(2)}–${maxGain.toFixed(2)} s/lap`
+      ? `+${minGain.toFixed(2)} to ${maxGain.toFixed(2)} s/lap`
       : `+${(data!.estimated_gain ?? 0).toFixed(2)} s/lap`
 
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
-          Clean Air Value
-        </span>
-        <div className="flex items-center gap-2">
-          <span className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[7px] uppercase tracking-[0.5px] ${CONFIDENCE_CLS[data!.confidence] ?? ''}`}>
-            {data!.confidence} confidence
-          </span>
-          <MethodologyBadge module="drs" />
-        </div>
-      </div>
-
-      <div className="p-3 space-y-3">
+    <Panel
+      title="Clean Air Value"
+      aside={<><ConfidenceBadge level={data!.confidence} /><MethodologyBadge module="drs" /></>}
+      foot={<span className={a.row}><EstimatedLabel /><span>estimated from pace comparison · small sample</span></span>}
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
         {/* Main value */}
-        <div className="flex items-end gap-3">
-          <span className="font-display font-black text-[24px] leading-none text-signal-blue tabular-nums">
-            {rangeLabel}
-          </span>
-        </div>
+        <div className={`${ui.mid} ${toneClass('info')}`}>{rangeLabel}</div>
 
         {/* Strategic implication */}
-        <p className="font-mono text-[10px] text-text-secondary leading-relaxed">
-          {data!.strategic_implication}
-        </p>
+        <p className={a.para}>{data!.strategic_implication}</p>
 
         {/* Per-driver breakdown */}
         {data!.drivers.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">
-              Driver comparison
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div className={ui.label}>Driver comparison</div>
+            <div className={a.list} style={{ border: '2px solid var(--pw-divider)' }}>
+              {data!.drivers.slice(0, 3).map((est) => (
+                <div key={est.driver_code} className={`${a.between}`} style={{ padding: '8px 12px' }}>
+                  <Badge tone="info">{est.driver_code}</Badge>
+                  <span className={`${a.num} ${toneClass('info')}`}>+{est.gain.toFixed(3)}s</span>
+                  <span className={`${ui.sub} ${a.grow}`} style={{ textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{est.context}</span>
+                </div>
+              ))}
             </div>
-            {data!.drivers.slice(0, 3).map((est) => (
-              <div key={est.driver_code} className="flex items-center justify-between gap-2 bg-bg-elevated border border-border-subtle rounded-[2px] px-2 py-1.5">
-                <span className="px-1.5 py-0.5 bg-signal-blue/10 border border-signal-blue/30 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] text-signal-blue shrink-0">
-                  {est.driver_code}
-                </span>
-                <span className="font-mono font-bold text-[11px] text-signal-blue tabular-nums shrink-0">
-                  +{est.gain.toFixed(3)}s
-                </span>
-                <span className="font-mono text-[8px] text-text-muted truncate flex-1 min-w-0 text-right">
-                  {est.context}
-                </span>
-              </div>
-            ))}
           </div>
         )}
-
-        {/* Footer note */}
-        <div className="pt-1 border-t border-border-subtle">
-          <EstimatedLabel />
-          <span className="font-mono text-[8px] text-text-muted ml-1.5">
-            estimated from pace comparison — small sample
-          </span>
-        </div>
       </div>
-    </div>
+    </Panel>
   )
 }

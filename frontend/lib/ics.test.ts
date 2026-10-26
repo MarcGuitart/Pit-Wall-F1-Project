@@ -10,7 +10,9 @@ import {
 
 describe('escapeIcsText', () => {
   it('escapes backslash, semicolon and comma', () => {
-    expect(escapeIcsText('a\\b;c,d')).toBe('a\\\\b\;c\\,d')
+    expect(escapeIcsText('a\\b;c,d')).toBe('a\\\\b\\;c\\,d')
+    // '\\;' in the source: a literal backslash before the semicolon (RFC 5545 §3.3.11).
+    expect(escapeIcsText('Grand Prix; Race')).toBe('Grand Prix\\; Race')
   })
   it('turns a literal newline into the two characters \\n', () => {
     expect(escapeIcsText('line1\nline2')).toBe('line1\\nline2')

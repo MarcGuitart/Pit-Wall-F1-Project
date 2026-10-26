@@ -1,4 +1,4 @@
-import type { FullRaceAnalysis, RaceListItem, SessionInfo } from '@/types'
+import type { FullRaceAnalysis, RaceListItem, SessionInfo, SessionMeta } from '@/types'
 import type { TelemetryData } from '@/types/telemetry'
 import { ApiError, type ErrorDetails } from '@/lib/errors'
 import {
@@ -194,6 +194,62 @@ export async function redeemAccessCode(code: string): Promise<AccessStatus> {
   }
 }
 
+export type PublishedIndex = { count: number; sessions: { session_key: number; meeting_key: number | null; year: number | null; session_name: string | null; session_type: string | null }[] }
+
+/**
+ * Which sessions have a published analysis (block 33). Null when the API does
+ * not answer within timeoutMs: the /races cells then show no state rather than
+ * wait, and never say Published or Processing on a guess.
+ */
+export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await apiFetch<PublishedIndex>('/published', { signal: ctrl.signal })
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** The open week (block 50): GET /access/open, read at run time so the week opens, extends and closes with the
+ *  API's OPEN_ACCESS_UNTIL alone. Never throws: no answer reads as closed. */
+export type OpenAccess = { open: boolean; until: string | null }
+
+export async function fetchOpenAccess(timeoutMs = 4000): Promise<OpenAccess> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/access/open`, { signal: ctrl.signal })
+    if (!res.ok) return { open: false, until: null }
+    const body = await res.json()
+    return { open: body?.open === true, until: typeof body?.until === 'string' ? body.until : null }
+  } catch {
+    return { open: false, until: null }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Whether the API answers at all (GET /health, no token). The analysis loader
+ * asks once a long wait has begun: an answer means the server is up and the
+ * analysis is being computed; silence means it is asleep or unreachable.
+ */
+export async function pingApi(timeoutMs = 4000): Promise<boolean> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/health`, { signal: ctrl.signal })
+    return res.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)
@@ -206,8 +262,28 @@ export async function fetchSessions(
   return apiFetch<SessionInfo[]>(`/races/${meetingKey}/sessions`, { signal })
 }
 
-export async function fetchAnalysis(sessionKey: number): Promise<FullRaceAnalysis> {
-  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`)
+/** GET /stats (ops/landing-meta): the landing's proof strip, counts only. */
+export type SiteStats = {
+  sessions: number
+  driver_laps: number
+  seasons: number[]
+  modules: number
+  module_names: string[]
+  analysis_version: string
+  definitions: Record<string, string>
+}
+
+export async function fetchStats(signal?: AbortSignal): Promise<SiteStats> {
+  return apiFetch<SiteStats>('/stats', signal ? { signal } : undefined)
+}
+
+/** Public, light: the facts the loader and the blocked pages show before /analysis answers. */
+export async function fetchSessionMeta(sessionKey: number, signal?: AbortSignal): Promise<SessionMeta> {
+  return apiFetch<SessionMeta>(`/sessions/${sessionKey}/meta`, signal ? { signal } : undefined)
+}
+
+export async function fetchAnalysis(sessionKey: number, signal?: AbortSignal): Promise<FullRaceAnalysis> {
+  return apiFetch<FullRaceAnalysis>(`/analysis/${sessionKey}`, signal ? { signal } : undefined)
 }
 
 export type LapChartsPayload = {
@@ -318,30 +394,39 @@ export async function engineerChat(payload: {
 }
 
 /**
- * Circuit telemetry (FastF1) — loaded lazily when the Circuit View is expanded.
+ * Circuit telemetry (FastF1), loaded when the telemetry tab opens.
  *
- * Returns:
- *   TelemetryData        — success
- *   null                 — generic failure
- *   'race_only'          — session is not a Race (Qualifying, Practice, etc.)
- *   'not_precomputed'    — session is a Race but telemetry hasn't been precomputed
- *   'production_unavailable' — legacy / unrecognised 503
+ * Block 32, task 7: "unavailable" is a fact about the session, not a failure,
+ * so it is told apart from an error worth retrying.
+ *   data         the laps
+ *   unavailable  permanent: not a race (400 TELEMETRY_RACE_ONLY), not prepared
+ *                for this race (503 TELEMETRY_NOT_PRECOMPUTED — a 503 whose
+ *                code says what it is), or no FastF1 telemetry (404, any other
+ *                4xx, or an answer with no drivers)
+ *   error        worth a retry: a network failure or any other 5xx
  */
+export type TelemetryResult =
+  | { kind: 'data'; data: TelemetryData }
+  | { kind: 'unavailable'; reason: 'race_only' | 'not_prepared' | 'no_data' }
+  | { kind: 'error' }
+
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
   lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
-): Promise<TelemetryData | null | 'race_only' | 'not_precomputed' | 'production_unavailable'> {
+): Promise<TelemetryResult> {
   try {
-    return await apiFetch<TelemetryData>(
+    const data = await apiFetch<TelemetryData>(
       `/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,
     )
+    return data?.drivers?.length ? { kind: 'data', data } : { kind: 'unavailable', reason: 'no_data' }
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.code === 'TELEMETRY_RACE_ONLY') return 'race_only'
-      if (err.code === 'TELEMETRY_NOT_PRECOMPUTED') return 'not_precomputed'
-      if (err.status === 503) return 'production_unavailable'
+      if (err.code === 'TELEMETRY_RACE_ONLY') return { kind: 'unavailable', reason: 'race_only' }
+      if (err.code === 'TELEMETRY_NOT_PRECOMPUTED') return { kind: 'unavailable', reason: 'not_prepared' }
+      if (err.status >= 500) return { kind: 'error' }
+      return { kind: 'unavailable', reason: 'no_data' }
     }
-    return null
+    return { kind: 'error' }
   }
 }

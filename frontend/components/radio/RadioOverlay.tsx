@@ -9,13 +9,10 @@ import { playRadioOpen, playRadioClose, playMessageReceived } from '@/lib/audio/
 import { AudioToggle } from './AudioToggle'
 import { EngineerOfflineState } from './EngineerOfflineState'
 import { generateSuggestedQuestions } from '@/lib/chat/suggestedQuestions'
-
-const CONFIDENCE_CLASS: Record<string, string> = {
-  High:   'text-signal-green border-signal-green/40 bg-signal-green/10',
-  Medium: 'text-signal-amber border-signal-amber/40 bg-signal-amber/10',
-  Low:    'text-signal-red border-signal-red/40 bg-signal-red/10',
-  none:   'text-text-muted border-border-default',
-}
+import { contextPills } from '@/lib/chat/contextPills'
+import { engineerStatus } from '@/lib/chat/engineerStatus'
+import { Badge, ConfidenceBadge, buttonClass, ui } from '@/components/ui'
+import r from './radio.module.css'
 
 function formatWait(seconds: number): string {
   if (seconds < 60) return `${seconds}s`
@@ -33,7 +30,7 @@ type Message = {
   content: string
 }
 
-type OllamaStatus = 'checking' | 'online' | 'offline'
+type EngineerConnection = 'checking' | 'online' | 'offline'
 
 type Props = {
   analysis: FullRaceAnalysis
@@ -59,19 +56,9 @@ function WaveformBars({ active }: { active: boolean }) {
   }, [active])
 
   return (
-    <div className="flex items-end gap-[2px] h-12">
+    <div className={r.wave} aria-hidden="true">
       {heights.map((h, i) => (
-        <div
-          key={i}
-          className="rounded-sm transition-all duration-150"
-          style={{
-            width: '3px',
-            height: `${h}px`,
-            backgroundColor: active
-              ? `rgba(35, 209, 139, ${0.4 + (h / 44) * 0.6})`
-              : 'rgba(35, 209, 139, 0.2)',
-          }}
-        />
+        <span key={i} style={{ height: `${h}px`, opacity: active ? 0.4 + (h / 44) * 0.6 : 0.2 }} />
       ))}
     </div>
   )
@@ -79,8 +66,9 @@ function WaveformBars({ active }: { active: boolean }) {
 
 export function RadioOverlay({ analysis, onClose }: Props) {
   const [phase, setPhase] = useState<'opening' | 'chat'>('opening')
-  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>('checking')
+  const [connection, setConnection] = useState<EngineerConnection>('checking')
   const [showOffline, setShowOffline] = useState(false)
+  const [offlineReason, setOfflineReason] = useState<'server' | 'model'>('model')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -105,18 +93,20 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     playRadioOpen()
   }, [])
 
-  // Check Ollama health on open
+  // Check the engineer (/chat/health) on open
   useEffect(() => {
     let cancelled = false
     fetchChatHealth()
       .then((health) => {
         if (cancelled) return
-        // ai_ready = true when Ollama has a model OR Groq key is configured
-        const ready = !!(health.ai_ready ?? (health.ollama_reachable && (health.model_available ?? (health.available_models?.length ?? 0) > 0)))
-        setOllamaStatus(ready ? 'online' : 'offline')
+        const st = engineerStatus(health)
+        if (!st.online) setOfflineReason(st.reason)
+        setConnection(st.online ? 'online' : 'offline')
       })
       .catch(() => {
-        if (!cancelled) setOllamaStatus('offline')
+        if (cancelled) return
+        setOfflineReason('server')
+        setConnection('offline')
       })
     return () => { cancelled = true }
   }, [])
@@ -125,17 +115,17 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setPhase('chat')
-      if (ollamaStatus === 'offline') setShowOffline(true)
+      if (connection === 'offline') setShowOffline(true)
     }, 1200)
     return () => clearTimeout(timer)
-  }, [ollamaStatus])
+  }, [connection])
 
   // After animation, react to late-resolving status
   useEffect(() => {
     if (phase !== 'chat') return
-    if (ollamaStatus === 'offline') setShowOffline(true)
-    if (ollamaStatus === 'online') setShowOffline(false)
-  }, [phase, ollamaStatus])
+    if (connection === 'offline') setShowOffline(true)
+    if (connection === 'online') setShowOffline(false)
+  }, [phase, connection])
 
   // Close on Escape
   useEffect(() => {
@@ -157,17 +147,21 @@ export function RadioOverlay({ analysis, onClose }: Props) {
   }, [onClose])
 
   const checkConnection = useCallback(async () => {
-    setOllamaStatus('checking')
+    setConnection('checking')
     try {
-      const health = await fetchChatHealth()
-      if (health.ollama_reachable) {
-        setOllamaStatus('online')
+      // Same rule as on open (ai_ready): this used ollama_reachable, so a
+      // deployment answering through another provider never came back online.
+      const st = engineerStatus(await fetchChatHealth())
+      if (st.online) {
+        setConnection('online')
         setShowOffline(false)
       } else {
-        setOllamaStatus('offline')
+        setOfflineReason(st.reason)
+        setConnection('offline')
       }
     } catch {
-      setOllamaStatus('offline')
+      setOfflineReason('server')
+      setConnection('offline')
     }
   }, [])
 
@@ -196,7 +190,7 @@ export function RadioOverlay({ analysis, onClose }: Props) {
           if (err.code === 'RATE_LIMITED') {
             const secs = Number(err.details?.retry_after_seconds ?? 60)
             setCooldownUntil(Date.now() + secs * 1000)
-            content = `Radio silence — message limit reached. Channel reopens in ${formatWait(secs)}.`
+            content = `Radio silence: message limit reached. Channel reopens in ${formatWait(secs)}.`
           }
         }
         setMessages((prev) => [...prev, { role: 'engineer', content }])
@@ -227,140 +221,82 @@ export function RadioOverlay({ analysis, onClose }: Props) {
     : `Pit wall comms · channel ${analysis.race.session_key}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={handleClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-
-      {/* Panel */}
+    <div className={r.backdrop} onClick={handleClose}>
       <div
-        className="relative z-10 w-full max-w-2xl bg-bg-secondary border border-border-default rounded-t-[4px] overflow-hidden shadow-2xl"
-        style={{ maxHeight: '85vh' }}
+        className={r.panel}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Race engineer"
         onClick={(e) => e.stopPropagation()}
       >
         {/* === OPENING PHASE === */}
         {phase === 'opening' && (
-          <div className="flex flex-col items-center justify-center px-8 py-10 gap-6 min-h-[320px]">
-            <div className="font-mono text-[10px] text-text-muted tracking-[2px]">
-              {channelLine}
-            </div>
-            <div className="text-center">
-              <span className="font-display font-black text-[36px] uppercase tracking-[-0.5px] text-text-primary">
-                Race{' '}
-              </span>
-              <span className="font-display font-black text-[36px] uppercase tracking-[-0.5px] text-signal-red">
-                Engineer
-              </span>
+          <div className={r.opening}>
+            <div className={ui.label}>{channelLine}</div>
+            <div className={r.openTitle}>
+              Race{' '}<span className={ui.accent}>Engineer</span>
             </div>
             <WaveformBars active={true} />
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
-              <span className="font-mono text-[11px] text-text-secondary">
-                {ollamaStatus === 'checking'
-                  ? 'Checking engineer connection…'
-                  : 'Establishing session context…'}
-              </span>
+            <div className={ui.sub} role="status">
+              {connection === 'checking'
+                ? 'Checking engineer connection…'
+                : 'Establishing session context…'}
             </div>
           </div>
         )}
 
         {/* === CHAT PHASE — OFFLINE === */}
         {phase === 'chat' && showOffline && (
-          <div className="relative">
-            <EngineerOfflineState
-              onCheckConnection={checkConnection}
-              onContinueAnyway={() => setShowOffline(false)}
-            />
-          </div>
+          <EngineerOfflineState
+            reason={offlineReason}
+            onCheckConnection={checkConnection}
+            onContinueAnyway={() => setShowOffline(false)}
+          />
         )}
 
         {/* === CHAT PHASE — CHAT UI === */}
         {phase === 'chat' && !showOffline && (
-          <div className="flex flex-col" style={{ maxHeight: '85vh' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh', minHeight: 0 }}>
             {/* Header */}
-            <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-[3px] bg-signal-green/20 border border-signal-green/40 flex items-center justify-center">
-                  <span className="font-display font-bold text-[9px] text-signal-green">ENG</span>
-                </div>
+            <div className={r.head}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className={`${r.avatar} ${r.eng}`} aria-hidden="true">ENG</span>
                 <div>
-                  <div className="font-display font-bold text-[12px] uppercase tracking-[0.5px] text-text-primary">
-                    Race Wall Engineer
-                  </div>
-                  <div className="font-mono text-[9px] text-text-muted">
-                    {analysis.race.meeting_name} · {analysis.race.session_name}
-                  </div>
+                  <h2 className={ui.h6}>Race Wall Engineer</h2>
+                  <div className={ui.sub}>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} · {analysis.race.session_name}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <AudioToggle />
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-signal-green animate-pulse" />
-                  <span className="font-display font-bold text-[9px] uppercase tracking-[1px] text-signal-green">
-                    On air
-                  </span>
-                </div>
-                <button
-                  onClick={handleClose}
-                  className="w-6 h-6 flex items-center justify-center rounded-[2px] hover:bg-bg-elevated text-text-muted hover:text-text-primary font-mono text-[14px] transition-colors"
-                >
-                  ×
-                </button>
+                <Badge tone="ok">On air</Badge>
+                <button type="button" onClick={handleClose} className={buttonClass('ghost')} aria-label="Close the race engineer">×</button>
               </div>
             </div>
 
             {/* Context pills */}
-            <div className="px-4 py-2 border-b border-border-subtle flex items-center gap-2 flex-wrap shrink-0 bg-bg-panel">
-              <span className="flex items-center gap-1.5 px-2 py-1 bg-signal-red/10 border border-signal-red/30 rounded-[2px]">
-                <span className="font-mono font-bold text-[10px] text-signal-red">
-                  CHAOS {analysis.chaos.score}
-                </span>
-              </span>
-              <span className="flex items-center gap-1.5 px-2 py-1 bg-bg-elevated border border-border-subtle rounded-[2px]">
-                <span className="font-mono text-[10px] text-text-secondary">
-                  {analysis.tyre_degradation.length} stints loaded
-                </span>
-              </span>
+            <div className={r.pills}>
+              <Badge tone="accent">CHAOS {analysis.chaos.score}</Badge>
+              <Badge tone="muted">{analysis.tyre_degradation.length} stints loaded</Badge>
               {/* Focused driver pill */}
-              {focusedDriver && (
-                <span className="flex items-center gap-1 px-2 py-1 bg-signal-blue/10 border border-signal-blue/30 rounded-[2px]">
-                  <span className="font-mono font-bold text-[10px] text-signal-blue">
-                    {focusedDriver.code} focus
-                  </span>
-                </span>
-              )}
-              {[
-                { label: 'Tyres loaded' },
-                { label: 'Pit mapped' },
-                { label: 'Race ctrl parsed' },
-              ].map(({ label }) => (
-                <span
-                  key={label}
-                  className="flex items-center gap-1 px-2 py-1 bg-signal-green/10 border border-signal-green/30 rounded-[2px]"
-                >
-                  <span className="w-1 h-1 rounded-full bg-signal-green" />
-                  <span className="font-mono text-[10px] text-signal-green">{label}</span>
-                </span>
+              {focusedDriver && <Badge tone="info">{focusedDriver.code} focus</Badge>}
+              {contextPills(analysis).map((label) => (
+                <Badge key={label} tone="ok">{label}</Badge>
               ))}
             </div>
 
             {/* Message feed */}
-            <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[160px]">
+            <div ref={feedRef} className={r.feed} aria-live="polite">
               {messages.length === 0 && (
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-[2px] bg-signal-green/20 border border-signal-green/40 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="font-display font-bold text-[7px] text-signal-green">ENG</span>
-                  </div>
-                  <div className="flex-1 bg-bg-panel border-l-2 border-l-signal-green px-3 py-2 rounded-r-[3px]">
-                    <div className="font-display font-bold text-[9px] uppercase tracking-[1px] text-signal-green mb-1">
-                      Race Engineer
-                    </div>
-                    <p className="font-mono text-[11px] text-text-secondary leading-relaxed">
+                <div className={r.msg}>
+                  <span className={`${r.avatar} ${r.eng}`} aria-hidden="true">ENG</span>
+                  <div className={`${r.bubble} ${r.eng}`}>
+                    <div className={ui.label} style={{ color: 'inherit', fontWeight: 800 }}>Race Engineer</div>
+                    <p className={r.bubbleText}>
                       Ready. I have full context for{' '}
-                      <span className="text-text-primary">{analysis.race.meeting_name}</span> —
-                      chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
+                      <b>{analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`}</b>: chaos score {analysis.chaos.score}, {analysis.true_pace.length} drivers
                       analysed, {analysis.tyre_degradation.length} stints mapped.
                       {focusedDriver && (
-                        <> Focused on <span className="text-signal-blue">{focusedDriver.code}</span>.</>
+                        <> Focused on <b>{focusedDriver.code}</b>.</>
                       )}{' '}
                       Ask me anything about race strategy.
                     </p>
@@ -368,69 +304,41 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                 </div>
               )}
 
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div
-                    className={`w-6 h-6 rounded-[2px] flex items-center justify-center shrink-0 mt-0.5 ${
-                      msg.role === 'engineer'
-                        ? 'bg-signal-green/20 border border-signal-green/40'
-                        : 'bg-signal-red/20 border border-signal-red/40'
-                    }`}
-                  >
-                    <span className={`font-display font-bold text-[7px] ${msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'}`}>
-                      {msg.role === 'engineer' ? 'ENG' : 'YOU'}
-                    </span>
-                  </div>
-                  <div
-                    className={`flex-1 px-3 py-2 rounded-r-[3px] ${
-                      msg.role === 'engineer'
-                        ? 'bg-bg-panel border-l-2 border-l-signal-green'
-                        : 'bg-signal-red/10 border-l-2 border-l-signal-red'
-                    }`}
-                  >
-                    <div className={`font-display font-bold text-[9px] uppercase tracking-[1px] mb-1 ${msg.role === 'engineer' ? 'text-signal-green' : 'text-signal-red'}`}>
-                      {msg.role === 'engineer' ? 'Race Engineer' : 'You'}
-                    </div>
-                    <p className="font-mono text-[11px] text-text-secondary leading-relaxed">
-                      {msg.content}
-                    </p>
-                    {msg.role === 'engineer' && msg.confidence !== undefined && (
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <span
-                          className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${CONFIDENCE_CLASS[msg.confidence ?? 'none']}`}
-                          title="Model confidence capped by the engineer notes it actually cited: none → Low, one → Medium, two or more → as declared"
-                        >
-                          {msg.confidence ? `${msg.confidence} confidence` : 'Unverified'}
-                        </span>
-                        {(msg.cited ?? []).map((c) => (
-                          <span
-                            key={c.id}
-                            className="px-1.5 py-0.5 border border-border-default rounded-[2px] font-mono text-[8px] text-text-muted"
-                            title={c.title}
-                          >
-                            {c.lap_number != null ? `L${c.lap_number} · ` : ''}{c.title}
-                          </span>
-                        ))}
-                        {(msg.cited ?? []).length === 0 && msg.confidence && (
-                          <span className="font-mono text-[8px] text-text-muted">no signals cited</span>
-                        )}
+              {messages.map((msg, i) => {
+                const who = msg.role === 'engineer' ? r.eng : r.you
+                return (
+                  <div key={i} className={`${r.msg} ${msg.role === 'user' ? r.msgUser : ''}`}>
+                    <span className={`${r.avatar} ${who}`} aria-hidden="true">{msg.role === 'engineer' ? 'ENG' : 'YOU'}</span>
+                    <div className={`${r.bubble} ${who}`}>
+                      <div className={ui.label} style={{ color: 'inherit', fontWeight: 800 }}>
+                        {msg.role === 'engineer' ? 'Race Engineer' : 'You'}
                       </div>
-                    )}
+                      <p className={r.bubbleText}>{msg.content}</p>
+                      {msg.role === 'engineer' && msg.confidence !== undefined && (
+                        <div className={r.meta}>
+                          <span title="Model confidence capped by the engineer notes it actually cited: none → Low, one → Medium, two or more → as declared">
+                            <ConfidenceBadge level={(msg.confidence as 'Low' | 'Medium' | 'High' | null) ?? null} />
+                          </span>
+                          {(msg.cited ?? []).map((c) => (
+                            <span key={c.id} className={r.cite} title={c.title}>
+                              {c.lap_number != null ? `L${c.lap_number} · ` : ''}{c.title}
+                            </span>
+                          ))}
+                          {(msg.cited ?? []).length === 0 && msg.confidence && (
+                            <span className={ui.sub}>no signals cited</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {isSending && (
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-[2px] bg-signal-green/20 border border-signal-green/40 flex items-center justify-center shrink-0">
-                    <span className="font-display font-bold text-[7px] text-signal-green">ENG</span>
-                  </div>
-                  <div className="bg-bg-panel border-l-2 border-l-signal-green px-3 py-2 rounded-r-[3px]">
-                    <div className="flex gap-1 items-center h-5">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-signal-green animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                      ))}
-                    </div>
+                <div className={r.msg}>
+                  <span className={`${r.avatar} ${r.eng}`} aria-hidden="true">ENG</span>
+                  <div className={`${r.bubble} ${r.eng}`} role="status" aria-label="The engineer is answering">
+                    <div className={r.typing}><span /><span /><span /></div>
                   </div>
                 </div>
               )}
@@ -438,22 +346,16 @@ export function RadioOverlay({ analysis, onClose }: Props) {
 
             {/* Suggested questions */}
             {messages.length === 0 && (
-              <div className="px-4 pb-3 grid grid-cols-2 gap-2 shrink-0">
+              <div className={r.suggest}>
                 {suggestedQuestions.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    className="text-left px-3 py-2 bg-bg-panel border-l-2 border-l-signal-purple hover:bg-bg-elevated transition-colors rounded-r-[2px]"
-                  >
-                    <p className="font-mono text-[10px] text-text-secondary leading-snug">{q}</p>
-                  </button>
+                  <button key={q} type="button" onClick={() => sendMessage(q)} className={r.suggestBtn}>{q}</button>
                 ))}
               </div>
             )}
 
             {/* Composer */}
-            <div className="px-4 py-3 border-t border-border-subtle shrink-0">
-              <div className="flex gap-2">
+            <div className={r.composer}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -464,26 +366,28 @@ export function RadioOverlay({ analysis, onClose }: Props) {
                       sendMessage(input)
                     }
                   }}
-                  placeholder={rateLimited ? `Message limit reached — reopens in ${formatWait(cooldownLeft)}` : 'Ask about strategy, tyres, pit timing…'}
+                  aria-label="Question for the race engineer"
+                  placeholder={rateLimited ? `Message limit reached · reopens in ${formatWait(cooldownLeft)}` : 'Ask about strategy, tyres, pit timing…'}
                   rows={2}
-                  className="flex-1 bg-bg-elevated border border-border-default rounded-[3px] px-3 py-2 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-signal-blue resize-none"
+                  className={r.textarea}
                   disabled={isSending || rateLimited}
                 />
                 <button
+                  type="button"
                   onClick={() => sendMessage(input)}
                   disabled={!input.trim() || isSending || rateLimited}
-                  className="px-4 py-2 bg-signal-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-display font-bold text-[10px] uppercase tracking-[1px] rounded-[3px] transition-all shrink-0"
+                  className={buttonClass('primary', true)}
                 >
                   Send
                 </button>
               </div>
-              <div className="flex items-center justify-between mt-1.5">
-                <span className={`font-mono text-[9px] ${rateLimited ? 'text-signal-amber' : 'text-text-muted'}`}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                <span className={ui.sub} style={rateLimited ? { color: 'var(--pw-amber)', fontWeight: 700 } : undefined} role={rateLimited ? 'status' : undefined}>
                   {rateLimited
                     ? `Rate limited · try again in ${formatWait(cooldownLeft)}`
                     : 'Grounded mode · answers cite session signals'}
                 </span>
-                <span className="font-mono text-[9px] text-text-muted">Shift+Enter newline</span>
+                <span className={ui.sub}>Shift+Enter newline</span>
               </div>
             </div>
           </div>

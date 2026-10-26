@@ -4,6 +4,8 @@
 
 /* The palette as RGB channels — tailwind.config.ts reads these. */
 :root {
+  /* The smallest text on the site (Block 31, 18 Oct): labels, badges, counts. */
+  --pw-text-xs: 11px;
   --c-bg-primary: 5 6 10;
   --c-bg-secondary: 11 13 18;
   --c-bg-panel: 17 20 25;
@@ -93,20 +95,4 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #8A94A6;
-}
-
-/* Race-start loader — green "lights out" go-signal flash */
-@keyframes pwGoFlash {
-  0%   { opacity: 0; }
-  25%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* IntroAnimation's prefers-reduced-motion variant (Block 25 Task 0) — opacity
-   only, no transform at all: the zoom itself is the motion being avoided. */
-@keyframes pwIntroReducedFade {
-  0%   { opacity: 0; }
-  30%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
 }

@@ -19,6 +19,7 @@
  * right now", never as a broken link or a crash.
  */
 import { fetchRaces, fetchSessions } from '@/lib/api'
+import { placeOf } from '@/lib/place'
 import { candidateMeetings } from '@/lib/nextSession'
 import type { RaceListItem, SessionInfo } from '@/types'
 
@@ -50,6 +51,27 @@ export async function fetchLiveServerStatus(): Promise<LiveServerStatus> {
   }
 }
 
+export type LivePublicState = { state: 'live' | 'no_session'; sessionKey: number | null }
+
+/**
+ * GET /live/state on the live server (ops/landing-meta): on air or not, and
+ * which session — nothing else. Throws when the endpoint is missing or slow
+ * (timeoutMs): the landing hides its live card rather than guess.
+ */
+export async function fetchLivePublicState(timeoutMs = 3000): Promise<LivePublicState> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${LIVE_URL}/live/state`, { signal: controller.signal })
+    if (!res.ok) throw new Error(`live state ${res.status}`)
+    const body = await res.json()
+    if (body?.state !== 'live' && body?.state !== 'no_session') throw new Error('live state: unexpected body')
+    return { state: body.state, sessionKey: typeof body.session_key === 'number' ? body.session_key : null }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** The chronologically nearest session in a meeting that has not ended yet —
  *  any type, not only the Race: whichever one a live server would actually
  *  be following next. */
@@ -65,8 +87,11 @@ export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date):
 }
 
 export type NextLiveSessionInfo = {
-  meetingName: string
+  /** The host city (lib/place.ts) — never OpenF1's meeting or country name. */
+  place: string
   circuitShortName: string | null
+  /** The session's own key: /live/{key} before it starts is the "not live yet" page. */
+  sessionKey: number
   sessionName: string
   dateStart: string
   dateEnd: string | null
@@ -99,8 +124,9 @@ export async function fetchNextLiveSession(year: number, now: Date = new Date())
     const next = findEarliestUpcomingSession(sessions, now)
     if (!next) continue
     return {
-      meetingName: meeting.meeting_name,
+      place: placeOf(meeting),
       circuitShortName: meeting.circuit_short_name ?? null,
+      sessionKey: next.session_key,
       sessionName: next.session_name,
       dateStart: next.date_start,
       dateEnd: next.date_end ?? null,

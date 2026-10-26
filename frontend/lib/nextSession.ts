@@ -12,6 +12,7 @@
  * network; fetchNextRaceCardInfo is the only part that calls the backend.
  */
 import { fetchRaces, fetchSessions } from '@/lib/api'
+import { placeOf } from '@/lib/place'
 import type { RaceListItem, SessionInfo } from '@/types'
 
 export type SessionWindowStatus = 'upcoming' | 'processing'
@@ -63,9 +64,9 @@ export function describeSessionWindow(session: SessionInfo, now: Date): SessionW
 }
 
 export type NextRaceCardInfo = {
-  meetingName: string
+  /** The host city (lib/place.ts) — never OpenF1's meeting or country name. */
+  place: string
   circuitShortName: string | null
-  countryName: string | null
 } & SessionWindow
 
 const MAX_MEETINGS_TRIED = 3
@@ -96,9 +97,8 @@ export async function fetchNextRaceCardInfo(year: number, now: Date = new Date()
     const race = findRaceSession(sessions)
     if (!race || !race.date_start) continue
     return {
-      meetingName: meeting.meeting_name,
+      place: placeOf(meeting),
       circuitShortName: meeting.circuit_short_name ?? null,
-      countryName: meeting.country_name ?? null,
       ...describeSessionWindow(race, now),
     }
   }

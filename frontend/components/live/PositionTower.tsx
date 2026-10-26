@@ -14,7 +14,7 @@ type Props = {
 /** OpenF1 sends the leader's interval as 0, and a lapped car as "+1 LAP". */
 function gapText(value: number | string | null, isLeader: boolean): string {
   if (isLeader) return 'LEADER'
-  if (value == null) return '–'
+  if (value == null) return 'n/a'
   if (typeof value === 'string') return value
   return `+${value.toFixed(3)}`
 }
@@ -25,10 +25,10 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           Order
         </span>
-        <span className="font-mono text-[10px] text-text-muted">
+        <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
           {rows.length} cars · gaps from OpenF1 intervals (~4s resolution)
         </span>
       </div>
@@ -37,7 +37,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
         {['Pos', 'Driver', 'Gap', 'Int', 'Last lap', 'Tyre'].map((h, i) => (
           <span
             key={h}
-            className={`font-display font-bold text-[8px] uppercase tracking-[1.2px] text-text-muted ${i >= 2 ? 'text-right' : ''}`}
+            className={`font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[1.2px] text-text-muted ${i >= 2 ? 'text-right' : ''}`}
           >
             {h}
           </span>
@@ -47,7 +47,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
       <div className="divide-y divide-border-subtle/60">
         {rows.length === 0 && (
           <div className="px-3 py-8 text-center font-mono text-[11px] text-text-muted">
-            No position data yet — waiting for the first v1/position message.
+            No position data yet: waiting for the first v1/position message.
           </div>
         )}
 
@@ -69,7 +69,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
               <span className="font-mono font-bold text-[12px] text-text-primary tabular-nums flex items-center gap-1">
                 {row.position}
                 {delta != null && delta !== 0 && (
-                  <span className={delta > 0 ? 'text-signal-green text-[8px]' : 'text-signal-red text-[8px]'}>
+                  <span className={delta > 0 ? 'text-signal-green text-[length:var(--pw-text-xs)]' : 'text-signal-red text-[length:var(--pw-text-xs)]'}>
                     {delta > 0 ? '▲' : '▼'}
                   </span>
                 )}
@@ -84,12 +84,12 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
                   {row.code}
                 </span>
                 {row.stops > 0 && (
-                  <span className="font-mono text-[8px] text-text-muted">
+                  <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
                     {row.stops} stop{row.stops === 1 ? '' : 's'}
                   </span>
                 )}
                 {row.is_pit_out_lap && (
-                  <span className="px-1 border border-signal-blue/40 text-signal-blue rounded-[2px] font-display font-bold text-[7px] uppercase tracking-[0.5px]">
+                  <span className="px-1 border border-signal-blue/40 text-signal-blue rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px]">
                     out
                   </span>
                 )}
@@ -100,11 +100,11 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
               </span>
 
               <span className="font-mono text-[11px] text-text-muted tabular-nums text-right">
-                {row.position === 1 ? '–' : gapText(row.interval, false)}
+                {row.position === 1 ? 'n/a' : gapText(row.interval, false)}
               </span>
 
               <span className="font-mono text-[11px] text-text-primary tabular-nums text-right">
-                {row.last_lap_s ? formatLapTime(row.last_lap_s) : '–'}
+                {row.last_lap_s ? formatLapTime(row.last_lap_s) : 'n/a'}
               </span>
 
               <span className="flex items-center justify-end gap-1.5">
@@ -114,7 +114,7 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
                   title={row.compound ?? 'compound unknown'}
                 />
                 <span className="font-mono text-[11px] text-text-secondary tabular-nums">
-                  {row.stint_laps != null ? `${row.stint_laps}L` : '–'}
+                  {row.stint_laps != null ? `${row.stint_laps}L` : 'n/a'}
                 </span>
               </span>
             </button>
@@ -123,8 +123,8 @@ export function PositionTower({ rows, focusedDriver, onFocus }: Props) {
       </div>
 
       <div className="px-3 py-1.5 border-t border-border-subtle">
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed">
-          Tyre column is laps on the current stint, not total tyre age — a set fitted used starts
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
+          Tyre column is laps on the current stint, not total tyre age: a set fitted used starts
           above zero and the feed reports that separately.
         </p>
       </div>

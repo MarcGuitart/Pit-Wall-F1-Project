@@ -75,8 +75,7 @@ export const DEMO_RACES = [
   {
     session_key: 9636,
     meeting_key: 1241,
-    meeting_name: 'Brazilian Grand Prix',
-    country_name: 'Brazil',
+    location: 'São Paulo',
     circuit_short_name: 'Interlagos',
     date_start: '2024-11-03',
     year: 2024,
@@ -86,8 +85,7 @@ export const DEMO_RACES = [
   {
     session_key: 9539,
     meeting_key: 1229,
-    meeting_name: 'Spanish Grand Prix',
-    country_name: 'Spain',
+    location: 'Barcelona',
     circuit_short_name: 'Catalunya',
     date_start: '2024-06-23',
     year: 2024,
@@ -97,8 +95,7 @@ export const DEMO_RACES = [
   {
     session_key: 9566,
     meeting_key: 1233,
-    meeting_name: 'Hungarian Grand Prix',
-    country_name: 'Hungary',
+    location: 'Budapest',
     circuit_short_name: 'Hungaroring',
     date_start: '2024-07-21',
     year: 2024,
@@ -107,13 +104,3 @@ export const DEMO_RACES = [
   },
 ] as const
 
-export const LOADING_STEPS = [
-  'Fetching timing data…',
-  'Loading stints and pit data…',
-  'Filtering clean laps…',
-  'Reconstructing race timeline…',
-  'Calculating tyre degradation slopes…',
-  'Detecting pit stop impact…',
-  'Computing chaos index…',
-  'Generating engineer notes…',
-] as const

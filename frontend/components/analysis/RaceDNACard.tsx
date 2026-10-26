@@ -1,4 +1,6 @@
 import type { RaceDNA } from '@/types'
+import { toneClass, ui, type Tone } from '@/components/ui'
+import a from './analysis.module.css'
 
 type Props = {
   dna: RaceDNA
@@ -7,72 +9,42 @@ type Props = {
 type Cell = {
   label: string
   value: string
-  color?: string
+  tone?: Tone
 }
 
-function colorFor(field: keyof RaceDNA, value: string): string {
+function toneFor(field: keyof RaceDNA, value: string): Tone | undefined {
   if (field === 'overtaking_difficulty') {
-    if (value === 'High') return '#E8001D'
-    if (value === 'Medium') return '#FFB020'
+    if (value === 'High') return 'accent'
+    if (value === 'Medium') return 'warn'
   }
-  if (field === 'pit_timing_sensitivity') {
-    if (value === 'Extreme') return '#E8001D'
-    if (value === 'High') return '#FFB020'
+  if (field === 'pit_timing_sensitivity' || field === 'chaos_level') {
+    if (value === 'Extreme') return 'accent'
+    if (value === 'High') return 'warn'
   }
-  if (field === 'chaos_level') {
-    if (value === 'Extreme') return '#E8001D'
-    if (value === 'High') return '#FFB020'
-  }
-  if (field === 'strategy_type') return '#A66CFF'
-  return 'rgb(var(--c-text-primary))'
+  if (field === 'strategy_type') return 'purple'
+  return undefined
 }
 
+/** The race's character in seven readings, one cell each. */
 export function RaceDNACard({ dna }: Props) {
-  const row1: Cell[] = [
-    { label: 'Primary factor',    value: dna.primary_factor,         color: colorFor('primary_factor', dna.primary_factor) },
-    { label: 'Secondary factor',  value: dna.secondary_factor,       color: colorFor('secondary_factor', dna.secondary_factor) },
-    { label: 'Strategy type',     value: dna.strategy_type,          color: colorFor('strategy_type', dna.strategy_type) },
-    { label: 'Chaos level',       value: dna.chaos_level,            color: colorFor('chaos_level', dna.chaos_level) },
+  const cells: Cell[] = [
+    { label: 'Primary factor',   value: dna.primary_factor,          tone: toneFor('primary_factor', dna.primary_factor) },
+    { label: 'Secondary factor', value: dna.secondary_factor,        tone: toneFor('secondary_factor', dna.secondary_factor) },
+    { label: 'Strategy type',    value: dna.strategy_type,           tone: toneFor('strategy_type', dna.strategy_type) },
+    { label: 'Chaos level',      value: dna.chaos_level,             tone: toneFor('chaos_level', dna.chaos_level) },
+    { label: 'Overtaking',       value: dna.overtaking_difficulty,   tone: toneFor('overtaking_difficulty', dna.overtaking_difficulty) },
+    { label: 'Pit sensitivity',  value: dna.pit_timing_sensitivity,  tone: toneFor('pit_timing_sensitivity', dna.pit_timing_sensitivity) },
+    { label: 'Tyre impact',      value: dna.tyre_degradation_impact, tone: toneFor('tyre_degradation_impact', dna.tyre_degradation_impact) },
   ]
-  const row2: Cell[] = [
-    { label: 'Overtaking',        value: dna.overtaking_difficulty,  color: colorFor('overtaking_difficulty', dna.overtaking_difficulty) },
-    { label: 'Pit sensitivity',   value: dna.pit_timing_sensitivity, color: colorFor('pit_timing_sensitivity', dna.pit_timing_sensitivity) },
-    { label: 'Tyre impact',       value: dna.tyre_degradation_impact, color: colorFor('tyre_degradation_impact', dna.tyre_degradation_impact) },
-    { label: '',                  value: '' },
-  ]
-
-  const CellItem = ({ cell }: { cell: Cell }) => (
-    <div className="flex flex-col justify-center px-3 py-2 border-r border-border-subtle last:border-r-0">
-      {cell.label ? (
-        <>
-          <div className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mb-1">
-            {cell.label}
-          </div>
-          <div
-            className="font-display font-bold text-[13px] leading-tight truncate"
-            style={{ color: cell.color ?? 'rgb(var(--c-text-primary))' }}
-          >
-            {cell.value}
-          </div>
-        </>
-      ) : null}
-    </div>
-  )
 
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-      {/* Row 1 */}
-      <div className="grid grid-cols-4 border-b border-border-subtle">
-        {row1.map((cell) => (
-          <CellItem key={cell.label} cell={cell} />
-        ))}
-      </div>
-      {/* Row 2 */}
-      <div className="grid grid-cols-4">
-        {row2.map((cell, i) => (
-          <CellItem key={i} cell={cell} />
-        ))}
-      </div>
-    </div>
+    <section aria-label="Race DNA" className={a.kv} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))' }}>
+      {cells.map((cell) => (
+        <div key={cell.label}>
+          <div className={ui.label}>{cell.label}</div>
+          <div className={`${a.dnaValue} ${cell.tone ? toneClass(cell.tone) : ''}`}>{cell.value}</div>
+        </div>
+      ))}
+    </section>
   )
 }

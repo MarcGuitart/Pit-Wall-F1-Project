@@ -3,6 +3,8 @@
 import type { FullRaceAnalysis } from '@/types'
 import type { ActiveTab } from '@/stores/raceStore'
 import type { SessionType } from '@/lib/utils'
+import { Tabs } from '@/components/ui'
+import a from './analysis.module.css'
 
 // SVG icons for tabs that need proper vector rendering (no emoji)
 function IconWeather({ size = 13 }: { size?: number }) {
@@ -101,50 +103,23 @@ export function TabNav({ activeTab, onTabChange, sessionType, analysis }: Props)
   const visibleTabs = TABS.filter((t) => t.sessionTypes.includes(sessionType))
 
   return (
-    <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
-      <div className="flex items-stretch h-[42px] border-b border-border-subtle">
-        {visibleTabs.map((tab) => {
-          const isActive = tab.id === activeTab
-          const badge = tab.getBadge?.(analysis)
-          const SvgIcon = tab.svgIcon
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={[
-                'relative flex items-center gap-1.5 px-4 h-full transition-colors select-none',
-                'font-display font-bold text-[11px] uppercase tracking-[1px]',
-                isActive
-                  ? 'text-text-primary'
-                  : 'text-text-muted hover:text-text-secondary',
-              ].join(' ')}
-            >
-              {SvgIcon ? (
-                <SvgIcon size={13} />
-              ) : (
-                <span className="text-[13px] leading-none">{tab.icon}</span>
-              )}
-              <span>{tab.label}</span>
-              {badge != null && (
-                <span
-                  className={[
-                    'px-1.5 py-0.5 rounded-[3px] border font-mono text-[9px] leading-none',
-                    isActive
-                      ? 'bg-signal-red/10 border-signal-red/25 text-signal-red'
-                      : 'bg-bg-elevated border-border-subtle text-text-muted',
-                  ].join(' ')}
-                >
-                  {badge}
-                </span>
-              )}
-              {/* Active indicator line */}
-              {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal-red" />
-              )}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <Tabs
+      label="Analysis views"
+      value={activeTab}
+      onChange={onTabChange}
+      tabs={visibleTabs.map((tab) => {
+        const SvgIcon = tab.svgIcon
+        return {
+          id: tab.id,
+          label: tab.label,
+          count: tab.getBadge?.(analysis),
+          icon: (
+            <span className={a.tabIcon} aria-hidden="true">
+              {SvgIcon ? <SvgIcon size={13} /> : tab.icon}
+            </span>
+          ),
+        }
+      })}
+    />
   )
 }

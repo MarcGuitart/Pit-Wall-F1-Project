@@ -1,10 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import type { FullRaceAnalysis } from '@/types'
+import type { FullRaceAnalysis, SessionMeta } from '@/types'
+import { useShallow } from 'zustand/react/shallow'
 import { useRaceStore } from '@/stores/raceStore'
 import { getSessionType } from '@/lib/utils'
+import { chaosLevel, CHAOS_LEVEL_TONE } from '@/lib/chaos'
+import { headerFacts } from '@/lib/sessionFacts'
+import { Badge, PageHeader, Panel, toneClass, ui } from '@/components/ui'
+import a from './analysis.module.css'
 
 import { TabNav } from './TabNav'
 import { RacePhaseTimeline } from './RacePhaseTimeline'
@@ -26,6 +30,10 @@ type Props = {
   analysis: FullRaceAnalysis
   /** The /preview redesign draws its own race header above this page. */
   hideHeader?: boolean
+  /** /sessions/{key}/meta: the header uses the same facts as the loader (city, date). */
+  meta?: SessionMeta | null
+  /** Block 27: arriving after the loader — modules fade in, staggered (analysis.module.css). */
+  arriving?: boolean
 }
 
 function inferTotalLaps(analysis: FullRaceAnalysis): number {
@@ -36,13 +44,21 @@ function inferTotalLaps(analysis: FullRaceAnalysis): number {
   return 70
 }
 
-export function AnalysisPage({ analysis, hideHeader = false }: Props) {
+export function AnalysisPage({ analysis, hideHeader = false, meta = null, arriving = false }: Props) {
+  // Only what the page renders from: opening the race engineer (radioOpen)
+  // must not re-render every chart and table — that click measured INP
+  // 200–216 ms with the CPU throttled four times (Block 31, C4).
   const {
-    radioOpen, setRadioOpen,
+    setRadioOpen,
     analysisMode, setAnalysisMode,
     focusedDriver, setFocusedDriver, clearFocusedDriver,
     activeTab, setActiveTab,
-  } = useRaceStore()
+  } = useRaceStore(useShallow((st) => ({
+    setRadioOpen: st.setRadioOpen,
+    analysisMode: st.analysisMode, setAnalysisMode: st.setAnalysisMode,
+    focusedDriver: st.focusedDriver, setFocusedDriver: st.setFocusedDriver, clearFocusedDriver: st.clearFocusedDriver,
+    activeTab: st.activeTab, setActiveTab: st.setActiveTab,
+  })))
 
   const [driverCardOpen, setDriverCardOpen] = useState(false)
 
@@ -74,41 +90,35 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
     setRadioOpen(true)
   }
 
-  return (
-    <div className="max-w-[1440px] mx-auto px-4 py-4 space-y-3">
-      {/* Race header */}
-      {!hideHeader && <div className="bg-bg-panel border border-border-subtle rounded-[4px] px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="font-display font-black text-[20px] uppercase tracking-[-0.5px] text-text-primary">
-            {analysis.race.meeting_name}
-          </div>
-          <div className="font-mono text-[11px] text-text-secondary mt-0.5">
-            {analysis.race.circuit_short_name} · {analysis.race.year} · {analysis.race.session_name}
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <div className="font-mono font-bold text-[18px] text-signal-red">{analysis.chaos.score}</div>
-            <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">Chaos</div>
-          </div>
-          <div className="text-center">
-            <div className="font-mono font-bold text-[18px] text-text-primary">{analysis.true_pace.length}</div>
-            <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">Drivers</div>
-          </div>
-          <div className="text-center">
-            <div className="font-mono font-bold text-[18px] text-text-primary">{analysis.tyre_degradation.length}</div>
-            <div className="font-display text-[8px] uppercase tracking-[1px] text-text-muted">Stints</div>
-          </div>
-          <div className={`px-3 py-1 rounded-[3px] font-display font-bold text-[10px] uppercase tracking-[1px] ${
-            analysis.chaos.level === 'Extreme' ? 'bg-signal-red/20 text-signal-red border border-signal-red/30'
-              : analysis.chaos.level === 'High' ? 'bg-signal-amber/20 text-signal-amber border border-signal-amber/30'
-              : 'bg-signal-green/20 text-signal-green border border-signal-green/30'
-          }`}>
-            {analysis.chaos.level} Chaos
-          </div>
-        </div>
-      </div>}
+  const level = analysis.chaos.level
+  const levelTone = CHAOS_LEVEL_TONE[level as keyof typeof CHAOS_LEVEL_TONE] ?? CHAOS_LEVEL_TONE[chaosLevel(analysis.chaos.score)]
 
+  const facts = meta ? headerFacts(analysis.race.session_key, meta) : null
+  // The headline is the place (Block 27b): /sessions/{key}/meta's location, else the circuit.
+  const place = facts?.title ?? analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`
+
+  return (
+    <div className={`${a.page} ${arriving ? a.arrive : ''}`}>
+      {/* Race header */}
+      {!hideHeader && (
+        <PageHeader
+          kicker={<>Race analysis · OpenF1 · Session {analysis.race.session_key}</>}
+          title={place}
+          meta={<span>{facts?.line ?? `${analysis.race.year} · ${analysis.race.session_name}`}</span>}
+          right={
+            <div data-arrive="0" className={a.headRightIn}>
+              <div className={a.headStats}>
+                <div><div className={`${ui.mid} ${toneClass('accent')}`}>{analysis.chaos.score}</div><div className={ui.label}>Chaos</div></div>
+                <div><div className={ui.mid}>{analysis.true_pace.length}</div><div className={ui.label}>Drivers</div></div>
+                <div><div className={ui.mid}>{analysis.tyre_degradation.length}</div><div className={ui.label}>Stints</div></div>
+              </div>
+              <Badge tone={levelTone} solid={level === 'Extreme'}>{analysis.chaos.level} Chaos</Badge>
+            </div>
+          }
+        />
+      )}
+
+      <div className={a.stack} data-arrive="1" style={{ borderTop: hideHeader ? undefined : '2px solid var(--pw-divider)' }}>
       {/* Phase timeline — always visible above tabs */}
       {sessionType === 'Race' && analysis.modules?.race_phases?.status === 'failed' && (
         <ModuleUnavailable title="Race Phase Timeline" analysis={analysis} field="race_phases" />
@@ -130,18 +140,31 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
         )
       }
 
-      {/* Team radio lane — only when the session has clips; no lane, no gap otherwise */}
-      {sessionType === 'Race' && analysis.team_radio && analysis.team_radio.clips.length > 0 && (
-        <TeamRadioLane radio={analysis.team_radio} totalLaps={totalLaps} />
-      )}
+      {/* Team radio lane. A race with no clips keeps the lane's height with a line
+          that says so (Block 27b): the loader reserves that height, and without
+          it the whole page jumped 121 px (145 on mobile) up on arrival. */}
+      {sessionType === 'Race' && (analysis.team_radio && analysis.team_radio.clips.length > 0
+        ? <TeamRadioLane radio={analysis.team_radio} totalLaps={totalLaps} />
+        : (
+          <div className={a.radioEmpty} data-radio-empty>
+            <Panel title="Team Radio">
+              <p className={ui.sub} style={{ margin: 0 }}>
+                {analysis.modules?.team_radio?.reason ?? 'No team radio was published for this session.'}
+              </p>
+            </Panel>
+          </div>
+        ))}
+      </div>
 
       {/* Tab navigation */}
+      <div data-arrive="2">
       <TabNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
         sessionType={sessionType}
         analysis={analysis}
       />
+      </div>
 
       {/* Driver focus strip — always visible when a driver is focused */}
       <DriverFocusStrip
@@ -150,15 +173,8 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
         onClear={handleCloseDriverCard}
       />
 
-      {/* Tab content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.12 }}
-        >
+      {/* Tab content — switches instantly, like the live page's tabs */}
+      <div key={activeTab} role="tabpanel" aria-label={activeTab}>
           {activeTab === 'strategy' && (
             <StrategyTab
               analysis={analysis}
@@ -204,8 +220,7 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
               onDriverClick={handleDriverFocus}
             />
           )}
-        </motion.div>
-      </AnimatePresence>
+      </div>
 
       {/* Driver card modal */}
       {focusedDriverRow && driverCardOpen && (
@@ -214,13 +229,20 @@ export function AnalysisPage({ analysis, hideHeader = false }: Props) {
           stints={analysis.tyre_degradation.filter((s) => s.driver_number === focusedDriverRow.driver_number)}
           pits={analysis.pit_impact.filter((p) => p.driver_number === focusedDriverRow.driver_number)}
           radios={(analysis.team_radio?.clips ?? []).filter((c) => c.driver_number === focusedDriverRow.driver_number)}
-          raceName={analysis.race.meeting_name}
+          raceName={place}
           onClose={handleCloseDriverCard}
           onAskEngineer={handleAskEngineerAboutDriver}
         />
       )}
 
-      {radioOpen && <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} />}
+      <RadioOverlayHost analysis={analysis} />
     </div>
   )
+}
+
+/** The race engineer overlay, subscribed to radioOpen on its own. */
+function RadioOverlayHost({ analysis }: { analysis: FullRaceAnalysis }) {
+  const radioOpen = useRaceStore((st) => st.radioOpen)
+  const setRadioOpen = useRaceStore((st) => st.setRadioOpen)
+  return radioOpen ? <RadioOverlay analysis={analysis} onClose={() => setRadioOpen(false)} /> : null
 }

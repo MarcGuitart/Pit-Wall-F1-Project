@@ -1,115 +1,59 @@
+import type { Metadata } from 'next'
 import { AppShell } from '@/components/layout/AppShell'
-import { RaceSelector } from '@/components/landing/RaceSelector'
-import { LandingVideoBackground } from '@/components/landing/LandingVideoBackground'
-import { ProSection } from '@/components/access/ProSection'
-import { IntroAnimation } from '@/components/brand/IntroAnimation'
+import { FREE_SEASONS } from '@/lib/access'
+import { AnchorBar } from '@/components/home/AnchorBar'
+import { Hero } from '@/components/home/Hero'
+import { NextSessionCard } from '@/components/home/NextSessionCard'
+import { ProofStrip } from '@/components/home/ProofStrip'
+import { Questions } from '@/components/home/Questions'
+import { LiveSection } from '@/components/home/LiveSection'
+import { Plans } from '@/components/home/Plans'
+import { Method } from '@/components/home/Method'
+import { Faq } from '@/components/home/Faq'
+import { Closing } from '@/components/home/Closing'
+import { Reveal } from '@/components/home/Reveal'
+import h from '@/components/home/home.module.css'
 
-const STEPS = [
-  { num: '01', title: 'Select a session', sub: 'Season, race and session type' },
-  { num: '02', title: 'Decode the strategy', sub: 'Pace, tyres, pit cycles, chaos' },
-  { num: '03', title: 'Ask the race engineer', sub: 'Grounded answers from session data' },
-]
+const TITLE = 'Pit Wall Engineer · every race, read like an engineer would'
+const DESCRIPTION = `Unofficial Formula 1 race strategy analysis: true pace from clean laps, tyre degradation, pit cycles and a measured Chaos Index, with the laps excluded and a confidence label on every estimate. Seasons ${FREE_SEASONS.join(' and ')} are free.`
 
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: 'https://pitwallengineer.com/' },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: 'https://pitwallengineer.com/',
+    siteName: 'Pit Wall Engineer',
+    type: 'website',
+    // Original artwork (public/og.svg, rasterised to 1200 × 630); no F1 imagery.
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Pit Wall Engineer · Every race, read like an engineer would.' }],
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: ['/og.png'] },
+}
+
+/**
+ * "/" — the landing (Block 29, design/Landing.dc.html). Static: nothing here is
+ * rendered per request. What changes — the next session, the figures, the live
+ * state — is a client island with a 3 s timeout and a fixed height, so it
+ * arriving or failing moves nothing. Header and footer are the AppShell's: one
+ * <header>, one <footer>. The race list is /races.
+ */
 export default function HomePage() {
   return (
-    <AppShell footerAttribution>
-      <IntroAnimation />
-      <div className="min-h-[calc(100vh-48px)] flex flex-col">
-        {/* Hero */}
-        <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
-          {/* Video background */}
-          <LandingVideoBackground />
-
-          {/* Grid background */}
-          <div
-            className="absolute inset-0 bg-grid-pattern bg-grid opacity-60 pointer-events-none"
-            aria-hidden="true"
-          />
-          {/* Radial gradient vignette */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 30%, #05060A 100%)',
-            }}
-            aria-hidden="true"
-          />
-
-          <div className="relative z-10 text-center max-w-5xl mx-auto">
-            {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-bg-panel border border-border-subtle rounded-full mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-signal-red animate-pulse" />
-              <span className="font-display font-bold text-[9px] uppercase tracking-[2px] text-text-secondary">
-                Race Intelligence Dashboard
-              </span>
-            </div>
-
-            {/* Main headline */}
-            <h1 className="font-display font-black text-[56px] md:text-[80px] leading-[0.9] uppercase tracking-[-1px] mb-6">
-              <span className="text-text-primary block">SEE THE RACE</span>
-              <span className="text-signal-red block">LIKE THEY DO.</span>
-            </h1>
-
-            {/* Updated tagline */}
-            <p className="font-body text-[16px] text-text-secondary leading-relaxed max-w-xl mx-auto mb-12">
-              Turn raw F1 data into strategy-grade insight: pace, tyres, pit windows
-              and race momentum in one engineer-style view.
-            </p>
-
-            {/* Stats strip */}
-            <div className="flex items-center justify-center gap-12 mb-12 flex-wrap">
-              {[
-                { value: '50K+', label: 'Data Points Per Session', sub: 'pos · intervals · car data · weather' },
-                { value: '12', label: 'Analysis Modules', sub: 'pace · tyre · pit · chaos · DRS · DNA…' },
-                { value: '40+', label: 'Strategic Signals', sub: 'engineer notes · decisions · phases' },
-              ].map(({ value, label, sub }) => (
-                <div key={label} className="text-center">
-                  <div className="font-display font-black text-[28px] md:text-[34px] text-text-primary leading-none">
-                    {value}
-                  </div>
-                  <div className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted mt-1">
-                    {label}
-                  </div>
-                  <div className="font-mono text-[8px] text-text-muted/60 mt-0.5 max-w-[120px] mx-auto leading-tight">
-                    {sub}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Three-step explanation block */}
-        <div className="w-full bg-bg-secondary border-y border-border-subtle">
-          <div className="max-w-5xl mx-auto px-6 py-4 grid grid-cols-3 divide-x divide-border-subtle">
-            {STEPS.map((step) => (
-              <div key={step.num} className="px-6 flex items-center gap-4">
-                <span
-                  className="font-display font-black text-[28px] leading-none select-none shrink-0"
-                  style={{ color: 'rgba(232,0,29,0.45)' }}
-                >
-                  {step.num}
-                </span>
-                <div>
-                  <div className="font-display font-bold text-[13px] uppercase tracking-[0.5px] text-text-primary">
-                    {step.title}
-                  </div>
-                  <div className="font-mono text-[10px] text-text-muted mt-0.5">
-                    {step.sub}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Selector section */}
-        <div className="px-6 py-8 max-w-5xl mx-auto w-full">
-          <RaceSelector />
-        </div>
-
-        {/* PRO */}
-        <ProSection />
+    <AppShell>
+      <div className={h.page}>
+        <AnchorBar />
+        <Hero aside={<NextSessionCard />} />
+        <ProofStrip />
+        <Questions />
+        <LiveSection />
+        <Plans />
+        <Method />
+        <Faq />
+        <Closing />
+        <Reveal />
       </div>
     </AppShell>
   )

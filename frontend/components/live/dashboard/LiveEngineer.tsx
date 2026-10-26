@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { displayNameOf } from '@/lib/displayName'
 import s from './live.module.css'
 import { liveEngineerChat, type EngineerAnswer } from '@/lib/api'
 import { buildLiveDigest } from '@/lib/liveContext'
@@ -26,7 +27,7 @@ type Mode = 'engineer' | 'radio'
 const PROMPTS: Record<string, string[]> = {
   engineer_race: ['Who has the best pace on this stint?', 'Is anyone in an undercut window?', 'What changed in the last five laps?', 'Who is losing the most time to tyre wear?'],
   engineer_practice: ['Who looks quickest on a long run?', 'Who has the most to find on their ideal lap?', 'Which sectors decide the top three?', 'Who has not set a representative lap yet?'],
-  radio: ['How are the tyres?', 'Gap to the car ahead, can you push?', 'Box this lap — confirm?', 'Talk me through that last lap.'],
+  radio: ['How are the tyres?', 'Gap to the car ahead, can you push?', 'Box this lap · confirm?', 'Talk me through that last lap.'],
 }
 
 export function LiveEngineer({ snapshot, drivers, selected }: { snapshot: LiveSnapshot; drivers: string[]; selected: string | null }) {
@@ -59,7 +60,7 @@ export function LiveEngineer({ snapshot, drivers, selected }: { snapshot: LiveSn
       const { context, signals } = buildLiveDigest(snap, driver)
       const reply = await liveEngineerChat({
         session_key: snap.session_key ?? 0, question, mode, driver,
-        session_name: [snap.location, snap.session_name].filter(Boolean).join(' ') || null,
+        session_name: [displayNameOf(snap), snap.session_name].filter(Boolean).join(' ') || null,
         context, signals,
       })
       setMsgs(m => [...m, { role: 'ai', reply, mode, driver }])

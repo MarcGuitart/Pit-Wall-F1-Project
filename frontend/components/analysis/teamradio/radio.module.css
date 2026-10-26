@@ -1,0 +1,16 @@
+/* Team radio: the lane under the timeline and the clip player. Tokens from components/ui. */
+.lane { display: flex; align-items: center; gap: 8px; }
+.track { position: relative; flex: 1; height: 24px; background: var(--pw-surface); }
+.mark { position: absolute; top: 0; bottom: 0; width: 12px; transform: translateX(-50%); background: transparent; border: 0; padding: 0; cursor: pointer; }
+.mark > span { display: block; width: 3px; height: 100%; margin: 0 auto; background: color-mix(in srgb, var(--pw-blue) 65%, transparent); }
+.mark:hover > span, .markOn > span { background: var(--pw-blue); }
+.mark > i { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: var(--pw-text-xs); font-weight: 800; color: var(--pw-blue); }
+.openHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.clips > * + * { border-top: 1px solid var(--pw-divider); }
+.clip { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.clipCompact { padding: 6px 0; }
+.playBtn { width: 30px; height: 30px; flex: none; display: grid; place-items: center; font: inherit; font-size: 11px; font-weight: 800; background: transparent; color: var(--pw-text); border: 2px solid var(--pw-divider); cursor: pointer; }
+.playBtn:hover:not(:disabled) { border-color: var(--pw-green); color: var(--pw-green); }
+.playOn { border-color: var(--pw-green); color: var(--pw-green); }
+.playDead { border-color: var(--pw-accent); color: var(--pw-accent-text); cursor: not-allowed; }
+.seek { flex: 1; min-width: 60px; accent-color: var(--pw-green); }
