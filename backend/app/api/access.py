@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 
 from app.core.access import (
@@ -25,6 +25,8 @@ from app.core.access import (
     encode_token,
     match_code,
     mint_token,
+    is_open_access,
+    open_access_until,
 )
 from app.core.config import settings
 from app.core.errors import AppError
@@ -106,6 +108,24 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
         expires_in=token.expires_in,
         free_seasons=sorted(settings.free_seasons),
     )
+
+
+class OpenAccessResponse(BaseModel):
+    open: bool
+    until: str | None = None
+
+
+@router.get("/access/open", response_model=OpenAccessResponse)
+async def open_access(response: Response) -> OpenAccessResponse:
+    """
+    Public: whether the open week is on (block 50). `until` is OPEN_ACCESS_UNTIL
+    as configured (ISO 8601 with its zone), also once it has passed; null when
+    unset or unusable. The frontend reads this at run time, so the week opens,
+    extends and closes with the variable on Render alone.
+    """
+    until = open_access_until()
+    response.headers["Cache-Control"] = "public, max-age=60"
+    return OpenAccessResponse(open=is_open_access(), until=until.isoformat() if until else None)
 
 
 @router.get("/access/status", response_model=StatusResponse)

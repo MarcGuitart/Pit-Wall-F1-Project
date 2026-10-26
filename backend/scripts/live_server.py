@@ -92,7 +92,7 @@ from starlette.routing import Route  # noqa: E402
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
 from app.clients.openf1_client import fetch_json  # read-only, one-shot — see resolve_profile_once()  # noqa: E402
 from app.core.branding import PRO_NAME  # noqa: E402
-from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
+from app.core.access import decode_token, is_open_access  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.utils.origins import any_of, netlify_preview_origin_regex  # the API's, not a copy  # noqa: E402
 
@@ -410,8 +410,11 @@ def has_pro_access(request: Request) -> bool:
     version, tampered payload, bad signature, expired, or a code since revoked.
     A live server deployed without PRO_TOKEN_SECRET therefore serves nobody,
     which is the correct direction for a gate to fail.
+
+    The open week (OPEN_ACCESS_UNTIL, app.core.access) opens it to everyone
+    until that instant, exactly as it opens the API.
     """
-    return decode_token(bearer(request)) is not None
+    return is_open_access() or decode_token(bearer(request)) is not None
 
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
