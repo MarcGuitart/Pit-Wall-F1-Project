@@ -17,17 +17,23 @@
     "",
     "Closing the GitHub issue is NOT how a session is silenced. The issue comes",
     "back on the next run, by design: an unexplained stuck session should keep",
-    "asking. This file is how it stops."
+    "asking. This file is how it stops.",
+    "",
+    "meeting_key is optional. Set it only when the whole meeting is off: /races",
+    "then reports that meeting is_cancelled, and the season grid shows it as",
+    "Cancelled with no round number. Without it the row only excludes its session."
   ],
   "excluded": [
     {
       "session_key": 11261,
+      "meeting_key": 1282,
       "label": "Sakhir 2026 · Race",
       "reason": "Cancelled. OpenF1 /sessions returns is_cancelled: true, and the session has zero laps and no CHEQUERED FLAG in race_control. There is no race to analyse.",
       "added": "2026-09-27"
     },
     {
       "session_key": 11269,
+      "meeting_key": 1283,
       "label": "Jeddah 2026 · Race",
       "reason": "Cancelled. OpenF1 /sessions returns is_cancelled: true, and the session has zero laps and no CHEQUERED FLAG in race_control. There is no race to analyse.",
       "added": "2026-09-27"
