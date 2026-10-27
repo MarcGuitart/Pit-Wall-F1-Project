@@ -1,13 +1,34 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
+import { LIVE_TAIL_MS, fetchNextLiveSession, scheduledEnd, type NextLiveSessionInfo } from '@/lib/liveStatus'
 import { currentSeason } from '@/lib/seasons'
 import { shared, useIsland } from '@/lib/island'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import h from './home.module.css'
 
-export const loadNextSession = () => shared(() => fetchNextLiveSession(currentSeason()))
+/**
+ * One calendar request for the landing, keeping a session through its live tail (90 min after its scheduled end,
+ * block 51): the live card needs it to ask /live/state while a session overruns, as the top bar does.
+ */
+let calendarWithTail: Promise<NextLiveSessionInfo | null> | null = null
+export function loadCalendarWithTail(): Promise<NextLiveSessionInfo | null> {
+  if (!calendarWithTail) {
+    calendarWithTail = fetchNextLiveSession(currentSeason(), new Date(), LIVE_TAIL_MS)
+      .catch((e) => { calendarWithTail = null; throw e })
+  }
+  return calendarWithTail
+}
+
+/** The next session for the hero card: that same answer, unless it is a session already past its scheduled end, in
+ *  which case the one after it (a second lookup, only during a tail). */
+export const loadNextSession = () => shared(async () => {
+  const n = await loadCalendarWithTail()
+  if (n && Date.now() > scheduledEnd(n)) return fetchNextLiveSession(currentSeason(), new Date(), 0, new Set([n.sessionKey]))
+  return n
+})
+
+export function __resetLandingCalendarForTests() { calendarWithTail = null }
 
 /** "now", on the client only: the static HTML and the first render carry no time, so hydration agrees. */
 export function useClientNow(tickMs: number): number | null {

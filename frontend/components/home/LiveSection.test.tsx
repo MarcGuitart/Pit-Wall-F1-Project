@@ -9,6 +9,7 @@ const next = vi.hoisted(() => ({ value: null as null | { dateStart: string; date
 vi.mock('./NextSessionCard', async (orig) => ({
   ...(await orig<typeof import('./NextSessionCard')>()),
   loadNextSession: async () => (next.value ? { place: 'Austin', circuitShortName: 'Austin', sessionKey: 11400, sessionName: 'Race', ...next.value } : null),
+  loadCalendarWithTail: async () => (next.value ? { place: 'Austin', circuitShortName: 'Austin', sessionKey: 11400, sessionName: 'Race', ...next.value } : null),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }), usePathname: () => '/' }))
 
@@ -37,6 +38,30 @@ describe('landing live card', () => {
 
   it('no calendar answer: does not wake the live server either', async () => {
     next.value = null
+    render(<LiveSection />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(live.fetchLivePublicState).not.toHaveBeenCalled()
+  })
+
+  it('a session past its scheduled end but still running: asks /live/state and shows it live', async () => {
+    next.value = { dateStart: iso(-150 * 60_000), dateEnd: iso(-30 * 60_000) }        // ended 30 min ago on paper
+    live.fetchLivePublicState.mockResolvedValueOnce({ state: 'live', sessionKey: 11400 } as never)
+    const { container } = render(<LiveSection />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(live.fetchLivePublicState).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('[data-island="live"]')?.getAttribute('data-state')).toBe('live')
+  })
+
+  it('past the scheduled end and /live/state says it is over: not live', async () => {
+    next.value = { dateStart: iso(-150 * 60_000), dateEnd: iso(-30 * 60_000) }
+    const { container } = render(<LiveSection />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(live.fetchLivePublicState).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('[data-island="live"]')?.getAttribute('data-state')).not.toBe('live')
+  })
+
+  it('91 minutes after the scheduled end the live server is not asked', async () => {
+    next.value = { dateStart: iso(-211 * 60_000), dateEnd: iso(-91 * 60_000) }
     render(<LiveSection />)
     await act(async () => { await vi.advanceTimersByTimeAsync(50) })
     expect(live.fetchLivePublicState).not.toHaveBeenCalled()

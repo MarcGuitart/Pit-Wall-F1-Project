@@ -4,7 +4,7 @@ import { fetchLivePublicState, inLiveWindow, type LivePublicState } from '@/lib/
 import { useIsland } from '@/lib/island'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { buttonClass } from '@/components/ui'
-import { loadNextSession, sessionIcs, useClientNow } from './NextSessionCard'
+import { loadCalendarWithTail, loadNextSession, sessionIcs, useClientNow } from './NextSessionCard'
 import h from './home.module.css'
 import { SweepLink } from '@/components/layout/SweepLink'
 
@@ -22,11 +22,12 @@ function hms(ms: number) {
  * height, with no live content: collapsing it would move everything below it
  * (Block 29 addendum: nothing moves more than 2 px when an island fails).
  */
-/** /live/state only inside the live window (block 51): outside it the card knows there is nothing live without
- *  waking the live server. The calendar is the shared one-request lookup the hero card already makes. */
+/** /live/state only inside the live window, the top bar's (block 51): from 30 min before the next session to 90 min
+ *  after its scheduled end, so an overrunning session still shows as live until /live/state says it is over.
+ *  Outside it the card knows there is nothing live without waking the live server. */
 async function liveStateIfNear(): Promise<LivePublicState> {
-  const next = await loadNextSession().catch(() => null)
-  if (!inLiveWindow(next)) return { state: 'no_session', sessionKey: null }
+  const session = await loadCalendarWithTail().catch(() => null)
+  if (!inLiveWindow(session)) return { state: 'no_session', sessionKey: null }
   return fetchLivePublicState()
 }
 
