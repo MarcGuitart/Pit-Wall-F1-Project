@@ -100,6 +100,23 @@ export type NextLiveSessionInfo = {
 const MAX_MEETINGS_TRIED = 4
 
 /**
+ * Render hours (block 51): the live server is a free service that sleeps after 15 minutes without requests, and
+ * every request wakes it. So the interface asks it only while a session is on or about to start: from LIVE_LEAD_MS
+ * before the next session's start until its scheduled end (or start + LIVE_DEFAULT_MS when the calendar has none).
+ * Outside that window the answer is "nothing live" without asking.
+ */
+export const LIVE_LEAD_MS = 30 * 60_000
+export const LIVE_DEFAULT_MS = 2 * 60 * 60_000
+
+export function inLiveWindow(next: Pick<NextLiveSessionInfo, 'dateStart' | 'dateEnd'> | null, now: number = Date.now()): boolean {
+  if (!next) return false
+  const start = Date.parse(next.dateStart)
+  if (!Number.isFinite(start)) return false
+  const end = next.dateEnd ? Date.parse(next.dateEnd) : start + LIVE_DEFAULT_MS
+  return now >= start - LIVE_LEAD_MS && now <= end
+}
+
+/**
  * The next session of any type, across the season — or null when nothing
  * could be found (season over, or the data is not there). The caller must
  * say so explicitly rather than render nothing; this file only reports what

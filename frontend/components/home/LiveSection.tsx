@@ -1,6 +1,6 @@
 'use client'
 
-import { fetchLivePublicState } from '@/lib/liveStatus'
+import { fetchLivePublicState, inLiveWindow, type LivePublicState } from '@/lib/liveStatus'
 import { useIsland } from '@/lib/island'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { buttonClass } from '@/components/ui'
@@ -22,8 +22,16 @@ function hms(ms: number) {
  * height, with no live content: collapsing it would move everything below it
  * (Block 29 addendum: nothing moves more than 2 px when an island fails).
  */
+/** /live/state only inside the live window (block 51): outside it the card knows there is nothing live without
+ *  waking the live server. The calendar is the shared one-request lookup the hero card already makes. */
+async function liveStateIfNear(): Promise<LivePublicState> {
+  const next = await loadNextSession().catch(() => null)
+  if (!inLiveWindow(next)) return { state: 'no_session', sessionKey: null }
+  return fetchLivePublicState()
+}
+
 function LiveCard() {
-  const live = useIsland(() => fetchLivePublicState())
+  const live = useIsland(liveStateIfNear)
   const next = useIsland(loadNextSession)
   const now = useClientNow(1000)
 

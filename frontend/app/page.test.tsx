@@ -10,7 +10,8 @@ vi.mock('@/lib/liveStatus', async (orig) => ({
   ...(await orig<typeof import('@/lib/liveStatus')>()),
   fetchLiveServerStatus: vi.fn(async () => ({ reachable: true, sessionKey: 11377 })),
   fetchLivePublicState: vi.fn(async () => live.state),
-  fetchNextLiveSession: vi.fn(async () => ({ place: 'Austin', circuitShortName: 'Austin', sessionKey: 11740, sessionName: 'Practice 1', dateStart: '2026-10-23T17:30:00Z', dateEnd: '2026-10-23T18:30:00Z' })),
+  // A session on track now (started 10 min ago): the live card only asks /live/state inside that window (block 51).
+  fetchNextLiveSession: vi.fn(async () => ({ place: 'Austin', circuitShortName: 'Austin', sessionKey: 11740, sessionName: 'Practice 1', dateStart: new Date(Date.now() - 10 * 60_000).toISOString(), dateEnd: new Date(Date.now() + 50 * 60_000).toISOString() })),
 }))
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
