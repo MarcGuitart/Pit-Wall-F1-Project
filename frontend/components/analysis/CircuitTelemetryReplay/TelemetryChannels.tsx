@@ -1,11 +1,13 @@
 'use client'
 
+import { ui } from '@/components/ui'
+
 import { useMemo, useCallback } from 'react'
 import type { TelemetryData, TelemetryPoint } from '@/types/telemetry'
 import { getInterpolatedPointAtProgress, getInterpolatedValueAtProgress, getValueAtProgress } from './utils/interpolate'
 
 const CHART_W = 340
-const CHANNEL_BORDER = '#1E2430'
+const CHANNEL_BORDER = 'var(--pw-divider)'
 const CHANNEL_FLEX = {
   speed: 3,
   throttle: 2.5,
@@ -108,9 +110,9 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
   }
 
   const getLiveColor = (id: string): string => {
-    if (id === 'brake') return liveValues.brake ? '#E8001D' : '#4A5568'
-    if (id === 'drs')   return isDrsOpen(liveValues.drs) ? '#23D18B' : '#4A5568'
-    return 'rgb(var(--c-text-primary))'
+    if (id === 'brake') return liveValues.brake ? '#E8001D' : 'var(--pw-muted)'
+    if (id === 'drs')   return isDrsOpen(liveValues.drs) ? '#23D18B' : 'var(--pw-muted)'
+    return 'var(--pw-text)'
   }
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGElement>) => {
@@ -123,7 +125,7 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
   const handleMouseLeave = useCallback(() => onHover(null), [onHover])
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-bg-elevated overflow-hidden">
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {CHANNELS.map((ch, chIdx) => {
         const isLast = chIdx === CHANNELS.length - 1
         const svgH = ch.viewBoxHeight
@@ -131,17 +133,16 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
         return (
           <div
             key={ch.id}
-            className={`min-h-0 flex flex-col ${isLast ? '' : 'border-b'}`}
-            style={{ flex: CHANNEL_FLEX[ch.id], ...(isLast ? undefined : { borderColor: CHANNEL_BORDER }) }}
+           
+            style={{ flex: CHANNEL_FLEX[ch.id], minHeight: 0, display: 'flex', flexDirection: 'column', ...(isLast ? undefined : { borderBottom: `1px solid ${CHANNEL_BORDER}` }) }}
           >
             {/* Header row */}
-            <div className="flex items-center justify-between px-3 pt-1.5 pb-0.5 shrink-0">
-              <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px 2px', flex: 'none' }}>
+              <span className={ui.label}>
                 {ch.label}
               </span>
               <span
-                className="font-mono text-[11px] tabular-nums"
-                style={{ color: getLiveColor(ch.id) }}
+                style={{ fontSize: 12, fontWeight: 800, color: getLiveColor(ch.id) }}
               >
                 {getLiveLabel(ch.id)}
               </span>
@@ -152,8 +153,8 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
               width="100%"
               viewBox={`0 0 ${CHART_W} ${svgH}`}
               preserveAspectRatio="none"
-              className="flex-1 min-h-0"
-              style={{ display: 'block', height: '100%' }}
+             
+              style={{ display: 'block', height: '100%', flex: 1, minHeight: 0 }}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
@@ -303,7 +304,7 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
                       strokeWidth={2}
                       strokeLinejoin="round"
                     />
-                    <circle cx={liveX} cy={liveY} r={2.4} fill={c} stroke="rgb(var(--c-bg-secondary))" strokeWidth={1} />
+                    <circle cx={liveX} cy={liveY} r={2.4} fill={c} stroke="var(--pw-bg)" strokeWidth={1} />
                   </g>
                 )
               })}
@@ -328,8 +329,8 @@ export function TelemetryChannels({ data, selectedDrivers, progress, hoveredProg
                         x={x + 3}
                         y={10}
                         fontSize={7}
-                        fill="rgb(var(--c-text-muted))"
-                        fontFamily="var(--font-jetbrains-mono), monospace"
+                        fill="var(--pw-muted)"
+                        fontFamily="var(--font-archivo), sans-serif"
                       >
                         S{i + 2}
                       </text>

@@ -1,5 +1,13 @@
 'use client'
 
+import { buttonClass } from '@/components/ui'
+
+const perspectiveStyle = (is3D: boolean) => ({
+  perspective: is3D ? '700px' : 'none',
+  perspectiveOrigin: '50% 40%',
+  paddingBottom: is3D ? '8px' : '0',
+})
+
 import { useMemo, useCallback, useState } from 'react'
 import type { TelemetryData, TelemetryPoint } from '@/types/telemetry'
 import type { ActiveMetric } from './MetricSelector'
@@ -133,18 +141,16 @@ export function TrackReplayMap({
   const [is3D, setIs3D] = useState(false)
 
   return (
-    <div className="h-full min-h-0 overflow-visible flex flex-col">
+    <div style={{ height: '100%', minHeight: 0, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
       {/* 3D toggle */}
-      <div className="flex justify-end px-1 pt-0 pb-1 shrink-0">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 4px 6px', flex: 'none' }}>
         <button
+          type="button"
           onClick={() => setIs3D((p) => !p)}
           title={is3D ? 'Switch to flat 2D view' : 'Switch to tilted 3D view (Google Maps style)'}
-          className={[
-            'px-2 py-0.5 rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.8px] border transition-all',
-            is3D
-              ? 'bg-signal-purple/20 text-signal-purple border-signal-purple/40'
-              : 'text-text-muted border-border-subtle hover:text-text-secondary hover:border-border-default',
-          ].join(' ')}
+          aria-pressed={is3D}
+          className={buttonClass()}
+          style={is3D ? { borderColor: 'var(--pw-purple)', color: 'var(--pw-purple)' } : undefined}
         >
           {is3D ? '2D' : '3D'}
         </button>
@@ -152,16 +158,11 @@ export function TrackReplayMap({
 
       {/* Perspective wrapper */}
       <div
-        className="flex-1 min-h-0 flex items-center"
-        style={{
-          perspective: is3D ? '700px' : 'none',
-          perspectiveOrigin: '50% 40%',
-          paddingBottom: is3D ? '8px' : '0',
-        }}
+        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', ...perspectiveStyle(is3D) }}
       >
         <svg
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          className="w-full h-full"
+          width="100%" height="100%"
           style={{
             display: 'block',
             transform: is3D ? 'rotateX(32deg)' : 'none',
@@ -173,7 +174,7 @@ export function TrackReplayMap({
         <path
           d={outlinePath}
           fill="none"
-          stroke="rgb(var(--c-border-default))"
+          stroke="var(--pw-divider)"
           strokeWidth={10}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -213,9 +214,9 @@ export function TrackReplayMap({
             x={sl.x + 6}
             y={sl.y - 4}
             fontSize={9}
-            fontFamily="var(--font-barlow-condensed), sans-serif"
+            fontFamily="var(--font-archivo), sans-serif"
             fontWeight="700"
-            fill="rgb(var(--c-text-secondary))"
+            fill="var(--pw-muted)"
             textAnchor="start"
           >
             {sl.label}

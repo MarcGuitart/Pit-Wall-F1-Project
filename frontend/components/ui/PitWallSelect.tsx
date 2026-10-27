@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, useId } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import st from './select.module.css'
 
 export type PitWallSelectOption = {
   value: string
@@ -155,22 +155,15 @@ export function PitWallSelect({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col gap-1"
-      style={width ? { width } : undefined}
-    >
+    <div ref={containerRef} className={st.field} style={width ? { width } : undefined}>
       {label && (
-        <label
-          htmlFor={id}
-          className="font-display font-bold text-[9px] uppercase tracking-[1.5px] text-text-muted select-none"
-        >
+        <label htmlFor={id} className={st.label}>
           {label}
         </label>
       )}
 
       {/* Trigger button */}
-      <div className="relative">
+      <div className={st.wrap}>
         <button
           id={id}
           type="button"
@@ -184,99 +177,63 @@ export function PitWallSelect({
             if (!open) setHighlighted(filteredOptions.findIndex((o) => o.value === value))
             setOpen((v) => !v)
           }}
-          className={[
-            'w-full flex items-center justify-between',
-            'bg-bg-elevated border rounded-[3px]',
-            'px-[10px] py-[6px] pr-7',
-            'font-display font-semibold text-[11px] uppercase tracking-[0.5px]',
-            'transition-all outline-none',
-            'disabled:opacity-40 disabled:cursor-not-allowed',
-            open
-              ? 'border-signal-blue shadow-[0_0_0_1px_rgba(77,163,255,.2)] text-text-primary'
-              : 'border-border-default text-text-secondary hover:border-border-default/80 hover:text-text-primary',
-          ].join(' ')}
+          className={`${st.trigger} ${open ? st.open : ''}`}
         >
-          <span className="truncate">{displayLabel}</span>
+          <span className={st.value}>{displayLabel}</span>
         </button>
 
         {/* Custom arrow */}
-        <span
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none select-none text-[10px]"
-          aria-hidden="true"
-        >
-          ▾
-        </span>
+        <span className={st.arrow} aria-hidden="true">▾</span>
 
         {/* Dropdown menu */}
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: -4 }}
-              transition={{ duration: 0.12 }}
-              role="listbox"
-              aria-label={label}
-              className="absolute z-50 top-[calc(100%+3px)] left-0 w-full min-w-max bg-bg-panel border border-border-default rounded-[3px] shadow-xl overflow-hidden"
-              style={{ maxHeight: '240px', display: 'flex', flexDirection: 'column' }}
-            >
-              {/* Search input — shown when options > SEARCH_THRESHOLD */}
-              {showSearch && (
-                <div className="shrink-0 border-b border-border-subtle">
-                  <input
-                    ref={searchRef}
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Search…"
-                    className="w-full bg-bg-primary px-[10px] py-[7px] font-body text-[11px] text-text-primary placeholder:text-text-muted outline-none border-none"
-                  />
-                </div>
-              )}
-
-              {/* Options list */}
-              <div style={{ overflowY: 'auto' }}>
-                {filteredOptions.length === 0 ? (
-                  <div className="px-[10px] py-[7px] font-mono text-[10px] text-text-muted">
-                    No results
-                  </div>
-                ) : (
-                  filteredOptions.map((opt, i) => (
-                    <div
-                      key={opt.value + i}
-                      role="option"
-                      aria-selected={opt.value === value}
-                      aria-disabled={opt.disabled}
-                      onMouseEnter={() => !opt.disabled && setHighlighted(i)}
-                      onClick={() => {
-                        if (opt.disabled) return
-                        onChange(opt.value)
-                        close()
-                      }}
-                      className={[
-                        'px-[10px] py-[7px]',
-                        'font-display font-semibold text-[11px] uppercase tracking-[0.5px]',
-                        'transition-colors',
-                        opt.disabled
-                          ? 'text-text-muted cursor-not-allowed opacity-50'
-                          : 'cursor-pointer',
-                        opt.value === value && !opt.disabled
-                          ? 'text-text-primary bg-bg-elevated'
-                          : '',
-                        highlighted === i && !opt.disabled
-                          ? 'bg-bg-elevated text-text-primary'
-                          : 'text-text-secondary',
-                      ].join(' ')}
-                    >
-                      {opt.label}
-                    </div>
-                  ))
-                )}
+        {open && (
+          <div role="listbox" aria-label={label} className={st.menu}>
+            {/* Search input — shown when options > SEARCH_THRESHOLD */}
+            {showSearch && (
+              <div className={st.search}>
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search…"
+                  aria-label={`Search ${label ?? 'options'}`}
+                />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+
+            {/* Options list */}
+            <div className={st.options}>
+              {filteredOptions.length === 0 ? (
+                <div className={st.empty}>No results</div>
+              ) : (
+                filteredOptions.map((opt, i) => (
+                  <div
+                    key={opt.value + i}
+                    role="option"
+                    aria-selected={opt.value === value}
+                    aria-disabled={opt.disabled}
+                    onMouseEnter={() => !opt.disabled && setHighlighted(i)}
+                    onClick={() => {
+                      if (opt.disabled) return
+                      onChange(opt.value)
+                      close()
+                    }}
+                    className={[
+                      st.option,
+                      opt.disabled ? st.disabled : '',
+                      opt.value === value && !opt.disabled ? st.selected : '',
+                      highlighted === i && !opt.disabled ? st.hl : '',
+                    ].join(' ')}
+                  >
+                    {opt.label}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

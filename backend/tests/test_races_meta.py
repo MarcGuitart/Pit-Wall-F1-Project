@@ -119,7 +119,9 @@ def test_a_cached_list_from_before_the_fields_is_refreshed_once(client, store, o
     assert by_key(client.get("/races?year=2026").json())[1282]["is_cancelled"] is True
     assert all("is_cancelled" in m for m in store[("m", 2026)])
     client.get("/races?year=2026")
-    assert len(calls) == 1
+    # Refreshed once: one meetings request, plus (block 43) the one sessions
+    # request for the weekends' end; the second visit is served from the cache.
+    assert sorted(c.rsplit("/", 1)[-1] for c in calls) == ["meetings", "sessions"]
 
 
 def test_a_stale_cache_is_still_served_when_openf1_is_down(client, store, openf1):

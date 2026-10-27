@@ -14,6 +14,8 @@ from app.api.telemetry import router as telemetry_router
 from app.api.laps import router as laps_router
 from app.api.session_meta import router as session_meta_router
 from app.api.stats import router as stats_router
+from app.api.session_index import router as session_index_router
+from app.api import published_set
 from app.api.billing import router as billing_router
 from app.utils.origins import netlify_preview_origin_regex
 
@@ -50,6 +52,7 @@ app.include_router(telemetry_router)
 app.include_router(laps_router)
 app.include_router(session_meta_router)
 app.include_router(stats_router)
+app.include_router(session_index_router)
 app.include_router(billing_router)
 
 
@@ -58,6 +61,9 @@ async def _startup_log() -> None:
     paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
     logger.info("[STARTUP] environment=%s cache_path=%s", settings.environment, settings.cache_path.resolve())
     logger.info("[STARTUP] routes registered: %s", paths)
+    # What counts as published is what is on disk now (the repo's analyses on Render):
+    # /published and /stats ignore analyses computed on demand from here on.
+    published_set.keys(settings.cache_path)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

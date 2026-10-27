@@ -32,6 +32,14 @@ a leaked token discloses nothing about the code that made it.
 Everything here fails closed. No secret configured means no token verifies and no
 code redeems, so a misconfigured deployment locks the PRO seasons rather than
 opening them.
+
+Open week (block 50): OPEN_ACCESS_UNTIL, an ISO 8601 instant with its time zone
+(e.g. 2026-11-03T10:00:00+01:00), opens every PRO check to everyone until then,
+the API's season gate and the live server's alike. Read from the environment on
+each check, so extending or closing the week is a change of that variable on
+Render, nothing else; past that instant everything is as before without a
+deploy. A value without a time zone, or one that does not parse, is ignored
+(closed) and logged: an ambiguous instant must not open anything.
 """
 from __future__ import annotations
 
@@ -40,8 +48,10 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from fastapi import Request
 
@@ -216,8 +226,39 @@ def bearer_token(request: Request) -> str:
     return value.strip() if scheme.lower() == "bearer" else ""
 
 
+# ── open week ────────────────────────────────────────────────────────────────
+
+OPEN_ACCESS_ENV = "OPEN_ACCESS_UNTIL"
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def open_access_until() -> datetime | None:
+    """OPEN_ACCESS_UNTIL as an aware datetime, or None when unset or unusable."""
+    raw = (os.environ.get(OPEN_ACCESS_ENV) or "").strip()
+    if not raw:
+        return None
+    try:
+        until = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("[PRO] %s=%r is not an ISO 8601 instant: ignored", OPEN_ACCESS_ENV, raw)
+        return None
+    if until.tzinfo is None:
+        logger.warning("[PRO] %s=%r has no time zone: ignored", OPEN_ACCESS_ENV, raw)
+        return None
+    return until
+
+
+def is_open_access(now: datetime | None = None) -> bool:
+    until = open_access_until()
+    return until is not None and (now or _now()) < until
+
+
 def has_pro_access(request: Request) -> bool:
-    return decode_token(bearer_token(request)) is not None
+    """A valid user token, or the open week (OPEN_ACCESS_UNTIL) still running."""
+    return is_open_access() or decode_token(bearer_token(request)) is not None
 
 
 def has_internal_build_access(request: Request) -> bool:

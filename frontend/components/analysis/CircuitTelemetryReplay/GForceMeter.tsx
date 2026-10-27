@@ -94,17 +94,17 @@ export function GForceMeter({ driver, progress }: Props) {
   const pkYc  = clamp(peakY, CY - R_GPAD + 4, CY + R_GPAD - 4)
 
   return (
-    <div className="bg-bg-elevated border border-border-subtle rounded-[4px] overflow-hidden">
+    <div className="overflow-hidden">
       {/* Header */}
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between">
-        <span className="font-display font-bold text-[8px] uppercase tracking-[1.5px] text-text-muted">
+        <span className="font-bold text-[11px] uppercase tracking-[1.5px] text-text-muted">
           G-Force Meter
         </span>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] text-text-muted">
+          <span className="text-[12px] text-text-muted">
             scale ±{gScale.toFixed(1)}g
           </span>
-          <div className="font-mono text-[10px] font-bold" style={{ color: driver.team_colour }}>
+          <div className="text-[12px] font-bold" style={{ color: driver.team_colour }}>
             {driver.driver_code}
           </div>
         </div>
@@ -114,7 +114,7 @@ export function GForceMeter({ driver, progress }: Props) {
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
 
           {/* ── Background ring ── */}
-          <circle cx={CX} cy={CY} r={R_ARC} fill="none" stroke="rgb(var(--c-border-subtle))" strokeWidth={STROKE + 2} />
+          <circle cx={CX} cy={CY} r={R_ARC} fill="none" stroke="var(--pw-divider)" strokeWidth={STROKE + 2} />
 
           {/* ── Throttle arc (green, bottom-left → bottom-right) ── */}
           {throttle > 1 && (
@@ -128,28 +128,30 @@ export function GForceMeter({ driver, progress }: Props) {
             />
           )}
 
-          {/* ── Brake arc (right side, red when braking) ── */}
+          {/* ── Brake arc (right side, red when braking). Colours switch, they do
+              not fade: a 60 ms fade is three frames, and only transform and
+              opacity animate on this site. ── */}
           <path
             d={arcPath(CX, CY, R_ARC, 30, 150)}
             fill="none"
-            stroke={brake ? '#E8001D' : '#1E2430'}
+            stroke={brake ? '#E8001D' : 'var(--pw-surface-2)'}
             strokeWidth={STROKE}
             strokeLinecap="round"
             opacity={brake ? 0.95 : 0.45}
-            style={{ transition: 'stroke 0.06s, opacity 0.06s' }}
+            style={{ transition: 'opacity 0.06s' }}
           />
 
           {/* ── Brake fill bar (right side, fills proportionally — not used for binary but ready) ── */}
 
           {/* ── G-plane circle ── */}
-          <circle cx={CX} cy={CY} r={R_GPAD} fill="rgb(var(--c-bg-secondary))" stroke="rgb(var(--c-border-default))" strokeWidth={1} />
+          <circle cx={CX} cy={CY} r={R_GPAD} fill="var(--pw-surface)" stroke="color-mix(in srgb, var(--pw-text) 30%, transparent)" strokeWidth={1} />
 
           {/* ── Crosshair ── */}
-          <line x1={CX - R_GPAD} y1={CY} x2={CX + R_GPAD} y2={CY} stroke="rgb(var(--c-border-subtle))" strokeWidth={0.75} />
-          <line x1={CX} y1={CY - R_GPAD} x2={CX} y2={CY + R_GPAD} stroke="rgb(var(--c-border-subtle))" strokeWidth={0.75} />
+          <line x1={CX - R_GPAD} y1={CY} x2={CX + R_GPAD} y2={CY} stroke="var(--pw-divider)" strokeWidth={0.75} />
+          <line x1={CX} y1={CY - R_GPAD} x2={CX} y2={CY + R_GPAD} stroke="var(--pw-divider)" strokeWidth={0.75} />
 
           {/* ── Scale ring at 50% ── */}
-          <circle cx={CX} cy={CY} r={dotTravel * 0.5} fill="none" stroke="rgb(var(--c-border-subtle))" strokeWidth={0.5} strokeDasharray="3,4" opacity={0.6} />
+          <circle cx={CX} cy={CY} r={dotTravel * 0.5} fill="none" stroke="var(--pw-divider)" strokeWidth={0.5} strokeDasharray="3,4" opacity={0.6} />
 
           {/* ── Peak G ghost marker (where max G occurred this lap) ── */}
           {peakMag > 0.3 && (
@@ -178,22 +180,21 @@ export function GForceMeter({ driver, progress }: Props) {
 
           {/* ── Steering wheel (centre, rotates with lateral G) ── */}
           <g transform={`translate(${CX}, ${CY}) rotate(${steerAngle})`}>
-            <circle cx={0} cy={0} r={16} fill="none" stroke="rgb(var(--c-border-default))" strokeWidth={3} />
-            <line x1={0} y1={-16} x2={0} y2={-5} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
-            <line x1={-16} y1={0} x2={-6} y2={0} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
-            <line x1={16} y1={0} x2={6} y2={0} stroke="rgb(var(--c-border-subtle))" strokeWidth={2.5} strokeLinecap="round"/>
-            <circle cx={0} cy={0} r={4} fill="rgb(var(--c-border-subtle))" />
-            <circle cx={0} cy={-13} r={1.5} fill="rgb(var(--c-text-primary))" opacity={0.5} />
+            <circle cx={0} cy={0} r={16} fill="none" stroke="color-mix(in srgb, var(--pw-text) 30%, transparent)" strokeWidth={3} />
+            <line x1={0} y1={-16} x2={0} y2={-5} stroke="var(--pw-divider)" strokeWidth={2.5} strokeLinecap="round"/>
+            <line x1={-16} y1={0} x2={-6} y2={0} stroke="var(--pw-divider)" strokeWidth={2.5} strokeLinecap="round"/>
+            <line x1={16} y1={0} x2={6} y2={0} stroke="var(--pw-divider)" strokeWidth={2.5} strokeLinecap="round"/>
+            <circle cx={0} cy={0} r={4} fill="var(--pw-divider)" />
+            <circle cx={0} cy={-13} r={1.5} fill="var(--pw-text)" opacity={0.5} />
           </g>
 
           {/* ── Labels ── */}
           <text x={CX - R_ARC + 4} y={CY - 6} fill="#23D18B" fontSize="7"
-            fontFamily="Barlow Condensed, sans-serif" fontWeight="700" letterSpacing="1">
+            fontFamily="var(--font-archivo), sans-serif" fontWeight="700" letterSpacing="1">
             THROTTLE
           </text>
-          <text x={CX + R_ARC - 50} y={CY - 6} fill={brake ? '#E8001D' : '#4A5568'} fontSize="7"
-            fontFamily="Barlow Condensed, sans-serif" fontWeight="700" letterSpacing="1"
-            style={{ transition: 'fill 0.06s' }}>
+          <text x={CX + R_ARC - 50} y={CY - 6} fill={brake ? '#E8001D' : 'var(--pw-muted)'} fontSize="7"
+            fontFamily="var(--font-archivo), sans-serif" fontWeight="700" letterSpacing="1">
             BRAKE
           </text>
 
@@ -204,10 +205,9 @@ export function GForceMeter({ driver, progress }: Props) {
             textAnchor="middle"
             fill={dotColor}
             fontSize="26"
-            fontFamily="Barlow Condensed, sans-serif"
+            fontFamily="var(--font-archivo), sans-serif"
             fontWeight="900"
             letterSpacing="-0.5"
-            style={{ transition: 'fill 0.08s' }}
           >
             {gMag.toFixed(1)}G
           </text>
@@ -224,10 +224,10 @@ export function GForceMeter({ driver, progress }: Props) {
               color: lon_g < -gScale * 0.5 ? '#E8001D' : lon_g > gScale * 0.3 ? '#23D18B' : undefined },
           ].map(({ label, value, unit, color }, i) => (
             <div key={i} className={`flex flex-col items-center py-1.5 ${i < 3 ? 'border-r border-border-subtle' : ''}`}>
-              <span className="font-display font-bold text-[7px] uppercase tracking-[0.8px] text-text-muted">{label}</span>
-              <span className="font-mono text-[12px] font-bold tabular-nums leading-tight"
-                    style={{ color: color ?? 'rgb(var(--c-text-primary))' }}>
-                {value}<span className="text-[8px] text-text-muted ml-0.5">{unit}</span>
+              <span className="font-bold text-[11px] uppercase tracking-[0.8px] text-text-muted">{label}</span>
+              <span className="text-[12px] font-bold tabular-nums leading-tight"
+                    style={{ color: color ?? 'var(--pw-text)' }}>
+                {value}<span className="text-[11px] text-text-muted ml-0.5">{unit}</span>
               </span>
             </div>
           ))}
@@ -235,17 +235,18 @@ export function GForceMeter({ driver, progress }: Props) {
 
         {/* Peak G bar */}
         <div className="w-full flex items-center gap-2 px-2.5 py-1.5 border-t border-border-subtle">
-          <span className="font-display font-bold text-[7px] uppercase tracking-[0.8px] text-text-muted whitespace-nowrap">Peak G</span>
-          <div className="flex-1 h-1 bg-bg-panel rounded-full overflow-hidden">
+          <span className="font-bold text-[11px] uppercase tracking-[0.8px] text-text-muted whitespace-nowrap">Peak G</span>
+          <div className="flex-1 h-1 bg-bg-panel overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-300"
+              data-peak-g-bar
+              className="h-full w-full origin-left transition-transform duration-300"
               style={{
-                width: `${Math.min(100, (peakMag / gScale) * 100)}%`,
+                transform: `scaleX(${Math.min(1, peakMag / gScale).toFixed(3)})`,
                 backgroundColor: driver.team_colour,
               }}
             />
           </div>
-          <span className="font-mono text-[9px] font-bold tabular-nums" style={{ color: driver.team_colour }}>
+          <span className="text-[12px] font-bold tabular-nums" style={{ color: driver.team_colour }}>
             {peakMag.toFixed(2)}g
           </span>
         </div>

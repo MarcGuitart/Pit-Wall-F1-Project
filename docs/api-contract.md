@@ -13,7 +13,19 @@ Response: {"status": "ok"}
 ### GET /races?year=2024
 Returns list of race meetings for the year, newest first. Each item:
 `meeting_key`, `meeting_name`, `country_name`, `circuit_short_name`,
-`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`.
+`date_start`, `year`, and (since Block 26d, additive) `location`, `is_cancelled`,
+and (since Block 43, additive) `date_end`.
+
+#### date_end (/races)
+The weekend's end, ISO 8601, or `null` when nothing knows it. OpenF1's meetings
+carry no end, so it is, in order: the meeting's own `date_end` if OpenF1 sends
+one; for a list fetched from OpenF1, the latest `date_end` among the season's
+sessions (one `sessions?year=` request per season, never one per meeting; if it
+fails the list is still served, with `null`); for a cached list, the latest
+`date_end` the local cache knows for that meeting (its cached session list, or
+a published session's meta), read from disk without calling OpenF1. The
+frontend shows "29 Feb to 2 Mar 2024" when it has it, and the start date with
+the year when it is `null`.
 
 ### GET /races/{meeting_key}/sessions
 Returns sessions for a meeting (Practice 1/2/3, Qualifying, Race, Sprint). Each
@@ -35,19 +47,31 @@ and (since Block 26d, additive) `location`, `is_cancelled`.
   `is_cancelled: false` and the exclusion file still applied.
 - Clients that ignore the two fields keep working unchanged.
 
+### GET /live/state (live server, not the API)
+Public, no token (Block 29) — the landing's live card. `{"state": "live" |
+"no_session", "session_key": int | null}` and nothing else: no times,
+positions, drivers or counts. `live` = messages for the session arrived in the
+last 180 s and its chequered flag has not fallen. "Under an hour" is the page's
+own reading of the calendar. **Not to be merged before Monday 26 October**:
+it lives in `scripts/live_server.py`, and a change there redeploys the live
+server.
+
 ### GET /stats
 Public (no PRO), counts only (Block 29) — the landing's proof strip. Read from
-the cached `_analysis.json` files with `analysis_version == ANALYSIS_VERSION`
-(an older or unreadable file is not counted):
-- `sessions`: how many such analyses exist;
+the published `_analysis.json` files (see "Published" below) with
+`analysis_version == ANALYSIS_VERSION` (an older or unreadable file is not counted):
+- `sessions`: published analyses, the analyses versioned in the repo
+  (definition: "Published analyses: the analyses versioned in the repo, built
+  with the current pipeline.");
 - `driver_laps`: Σ over those analyses and over True Pace rows of the clean
   laps used (`sample_size`) plus the laps the exclusion log removed;
 - `seasons`: distinct `race.year` values;
 - `modules` / `module_names`: the fields of `FullRaceAnalysis` minus its
   envelope (`race`, `analysis_version`, `modules`) — the pipeline's registry;
 - `analysis_version`, `definitions` (one sentence per figure, for footnotes).
-Cached in memory, recomputed when ANALYSIS_VERSION or any analysis file's
-mtime or size changes.
+Cached in memory, recomputed when ANALYSIS_VERSION or a published analysis
+file's mtime or size changes. An analysis computed on demand after the server
+started changes no figure.
 
 ### GET /sessions/{session_key}/meta
 Public (no PRO), light (Block 27). What a page can say about a session before
@@ -66,6 +90,25 @@ flight per session_key, and 20 cold lookups per IP per minute (memo hits and
 joins are free). Never writes to the cache.
 Errors: SESSION_NOT_FOUND 404 (OpenF1 has no such session), OPENF1_ERROR 503,
 RATE_LIMITED 429 (details: `retry_after_seconds`, `scope` ip, `limit`, `window_seconds`).
+
+### GET /published
+Sessions with a published analysis. Public, never calls OpenF1.
+
+**Published** means an `_analysis.json` that was in the cache directory when the server started
+(`backend/app/api/published_set.py`, snapshot taken in the startup hook). On Render the API has no disk, so
+that is exactly what the built commit carries in `backend/cache/`: the analyses versioned in the repo. An
+analysis computed on demand afterwards is written to the same directory and served by `/analysis`, but
+`/published` and `/stats` leave it out; the next deploy is what publishes. The `/races` panel keeps showing
+such a session as "Opens on demand".
+
+`{"count": n, "sessions": [{"session_key", "meeting_key", "year", "session_name", "session_type"}]}`,
+sorted by `session_key`; fields other than the key are null when the session has no `_session_meta.json`.
+Indexed in memory, rebuilt when a session directory changes (a rewritten meta, a removed analysis).
+
+### GET /sessions/{session_key}/calendar.ics
+One session as an RFC 5545 file (`text/calendar`, served inline). Times in UTC, `UID:pitwall-<key>@pitwallengineer.com`
+(stable: re-adding updates the event), end from `date_end` (or 2 h for a race, 1 h otherwise when OpenF1 has none).
+Facts as in `/sessions/{key}/meta` (disk first). 410 `SESSION_CANCELLED`, 404 when unknown or unscheduled.
 
 ### GET /analysis/{session_key}
 Main endpoint. Returns FullRaceAnalysis JSON (see `backend/app/domain/models.py`

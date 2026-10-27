@@ -1,5 +1,8 @@
 'use client'
 
+import { ui } from '@/components/ui'
+import t from './telemetry.module.css'
+
 export type SelectableDriver = {
   code: string
   colour: string
@@ -13,37 +16,30 @@ type Props = {
   max?: number
 }
 
+const hex = (c: string) => (c.startsWith('#') || c.startsWith('var(') ? c : `#${c}`)
+
 export function DriverSelector({ drivers, selected, onToggle, max = 3 }: Props) {
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      <span className="font-display font-bold text-[8px] uppercase tracking-[1px] text-text-muted mr-1">
-        Driver
-      </span>
+    <div className={t.group} role="group" aria-label="Drivers to compare">
+      <span className={ui.label}>Driver</span>
       {drivers.map((d) => {
         const active = selected.includes(d.code)
         return (
           <button
             key={d.code}
+            type="button"
+            aria-pressed={active}
             onClick={() => onToggle(d.code)}
-            className={[
-              'flex items-center gap-1.5 px-2 py-1 rounded-[3px] border transition-all',
-              active
-                ? 'bg-bg-elevated'
-                : 'border-border-subtle hover:border-border-default opacity-60 hover:opacity-100',
-            ].join(' ')}
-            style={active ? { borderColor: d.colour, backgroundColor: `${d.colour}22` } : undefined}
+            className={`${t.chip} ${active ? t.chipOn : ''}`}
+            style={active ? { borderColor: hex(d.colour), background: `color-mix(in srgb, ${hex(d.colour)} 18%, transparent)` } : undefined}
           >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.colour }} />
-            <span className="font-display font-bold text-[10px] uppercase tracking-[0.5px] text-text-primary">
-              {d.code}
-            </span>
-            {d.rank != null && (
-              <span className="font-mono text-[8px] text-text-muted">P{d.rank}</span>
-            )}
+            <span className={t.dot} style={{ background: hex(d.colour) }} aria-hidden="true" />
+            <span>{d.code}</span>
+            {d.rank != null && <span className={ui.sub}>P{d.rank}</span>}
           </button>
         )
       })}
-      <span className="font-mono text-[8px] text-text-muted ml-1">max {max}</span>
+      <span className={ui.sub}>max {max}</span>
     </div>
   )
 }

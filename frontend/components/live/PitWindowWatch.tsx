@@ -35,16 +35,16 @@ export function PitWindowWatch({ signals, focusedDriver }: Props) {
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-[4px] overflow-hidden">
       <div className="px-3 py-2 border-b border-border-subtle flex items-center justify-between gap-2">
-        <span className="font-display text-[10px] font-bold tracking-[1.5px] uppercase text-text-secondary">
+        <span className="font-display text-[length:var(--pw-text-xs)] font-bold tracking-[1.5px] uppercase text-text-secondary">
           Pit window watch
         </span>
-        <span className="font-mono text-[10px] text-text-muted">
+        <span className="font-mono text-[length:var(--pw-text-xs)] text-text-muted">
           {shown.length} signal{shown.length === 1 ? '' : 's'}
         </span>
       </div>
 
       <div className="px-3 py-2 border-b border-border-subtle bg-bg-elevated/40">
-        <p className="font-mono text-[9px] text-text-muted leading-relaxed">
+        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted leading-relaxed">
           Measurements of the present, with the sample behind each one. Not a forecast: nothing in
           the feed says when a team will call a car in.
         </p>
@@ -65,7 +65,7 @@ export function PitWindowWatch({ signals, focusedDriver }: Props) {
                   {signal.driver_code}
                 </span>
                 <span
-                  className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[8px] uppercase tracking-[0.5px] ${KIND_STYLE[signal.kind]}`}
+                  className={`px-1.5 py-0.5 border rounded-[2px] font-display font-bold text-[length:var(--pw-text-xs)] uppercase tracking-[0.5px] ${KIND_STYLE[signal.kind]}`}
                 >
                   {KIND_LABEL[signal.kind]}
                 </span>
@@ -75,10 +75,10 @@ export function PitWindowWatch({ signals, focusedDriver }: Props) {
               <p className="font-mono text-[11px] text-text-primary leading-snug mb-1">
                 {signal.headline}
               </p>
-              <p className="font-mono text-[10px] text-text-secondary leading-relaxed">
+              <p className="font-mono text-[length:var(--pw-text-xs)] text-text-secondary leading-relaxed">
                 {signal.measurement}
               </p>
-              <p className="font-mono text-[9px] text-text-muted mt-1">
+              <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mt-1">
                 Basis: {signal.basis}.
               </p>
             </div>

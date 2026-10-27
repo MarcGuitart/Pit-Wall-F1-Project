@@ -19,6 +19,7 @@
  * right now", never as a broken link or a crash.
  */
 import { fetchRaces, fetchSessions } from '@/lib/api'
+import { placeOf } from '@/lib/place'
 import { candidateMeetings } from '@/lib/nextSession'
 import type { RaceListItem, SessionInfo } from '@/types'
 
@@ -50,14 +51,38 @@ export async function fetchLiveServerStatus(): Promise<LiveServerStatus> {
   }
 }
 
+export type LivePublicState = { state: 'live' | 'no_session'; sessionKey: number | null }
+
+/**
+ * GET /live/state on the live server (ops/landing-meta): on air or not, and
+ * which session — nothing else. Throws when the endpoint is missing or slow
+ * (timeoutMs): the landing hides its live card rather than guess.
+ */
+export async function fetchLivePublicState(timeoutMs = 3000): Promise<LivePublicState> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${LIVE_URL}/live/state`, { signal: controller.signal })
+    if (!res.ok) throw new Error(`live state ${res.status}`)
+    const body = await res.json()
+    if (body?.state !== 'live' && body?.state !== 'no_session') throw new Error('live state: unexpected body')
+    return { state: body.state, sessionKey: typeof body.session_key === 'number' ? body.session_key : null }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** The chronologically nearest session in a meeting that has not ended yet —
  *  any type, not only the Race: whichever one a live server would actually
  *  be following next. */
-export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date): SessionInfo | null {
+/** `graceMs` keeps a session for that long after its scheduled end (the live window's tail); `skip` leaves out
+ *  sessions already known to be over. Both default to nothing, as before. */
+export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date, graceMs = 0, skip: ReadonlySet<number> = new Set()): SessionInfo | null {
   const upcoming = sessions
     .filter((s) => {
       if (!s.date_start) return false
-      if (s.date_end && new Date(s.date_end).getTime() <= now.getTime()) return false
+      if (skip.has(s.session_key)) return false
+      if (s.date_end && new Date(s.date_end).getTime() + graceMs <= now.getTime()) return false
       return true
     })
     .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
@@ -65,8 +90,11 @@ export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date):
 }
 
 export type NextLiveSessionInfo = {
-  meetingName: string
+  /** The host city (lib/place.ts) — never OpenF1's meeting or country name. */
+  place: string
   circuitShortName: string | null
+  /** The session's own key: /live/{key} before it starts is the "not live yet" page. */
+  sessionKey: number
   sessionName: string
   dateStart: string
   dateEnd: string | null
@@ -75,12 +103,36 @@ export type NextLiveSessionInfo = {
 const MAX_MEETINGS_TRIED = 4
 
 /**
+ * Render hours (block 51): the live server is a free service that sleeps after 15 minutes without requests, and
+ * every request wakes it. So the interface asks it only while a session is on or about to start: from LIVE_LEAD_MS
+ * before the next session's start until 90 min after its scheduled end (start + LIVE_DEFAULT_MS when the calendar has
+ * none), the tail ending earlier if /live/state says the session is over (hooks/useLiveStatus.ts).
+ * Outside that window the answer is "nothing live" without asking.
+ */
+export const LIVE_LEAD_MS = 30 * 60_000
+export const LIVE_DEFAULT_MS = 2 * 60 * 60_000
+/** After the scheduled end, a session can still be running (red flags, delays): the window stays open this long,
+ *  or until the live server's /live/state says the session is over, whichever comes first. */
+export const LIVE_TAIL_MS = 90 * 60_000
+
+export function scheduledEnd(next: Pick<NextLiveSessionInfo, 'dateStart' | 'dateEnd'>): number {
+  return next.dateEnd ? Date.parse(next.dateEnd) : Date.parse(next.dateStart) + LIVE_DEFAULT_MS
+}
+
+export function inLiveWindow(next: Pick<NextLiveSessionInfo, 'dateStart' | 'dateEnd'> | null, now: number = Date.now()): boolean {
+  if (!next) return false
+  const start = Date.parse(next.dateStart)
+  if (!Number.isFinite(start)) return false
+  return now >= start - LIVE_LEAD_MS && now <= scheduledEnd(next) + LIVE_TAIL_MS
+}
+
+/**
  * The next session of any type, across the season — or null when nothing
  * could be found (season over, or the data is not there). The caller must
  * say so explicitly rather than render nothing; this file only reports what
  * it found.
  */
-export async function fetchNextLiveSession(year: number, now: Date = new Date()): Promise<NextLiveSessionInfo | null> {
+export async function fetchNextLiveSession(year: number, now: Date = new Date(), graceMs = 0, skip: ReadonlySet<number> = new Set()): Promise<NextLiveSessionInfo | null> {
   let meetings: RaceListItem[]
   try {
     meetings = await fetchRaces(year)
@@ -96,11 +148,12 @@ export async function fetchNextLiveSession(year: number, now: Date = new Date())
     } catch {
       continue
     }
-    const next = findEarliestUpcomingSession(sessions, now)
+    const next = findEarliestUpcomingSession(sessions, now, graceMs, skip)
     if (!next) continue
     return {
-      meetingName: meeting.meeting_name,
+      place: placeOf(meeting),
       circuitShortName: meeting.circuit_short_name ?? null,
+      sessionKey: next.session_key,
       sessionName: next.session_name,
       dateStart: next.date_start,
       dateEnd: next.date_end ?? null,

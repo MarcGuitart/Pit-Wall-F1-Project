@@ -8,6 +8,8 @@ from app.clients.openf1_client import OpenF1AuthError, OpenF1Error, OpenF1RateLi
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core import cache as race_cache
+from typing import Optional
+
 from app.domain.models import RaceListItem, SessionInfo
 from app.services.autopublish import (
     EXCLUSIONS_FILE, excluded_meetings, is_cancelled, parse_exclusions,
@@ -30,17 +32,126 @@ def read_exclusions() -> dict | None:
         return None
 
 
+# The versioned session lists (backend/cache in the repo). settings.cache_path is
+# this same directory unless CACHE_DIR moves it (app/core/config.py). The
+# versioned copy is the floor: a list in the cache directory that lacks any of
+# its sessions is completed from it, and no write may leave fewer rows than
+# there are now.
+_REPO_CACHE = Path(__file__).resolve().parents[2] / "cache"
+
+
+def _versioned_sessions(meeting_key: int) -> list | None:
+    """The repo's meeting_<k>_sessions.json (read only); None when it is the cache directory's own file."""
+    repo = _REPO_CACHE / f"meeting_{meeting_key}_sessions.json"
+    if repo.resolve() == (settings.cache_path / repo.name).resolve():
+        return None
+    try:
+        data = json.loads(repo.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, list) and data else None
+
+
+def _key(row) -> int | None:
+    return row.get("session_key") if isinstance(row, dict) else None
+
+
+def _union(base: list, over: list) -> list:
+    """Every session of both lists, one row per session_key; `over` wins a tie. In date order when
+    every row has a start, else base's order then over's new sessions."""
+    rows = {_key(r): r for r in base if _key(r) is not None}
+    order = list(rows)
+    for r in over:
+        k = _key(r)
+        if k is None:
+            continue
+        if k not in rows:
+            order.append(k)
+        rows[k] = r
+    out = [rows[k] for k in order]
+    if all(isinstance(r.get("date_start"), str) for r in out):
+        out.sort(key=lambda r: r["date_start"])
+    return out
+
+
+def _cached_sessions(meeting_key: int) -> list | None:
+    """The meeting's list from the cache directory, completed from the versioned copy when it lacks
+    any session that copy has (a partial file gets the copy's rows, or the union by session_key)."""
+    local = race_cache.get_sessions_for_meeting(meeting_key)
+    repo = _versioned_sessions(meeting_key)
+    if not repo:
+        return local
+    if not local:
+        logger.info("[SESSIONS] meeting %s read from the versioned copy", meeting_key)
+        return repo
+    if {_key(r) for r in repo} <= {_key(r) for r in local}:
+        return local
+    merged = _union(repo, local)
+    logger.warning("[SESSIONS] meeting %s: cached list has %d row(s), the versioned copy %d; serving %d",
+                   meeting_key, len(local), len(repo), len(merged))
+    return merged
+
+
+def _save_sessions(meeting_key: int, rows: list) -> list:
+    """Save a list fetched from OpenF1, never one with fewer rows than the meeting has now.
+    Returns what to serve: the fresh rows, completed from the current list when shorter."""
+    current = _cached_sessions(meeting_key) or []
+    if len(rows) < len(current):
+        logger.warning("[SESSIONS] meeting %s: OpenF1 gave %d row(s), %d known; not saved",
+                       meeting_key, len(rows), len(current))
+        return _union(current, rows)
+    race_cache.set_sessions_for_meeting(meeting_key, rows)
+    return rows
+
+
 def _has_meta(rows: list) -> bool:
     """A cached list written before location/is_cancelled existed lacks them;
     such a list is refreshed from OpenF1 once, and served as is if that fails."""
     return all(isinstance(r, dict) and "is_cancelled" in r for r in rows)
 
 
-def _races_out(rows: list) -> list[RaceListItem]:
+class RaceListItemOut(RaceListItem):
+    """/races row (block 43), additive: the weekend's end, so the season grid
+    can show "29 Feb to 2 Mar 2024". Defined here rather than in
+    app/domain/models.py; null when no source has it."""
+    date_end: Optional[str] = None
+
+
+def _weekend_ends_from_cache() -> dict[int, str]:
+    """meeting_key → the latest date_end the local cache knows: each cached
+    session list (meeting_<k>_sessions.json) and each published session's meta.
+    Reads files only, never OpenF1."""
+    ends: dict[int, str] = {}
+
+    def keep(key, end):
+        if isinstance(key, int) and isinstance(end, str) and end > ends.get(key, ""):
+            ends[key] = end
+
+    root = settings.cache_path
+    for f in root.glob("meeting_*_sessions.json"):
+        try:
+            key = int(f.name.split("_")[1])
+            for row in json.loads(f.read_text(encoding="utf-8")) or []:
+                keep(key, (row or {}).get("date_end"))
+        except (ValueError, OSError, json.JSONDecodeError, AttributeError, TypeError):
+            continue
+    for f in root.glob("*/_session_meta.json"):
+        try:
+            meta = json.loads(f.read_text(encoding="utf-8"))
+            keep(meta.get("meeting_key"), meta.get("date_end"))
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+    return ends
+
+
+def _races_out(rows: list, ends: dict[int, str] | None = None) -> list[RaceListItemOut]:
     off = excluded_meetings(read_exclusions())
-    out = [RaceListItem(**r) if isinstance(r, dict) else r for r in rows]
+    ends = _weekend_ends_from_cache() if ends is None else ends
+    out = [RaceListItemOut(**r) if isinstance(r, dict) else RaceListItemOut(**r.model_dump()) for r in rows]
     for item in out:
         item.is_cancelled = item.is_cancelled is True or item.meeting_key in off
+        if not item.date_end:
+            item.date_end = ends.get(item.meeting_key)
     return out
 
 
@@ -62,14 +173,14 @@ def _openf1_error(exc: OpenF1Error, what: str, **extra) -> AppError:
         )
     if isinstance(exc, OpenF1AuthError):
         return AppError(
-            "OPENF1_UNAUTHORIZED", f"OpenF1 requires a valid API token to {what}.",
+            "OPENF1_UNAUTHORIZED", f"OpenF1 refused the request ({exc.reason}) while {what}.",
             status=503, details=details,
         )
     return AppError("OPENF1_ERROR", f"OpenF1 unreachable while {what}.", status=503, details=details)
 
 
-@router.get("/races", response_model=list[RaceListItem])
-async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
+@router.get("/races", response_model=list[RaceListItemOut])
+async def list_races(year: int = Query(default=2024)) -> list[RaceListItemOut]:
     # Fast path: serve any cached season list immediately. This keeps the UI
     # stable when OpenF1 has a transient failure and avoids hard-coded season
     # cutoffs becoming stale.
@@ -84,12 +195,23 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
             return _races_out(cached)
         raise _openf1_error(exc, f"listing {year} races", year=year) from exc
 
-    items: list[RaceListItem] = []
+    # The weekend's end (block 43): one request for the whole season's
+    # sessions, never one per meeting; if it fails the list is served without it.
+    season_ends: dict[int, str] = {}
+    try:
+        for row in await fetch_json("sessions", year=year) or []:
+            key, end = (row or {}).get("meeting_key"), (row or {}).get("date_end")
+            if isinstance(key, int) and isinstance(end, str) and end > season_ends.get(key, ""):
+                season_ends[key] = end
+    except (OpenF1Error, TypeError, AttributeError):
+        pass
+
+    items: list[RaceListItemOut] = []
     for m in meetings:
         if not m.get("meeting_name"):
             continue
         items.append(
-            RaceListItem(
+            RaceListItemOut(
                 meeting_key=m["meeting_key"],
                 meeting_name=m.get("meeting_name", ""),
                 country_name=m.get("country_name"),
@@ -98,6 +220,7 @@ async def list_races(year: int = Query(default=2024)) -> list[RaceListItem]:
                 year=m.get("year", year),
                 location=m.get("location"),
                 is_cancelled=is_cancelled(m),
+                date_end=m.get("date_end") or season_ends.get(m["meeting_key"]),
             )
         )
 
@@ -159,7 +282,7 @@ def _sessions_from_analysis_cache(meeting_key: int) -> list[SessionInfo]:
 
 @router.get("/races/{meeting_key}/sessions", response_model=list[SessionInfo])
 async def list_sessions(meeting_key: int) -> list[SessionInfo]:
-    cached = race_cache.get_sessions_for_meeting(meeting_key)
+    cached = _cached_sessions(meeting_key)
     if cached and _has_meta(cached):
         return _sessions_out(cached)
 
@@ -168,13 +291,16 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     except OpenF1AuthError as exc:
         if cached:
             return _sessions_out(cached)
+        # Only the sessions that have an analysis on this server: a partial list.
+        # Served for this request but never saved as the meeting's list, or every
+        # later request would get the same partial answer without asking again.
         fallback = _sessions_from_analysis_cache(meeting_key)
         if fallback:
-            logger.info(
-                "[SESSIONS] OpenF1 401 — serving %d session(s) from analysis cache for meeting %s",
-                len(fallback), meeting_key,
+            logger.warning(
+                "[SESSIONS] OpenF1 401 and no session list for meeting %s: serving the %d session(s) "
+                "with an analysis, not saved",
+                meeting_key, len(fallback),
             )
-            race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in fallback])
             return _sessions_out(fallback)
         raise AppError(
             "SESSION_NOT_CACHED",
@@ -202,8 +328,8 @@ async def list_sessions(meeting_key: int) -> list[SessionInfo]:
     ]
 
     if result:
-        race_cache.set_sessions_for_meeting(meeting_key, [s.model_dump() for s in result])
-    elif cached:
+        return _sessions_out(_save_sessions(meeting_key, [s.model_dump() for s in result]))
+    if cached:
         return _sessions_out(cached)
 
     return _sessions_out(result)

@@ -456,3 +456,22 @@ def test_unauthenticated_routes_exist_only_on_a_loopback_bind():
 def test_health_needs_no_token_because_render_cannot_send_one(gated_client):
     client, _ = gated_client
     assert client.get("/health").status_code == 200
+
+
+# ── the open week (block 50) ─────────────────────────────────────────────────
+
+def test_the_open_week_opens_the_live_gate_until_the_date(client, monkeypatch):
+    from datetime import datetime, timezone
+    from app.core import access
+    monkeypatch.setenv("OPEN_ACCESS_UNTIL", "2026-11-03T10:00:00+01:00")
+    monkeypatch.setattr(access, "_now", lambda: datetime(2026, 11, 3, 8, 59, tzinfo=timezone.utc))
+    r = client.get("/live/11377/snapshot")                         # no token
+    assert r.status_code == 200 and r.json()["session_key"] == 11377
+    monkeypatch.setattr(access, "_now", lambda: datetime(2026, 11, 3, 9, 0, tzinfo=timezone.utc))
+    r = client.get("/live/11377/snapshot")
+    assert r.status_code == 402 and r.json()["error"]["code"] == "PRO_REQUIRED"
+
+
+def test_without_the_variable_the_live_gate_is_as_today(client, monkeypatch):
+    monkeypatch.delenv("OPEN_ACCESS_UNTIL", raising=False)
+    assert client.get("/live/11377/snapshot").status_code == 402

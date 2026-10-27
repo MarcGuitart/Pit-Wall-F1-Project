@@ -55,7 +55,7 @@ export function dashedSet(drivers: ChartDriver[]): Set<string> {
 }
 
 export function formatLap(seconds: number | null | undefined): string {
-  if (seconds == null || !Number.isFinite(seconds)) return '—'
+  if (seconds == null || !Number.isFinite(seconds)) return 'n/a'
   const m = Math.floor(seconds / 60)
   const s = seconds - m * 60
   return `${m}:${s.toFixed(3).padStart(6, '0')}`
@@ -152,7 +152,7 @@ export function gapToReference(drivers: ChartDriver[], ref: GapReference) {
     return {
       code: d.code, colour: d.colour, dashed: dashed.has(d.code), points: pts,
       markers: pts.filter(p => pitLaps.has(p[0])),
-      value: last == null ? '—' : last[1] === 0 ? '0.000' : `+${last[1].toFixed(last[1] < 1 ? 3 : 2)}`,
+      value: last == null ? 'n/a' : last[1] === 0 ? '0.000' : `+${last[1].toFixed(last[1] < 1 ? 3 : 2)}`,
     }
   })
   return { series, maxLap }

@@ -1,0 +1,16 @@
+/* The driver card dialog. Tokens from components/ui. */
+.card { width: min(860px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--pw-bg); color: var(--pw-text); border: 2px solid var(--pw-text); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 20px 16px 26px; border-bottom: 2px solid var(--pw-divider); }
+.number { font-size: 56px; font-weight: 800; line-height: 1; opacity: 0.55; }
+.code { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+.stat { padding: 0 14px; text-align: center; }
+.stat + .stat { border-left: 2px solid var(--pw-divider); }
+.body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) { .body { grid-template-columns: 1fr; } }
+.col { padding: 16px 20px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+.col + .col { border-left: 2px solid var(--pw-divider); }
+@media (max-width: 720px) { .col + .col { border-left: 0; border-top: 2px solid var(--pw-divider); } }
+.sectionTitle { margin: 0 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pw-muted); }
+.radios { max-height: 224px; overflow-y: auto; padding-right: 4px; }
+.radios > * + * { border-top: 1px solid var(--pw-divider); }
+.verdict { padding: 10px 12px; background: var(--pw-surface); border: 2px solid var(--pw-divider); }

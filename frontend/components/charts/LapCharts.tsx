@@ -289,7 +289,7 @@ function PushLapChart({ data, drivers, idPrefix }: { data: ReturnType<typeof lap
     <ChartPanel
       id={`${idPrefix}-push-laps`}
       title="Push laps"
-      description="Every flying lap of the session, as a point. Out-laps, cool-down laps and pit laps are left out — only laps within 7 % of the session's best. The value beside each driver is their best."
+      description="Every flying lap of the session, as a point. Out-laps, cool-down laps and pit laps are left out; only laps within 7 % of the session's best. The value beside each driver is their best."
       how="In qualifying and practice consecutive laps are not comparable: a push lap is followed by a cool-down lap and often a run back to the garage. So nothing is joined by a line, and only laps within 107 % of the session's fastest are drawn. Square = a lap; hollow squares are the second car of a team."
     >
       {pts.length ? (
@@ -325,7 +325,7 @@ export function LapTimeEvolutionChart({ drivers, bands, idPrefix = 'chart', sess
           <LapLineChart series={data.series} sel={sel} xMax={xMax} yDomain={data.yDomain} yFormat={formatLap} bands={bands} />
           <Legend series={data.series} sel={sel} />
         </>
-      ) : <div className={styles.empty}>No completed racing laps yet — the first points appear once lap 2 is done.</div>}
+      ) : <div className={styles.empty}>No completed racing laps yet. The first points appear once lap 2 is done.</div>}
     </ChartPanel>
   )
 }
@@ -354,7 +354,7 @@ export function GapToReferenceChart({ drivers, bands, winnerCode, idPrefix = 'ch
       id={`${idPrefix}-gap`}
       title="Gap to reference, lap by lap"
       description="Cumulative race time against the reference. Flat = same pace; falling = losing time. Pit stops show as steps; shaded bands are safety-car, VSC and red-flag periods."
-      how="Each driver's completed lap times are summed from lap 1; the reference's sum at the same lap is subtracted. A driver only appears while their laps are contiguous from the start — a lap missing from the feed ends their line rather than inventing the time. Dots are pit-in laps. 'Leader' is whoever has the lowest cumulative time at each lap."
+      how="Each driver's completed lap times are summed from lap 1; the reference's sum at the same lap is subtracted. A driver only appears while their laps are contiguous from the start: a lap missing from the feed ends their line rather than inventing the time. Dots are pit-in laps. 'Leader' is whoever has the lowest cumulative time at each lap."
       actions={
         <select className={styles.select} value={refCode} onChange={e => setRefCode(e.target.value)} aria-label="Reference">
           {winnerCode && <option value="winner">vs winner</option>}
@@ -409,7 +409,7 @@ export function TyreDegradationChart({ drivers, bands, totalLaps, idPrefix = 'ch
       id={`${idPrefix}-tyres`}
       title="Tyre degradation"
       badge={confidence}
-      description="How much slower each stint got per lap of tyre age, once fuel burn is taken out. Each fit carries its interval and R², and a two-segment test flags a cliff. Negative slopes are allowed — a tyre coming in is a real thing."
+      description="How much slower each stint got per lap of tyre age, once fuel burn is taken out. Each fit carries its interval and R², and a two-segment test flags a cliff. Negative slopes are allowed: a tyre coming in is a real thing."
       how="Per stint: clean laps only (no lap 1, no pit in/out laps, no neutralised laps, nothing slower than 107 % of the stint's median). Each time is corrected to race-end fuel with the fuel model below, then a least-squares line is fitted against tyre age (age at fitting plus laps run). The ± is the slope's 95 % interval. A cliff is flagged where two lines, split at least three laps from either end, cut the residual error by 40 % and the second is steeper by more than 0.05 s/lap."
       actions={
         <div className={styles.seg} role="radiogroup" aria-label="View">
@@ -449,11 +449,11 @@ export function TyreDegradationChart({ drivers, bands, totalLaps, idPrefix = 'ch
                 <td><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontWeight: 800 }}><Swatch colour={f.colour} dashed={f.dashed} />{f.code} S{f.stint}</span></td>
                 <td>{f.compound}</td><td>{f.points.length}</td>
                 <td style={{ fontWeight: 800 }}>{f.slope >= 0 ? '+' : ''}{(f.slope * 1000).toFixed(0)} ms/lap <span style={{ opacity: 0.6, fontWeight: 400 }}>± {(f.ci * 1000).toFixed(0)}</span></td>
-                <td>{f.r2.toFixed(2)}</td><td>{f.cliffAge != null ? `at ${f.cliffAge} laps` : '—'}</td>
+                <td>{f.r2.toFixed(2)}</td><td>{f.cliffAge != null ? `at ${f.cliffAge} laps` : 'n/a'}</td>
               </tr>
             ))}</tbody>
           </table>
-          <div className={styles.hint} style={{ padding: '10px 0 0' }}>The six lowest-degradation stints — dashed lines are the fits.</div>
+          <div className={styles.hint} style={{ padding: '10px 0 0' }}>The six lowest-degradation stints. Dashed lines are the fits.</div>
         </div>
       ) : (
         <div className={styles.body}>
@@ -466,7 +466,7 @@ export function TyreDegradationChart({ drivers, bands, totalLaps, idPrefix = 'ch
                   <td style={{ fontWeight: 800 }}>{d.code}</td>
                   <td style={{ fontWeight: 800 }}>{d.slope >= 0 ? '+' : ''}{(d.slope * 1000).toFixed(0)} ms/lap</td>
                   <td style={{ width: '40%' }}><div style={{ height: 8, background: 'color-mix(in srgb, var(--pw-text) 8%, transparent)' }}><div style={{ height: '100%', width: `${Math.abs(d.slope) / max * 100}%`, background: d.slope > 0 ? d.colour : 'color-mix(in srgb, var(--pw-text) 40%, transparent)' }} /></div></td>
-                  <td>{d.stints}</td><td>{d.laps}</td><td>{d.cliff ? 'Yes' : '—'}</td>
+                  <td>{d.stints}</td><td>{d.laps}</td><td>{d.cliff ? 'Yes' : 'n/a'}</td>
                 </tr>
               )
             })}</tbody>
@@ -491,8 +491,8 @@ export function FuelModelPanel({ totalLaps, idPrefix = 'chart' }: { totalLaps: n
       id={`${idPrefix}-fuel`}
       title="Fuel model"
       badge="Low"
-      description={`Every pace figure in these charts is corrected to race-end fuel load with this model. The textbook ${m.effectMsPerKg} ms/kg is used — fuel and tyre wear change lap time together on every lap, so this race cannot separate its own fuel effect from its laps.`}
-      how={`A ${m.startKg} kg start load burned evenly over ${m.laps} laps is ${m.perLapKg.toFixed(2)} kg a lap. At ${m.effectMsPerKg} ms per kg that is ${m.perLapMs.toFixed(0)} ms a lap: a lap run with n laps still to go is corrected by n × ${m.perLapMs.toFixed(0)} ms. The confidence is Low by construction — it is a default, not a measurement of this race.`}
+      description={`Every pace figure in these charts is corrected to race-end fuel load with this model. The textbook ${m.effectMsPerKg} ms/kg is used: fuel and tyre wear change lap time together on every lap, so this race cannot separate its own fuel effect from its laps.`}
+      how={`A ${m.startKg} kg start load burned evenly over ${m.laps} laps is ${m.perLapKg.toFixed(2)} kg a lap. At ${m.effectMsPerKg} ms per kg that is ${m.perLapMs.toFixed(0)} ms a lap: a lap run with n laps still to go is corrected by n × ${m.perLapMs.toFixed(0)} ms. The confidence is Low by construction: it is a default, not a measurement of this race.`}
     >
       <div className={styles.stats}>
         <div className={styles.stat}><div className={styles.statLabel}><span style={{ width: 8, height: 8, background: 'oklch(0.85 0.16 90)', display: 'inline-block' }} />Effect</div><div className={styles.statValue}>{m.effectMsPerKg} ms/kg</div><div className={styles.statSub}>default · not fitted from this race</div></div>

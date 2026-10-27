@@ -49,8 +49,8 @@ function RaceHeader({ a }: { a: FullRaceAnalysis }) {
     <header className={s.header}>
       <div style={{ minWidth: 0 }}>
         <div className={s.kicker}><span className={s.square} />Race analysis · OpenF1 · Session {r.session_key}</div>
-        <h1 className={s.h1}>{r.circuit_short_name ?? r.meeting_name}</h1>
-        <div className={s.meta}><b>{r.meeting_name} {r.year}</b><span>{r.session_name}</span>{r.country_name && <span>{r.country_name}</span>}{laps > 0 && <span>{laps} laps</span>}</div>
+        <h1 className={s.h1}>{r.circuit_short_name ?? `Session ${r.session_key}`}</h1>
+        <div className={s.meta}><b>{r.year}</b><span>{r.session_name}</span>{laps > 0 && <span>{laps} laps</span>}</div>
       </div>
       <div className={s.headRight}>
         <div className={s.cells} style={{ gridTemplateColumns: 'repeat(2,minmax(140px,1fr))', border: '2px solid var(--pw-divider)' }}>

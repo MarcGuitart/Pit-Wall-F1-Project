@@ -127,19 +127,64 @@ def upsert(s: dict, run_url: str) -> None:
     print(f"issue created: {out}" if code == 0 else f"could not create the issue: {out}")
 
 
+# ── an error that persists ───────────────────────────────────────────────────
+
+def error_title(e: dict) -> str:
+    where = f"session {e.get('session_key')}: " if e.get("session_key") else ""
+    text = str(e.get("error") or "")
+    return f"autopublish: still failing, {where}{text[:120]}"
+
+
+def error_body(e: dict, run_url: str) -> str:
+    return "\n".join([
+        f"`scripts/autopublish.py` has failed with the same error {e.get('runs')} runs in a row,",
+        f"since {e.get('first_at')}. Telegram said it when it appeared and again now; it stays",
+        "quiet in between. Nothing was published by the failing step.",
+        "",
+        f"    {e.get('error')}",
+        "",
+        f"Run log: {run_url}" if run_url else "",
+    ])
+
+
+def should_file(e: dict, persist_runs: int = 3) -> bool:
+    """File at the run the error became persistent, then comment every six runs."""
+    runs = e.get("runs") or 0
+    return bool(e.get("persistent")) and (runs == persist_runs or (runs - persist_runs) % 6 == 0)
+
+
+def upsert_error(e: dict, run_url: str) -> None:
+    title = error_title(e)
+    outcome, number, state = find_issue(title)
+    if outcome == UNKNOWN:
+        print("issue list unavailable — not filing for a persistent error this run")
+        return
+    if outcome == FOUND:
+        if state == "CLOSED":
+            gh("issue", "reopen", number)
+        code, out = gh("issue", "comment", number, "--body", f"Still failing, {e.get('runs')} runs. {run_url}".strip())
+        print(f"issue #{number} updated" if code == 0 else f"issue #{number} comment failed: {out}")
+        return
+    code, out = gh("issue", "create", "--title", title, "--body", error_body(e, run_url))
+    print(f"issue created: {out}" if code == 0 else f"could not create the issue: {out}")
+
+
 def main() -> int:
     try:
         report = json.loads(os.environ.get("REPORT", "") or "{}")
     except json.JSONDecodeError:
         print("REPORT is not valid JSON")
         return 0
-    stuck = report.get("stuck") or []
-    if not stuck:
-        print("no stuck session")
-        return 0
     run_url = os.environ.get("RUN_URL", "")
+    stuck = report.get("stuck") or []
+    persistent = [e for e in (report.get("errors") or []) if should_file(e)]
+    if not stuck and not persistent:
+        print("no stuck session, no persistent error")
+        return 0
     for s in stuck:
         upsert(s, run_url)
+    for e in persistent:
+        upsert_error(e, run_url)
     return 0
 
 
