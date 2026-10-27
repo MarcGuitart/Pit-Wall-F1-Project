@@ -9,6 +9,7 @@ import { MeetingPanel, type PanelData } from './MeetingPanel'
 import { seasonGrid, type GridRace } from '@/lib/seasonGrid'
 import { weekendLabel } from '@/lib/raceDates'
 import { useOpenRace } from '@/lib/raceNav'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 import { useHasAccess } from '@/lib/openAccess'
 import { PageHeader, Segmented, ui } from '@/components/ui'
 import l from './landing.module.css'
@@ -124,7 +125,7 @@ export function SeasonGrid() {
     <section className={ui.section} aria-labelledby="season-title">
       <div className={`${ui.secHead} ${ui.secHeadWide}`} style={{ alignItems: 'center' }}>
         <h2 className={ui.h6} id="season-title">{season} season</h2>
-        <span className={ui.sub}>{locked ? 'PRO season: enter an access code in Settings to open these races' : 'Pick a race for the full analysis'}</span>
+        <span className={ui.sub}>{locked ? (PAYMENTS_ENABLED ? 'PRO season: subscribe, or enter an access code in Settings, to open these races' : 'PRO season: subscriptions open soon; an access code in Settings opens these races') : 'Pick a race for the full analysis'}</span>
         <span className={ui.secAside}>
           {races ? `${rounds} grands prix${offCount ? ` · ${offCount} cancelled` : ''}` : ''}
           <Segmented

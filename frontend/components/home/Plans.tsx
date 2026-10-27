@@ -23,7 +23,7 @@ export function Plans() {
       <div className={h.secHead}>
         <span className={h.secNum}>03 · Plans</span>
         <h2 id="plans-title" className={h.secTitle}>Free and PRO</h2>
-        <p className={h.secLead}>{PAYMENTS_ENABLED ? 'PRO is a monthly subscription, or an access code.' : 'Subscriptions are not open yet. PRO is available with an access code.'}</p>
+        <p className={h.secLead}>{PAYMENTS_ENABLED ? 'PRO is a monthly subscription, or an access code.' : 'Subscriptions open soon. PRO is available with an access code.'}</p>
       </div>
       <div className={`${h.grid} ${h.g2}`}>
         <div className={h.plan} data-reveal>
@@ -37,7 +37,7 @@ export function Plans() {
         </div>
         <div className={h.plan} data-reveal>
           <h3 className={h.planName}>PRO</h3>
-          <div className={h.cardLabel}>{PAYMENTS_ENABLED ? 'Monthly, cancel any time' : 'Subscriptions not open'}</div>
+          <div className={h.cardLabel}>{PAYMENTS_ENABLED ? 'Monthly, cancel any time' : 'Subscriptions open soon'}</div>
           <div><span className={h.planPrice}>{PRO_PRICE}</span> <span className={h.nextWhen}>/ {PRO_PRICE_PERIOD}</span></div>
           <ul className={h.planList}>
             <li>Seasons {firstPro} onwards</li>
