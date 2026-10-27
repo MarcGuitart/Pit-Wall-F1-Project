@@ -101,6 +101,7 @@ def test_checkout_asks_for_the_subscription_with_terms(stripe):
     assert form["consent_collection[terms_of_service]"] == "required"
     assert "withdrawal" in form["custom_text[terms_of_service_acceptance][message]"]
     assert form["success_url"] == "https://example.test/billing/success?session_id={CHECKOUT_SESSION_ID}"
+    assert form["cancel_url"] == "https://example.test/#plans"          # the landing's section; there is no /plans page
 
 
 def test_success_issues_a_pro_token_and_is_idempotent(stripe):

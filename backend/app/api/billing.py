@@ -111,7 +111,8 @@ async def checkout(request: Request) -> CheckoutResponse:
         "line_items[0][price]": price,
         "line_items[0][quantity]": "1",
         "success_url": f"{site}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
-        "cancel_url": f"{site}/plans",
+        # The landing's Plans section: the site has no /plans page.
+        "cancel_url": f"{site}/#plans",
         # The Terms box is required; the custom text carries the withdrawal waiver.
         "consent_collection[terms_of_service]": "required",
         "custom_text[terms_of_service_acceptance][message]": TERMS_TEXT,
