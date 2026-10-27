@@ -5,7 +5,12 @@ Send the outcome of an autopublish run to Telegram. Called by the workflow.
     python scripts/notify_telegram.py --report backend/report.json
 
 Reads the report from $REPORT or --report, and the bot credentials from
-$TELEGRAM_BOT_TOKEN and $TELEGRAM_CHAT_ID. With no credentials it prints the
+$TELEGRAM_BOT_TOKEN and $TELEGRAM_CHAT_ID.
+
+Two audiences (block 44b): $TELEGRAM_CHAT_ID is the owner's notices chat and gets
+everything (publications, stuck sessions, errors, a failed job). The PRO channel,
+$TELEGRAM_PRO_CHAT_ID when set, gets only the publications, as a short public
+message with no internal notes, no dry runs and no failed modules. With no credentials it prints the
 message it would have sent and exits 0 — a missing notification must never fail
 a run that published correctly.
 
@@ -84,6 +89,27 @@ def published_lines(report: dict) -> list[str]:
             lines.append("   <i>dry run — nothing was committed</i>")
         lines.append("")
     return lines
+
+
+def build_pro_message(report: dict) -> str | None:
+    """For the PRO channel: published sessions only, nothing internal. None when nothing was published for real."""
+    real = [p for p in report.get("published") or [] if not p.get("dry_run")]
+    if not real:
+        return None
+    out = [f"<b>New on {PRODUCT_NAME}</b>", ""]
+    for p in real:
+        name = p.get("meeting_name") or p.get("label") or p.get("session_key")
+        session = p.get("session_name")
+        title = f"{name} {p['year']}" if p.get("year") else str(name)
+        if session and session != "Race":
+            title += f" · {session}"
+        out.append(f"<b>{esc(title)}</b>: the analysis is published.")
+        if p.get("chaos_score") is not None:
+            out.append(f"Chaos Index {p['chaos_score']}/100, {esc(p.get('chaos_level') or '')}".rstrip(", "))
+        if p.get("url"):
+            out.append(esc(p["url"]))
+        out.append("")
+    return "\n".join(out).strip()
 
 
 def build_message(report: dict, env: dict) -> str | None:
@@ -207,6 +233,10 @@ def main() -> int:
         return 0
 
     print("sent" if send(token, chat_id, message) else "not sent (see above)")
+    pro_chat = os.environ.get("TELEGRAM_PRO_CHAT_ID", "").strip()
+    pro_message = build_pro_message(report)
+    if pro_chat and pro_message:
+        print("PRO channel: " + ("sent" if send(token, pro_chat, pro_message) else "not sent (see above)"))
     return 0        # never fail a run over a notification
 
 

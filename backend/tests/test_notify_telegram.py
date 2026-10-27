@@ -211,3 +211,41 @@ def test_persist_runs_matches_autopublish():
     a = re.search(r"^PERSIST_RUNS = (\d+)", (scripts / "autopublish.py").read_text(), re.M).group(1)
     b = re.search(r"^PERSIST_RUNS = (\d+)", (scripts / "notify_telegram.py").read_text(), re.M).group(1)
     assert a == b
+
+
+# ── the PRO channel (block 44b): publications only ───────────────────────────
+
+def test_the_pro_channel_gets_the_publication_without_internal_notes(nt):
+    msg = nt.build_pro_message({**PUBLISHED, "published": [{**PUBLISHED["published"][0], "modules_failed": ["telemetry"]}]})
+    assert "Azerbaijan Grand Prix 2026" in msg and "Chaos Index 73/100, Extreme" in msg
+    assert "https://pitwallengineer.com/race/11377" in msg
+    assert "modules failed" not in msg and "telemetry" not in msg
+    assert not any(ord(ch) > 0x2600 for ch in msg)                   # no emoji in the public message
+
+
+def test_internal_notices_never_reach_the_pro_channel(nt):
+    stuck = {"published": [], "stuck": [{"session_key": 1, "label": "X", "reason": "laps still changing"}],
+             "errors": [{"session_key": 2, "label": "Y", "error": "OpenF1 401", "runs": 1}], "deferred": []}
+    assert nt.build_pro_message(stuck) is None
+    assert nt.build_message(stuck, ENV) is not None                   # the owner's chat still hears about it
+
+
+def test_a_dry_run_is_not_announced_to_subscribers(nt):
+    dry = {**PUBLISHED, "published": [{**PUBLISHED["published"][0], "dry_run": True}]}
+    assert nt.build_pro_message(dry) is None
+
+
+def test_main_sends_to_both_chats_when_the_pro_channel_is_set(nt, monkeypatch, tmp_path):
+    report = tmp_path / "r.json"
+    report.write_text(__import__("json").dumps(PUBLISHED))
+    sent = []
+    monkeypatch.setattr(nt, "send", lambda token, chat, text: sent.append((chat, text)) or True)
+    for k, v in {**ENV, "TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_CHAT_ID": "111", "TELEGRAM_PRO_CHAT_ID": "-100222"}.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr("sys.argv", ["notify_telegram.py", "--report", str(report)])
+    assert nt.main() == 0
+    assert [c for c, _ in sent] == ["111", "-100222"]
+    monkeypatch.delenv("TELEGRAM_PRO_CHAT_ID")
+    sent.clear()
+    nt.main()
+    assert [c for c, _ in sent] == ["111"]

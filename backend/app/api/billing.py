@@ -32,7 +32,7 @@ from fastapi import APIRouter, BackgroundTasks, Query, Request
 from pydantic import BaseModel
 
 from app.api.access import _client_ip
-from app.core import resend_api, stripe_api
+from app.core import resend_api, stripe_api, telegram_api
 from app.core.access import bearer_token, decode_token, encode_token, subscription_token
 from app.core.billing_revocation import is_revoked, reinstate, revoke
 from app.core.config import settings
@@ -65,6 +65,8 @@ class TokenResponse(BaseModel):
     expires_at: int
     expires_in: int
     free_seasons: list[int]
+    # The PRO channel (block 44b): a single-use invite, only from /billing/success, null when the channel is not set up.
+    telegram_invite: str | None = None
 
 
 class PortalResponse(BaseModel):
@@ -142,7 +144,10 @@ async def success(session_id: str = Query(..., max_length=256)) -> TokenResponse
     if is_revoked(str(sub.get("id"))):
         raise AppError("SUBSCRIPTION_REVOKED", "Access for this subscription has been withdrawn.", status=403)
     logger.info("[BILLING] token for subscription %s (checkout %s)", sub.get("id"), session_id)
-    return _token_for(sub, int(session.get("created") or time.time()))
+    out = _token_for(sub, int(session.get("created") or time.time()))
+    # A new single-use link on every call: reloading the page makes another one, and the unused ones expire in 24 h.
+    out.telegram_invite = await telegram_api.invite_link(str(sub.get("id")))
+    return out
 
 
 @router.post("/renew", response_model=TokenResponse)
@@ -226,8 +231,42 @@ async def webhook(request: Request) -> dict:
 
 
 async def _on_subscription_ended(subscription: dict) -> None:
-    """Hook for what else ends with the subscription (the PRO channel, block 44b)."""
-    return None
+    """Out of the PRO channel, when the join was traced to this subscription (metadata.telegram_user_id)."""
+    raw = ((subscription.get("metadata") or {}).get("telegram_user_id") or "").strip()
+    if not raw.isdigit():
+        logger.info("[BILLING] %s ended with no Telegram member on record", subscription.get("id"))
+        return
+    ok = await telegram_api.remove_member(int(raw))
+    logger.info("[BILLING] Telegram member of %s %s", subscription.get("id"), "removed" if ok else "not removed")
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(request: Request) -> dict:
+    """
+    Telegram's updates for the bot (setWebhook with allowed_updates ["chat_member"] and secret_token). When someone
+    joins the PRO channel through an invite named after a subscription, that subscription's Stripe metadata gets
+    their Telegram user id, so a cancellation can remove them later: Stripe stays the only record. Always 200 once
+    the secret matches, so Telegram does not retry what is not ours.
+    """
+    if not telegram_api.secret_ok(request.headers.get("x-telegram-bot-api-secret-token", "")):
+        raise AppError("BAD_SIGNATURE", "Unknown sender.", status=401)
+    try:
+        update = json.loads(await request.body())
+    except ValueError:
+        return {"ok": True}
+    cm = update.get("chat_member") or {}
+    chat = str((cm.get("chat") or {}).get("id", ""))
+    status = (cm.get("new_chat_member") or {}).get("status")
+    user = (cm.get("new_chat_member") or {}).get("user") or {}
+    sub_id = ((cm.get("invite_link") or {}).get("name") or "").strip()
+    if chat != telegram_api.pro_chat_id() or status != "member" or not SUBSCRIPTION_ID.match(sub_id) \
+            or not isinstance(user.get("id"), int):
+        return {"ok": True}
+    if not stripe_api.payments_enabled():
+        return {"ok": True}
+    await stripe_api.call("POST", f"/subscriptions/{sub_id}", data={"metadata[telegram_user_id]": str(user["id"])})
+    logger.info("[BILLING] Telegram member recorded on %s", sub_id)
+    return {"ok": True}
 
 
 # ── restore access by email (block 44b) ──────────────────────────────────────
