@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { placeOf } from '@/lib/place'
+import { useWarmRace } from '@/lib/warm'
 import { useOpenRace } from '@/lib/raceNav'
 import { fetchRaces, fetchSessions } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
@@ -52,6 +53,7 @@ function yearOptions(pro: boolean) {
 /** basePath: where a chosen session opens — the /preview redesign passes its own. */
 export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {}) {
   const openRace = useOpenRace(basePath)
+  const warm = useWarmRace()
   // Read after mount only: localStorage does not exist during the server render,
   // and assuming "not PRO" there keeps the first paint identical on both sides.
   const [pro, setPro] = useState(false)
@@ -290,7 +292,7 @@ export function RaceSelector({ basePath = '/race' }: { basePath?: string } = {})
           const featured = FEATURED_TAGS[race.session_key]
           const hasTelemetry = TELEMETRY_SESSIONS.has(race.session_key)
           return (
-            <button key={race.session_key} type="button" onClick={(e) => openRace(race.session_key, { click: e, label: `${placeOf(race)} · ${race.year}` })} className={l.card}>
+            <button key={race.session_key} type="button" {...warm(`${basePath}/${race.session_key}`)} onClick={(e) => openRace(race.session_key, { click: e, label: `${placeOf(race)} · ${race.year}` })} className={l.card}>
               <div className={l.cardTop}>
                 <div style={{ minWidth: 0 }}>
                   <div className={l.cardName}>{placeOf(race)}</div>

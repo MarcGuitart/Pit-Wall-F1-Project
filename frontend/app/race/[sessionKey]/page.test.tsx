@@ -141,6 +141,23 @@ describe('loader → page', () => {
     expect(container.querySelector('[data-skeleton]')).toBeNull()
   })
 
+  it('the settled strip stands while waiting and is gone the moment the analysis arrives', async () => {
+    let resolve!: (v: FullRaceAnalysis) => void
+    api.fetchAnalysis.mockImplementation(() => new Promise((r) => { resolve = r }))
+    api.fetchSessionMeta.mockResolvedValue(meta(27009))
+    const { container } = open(27009)
+    await flush()
+    await at(3_200)
+    expect(container.querySelector('[data-settle-strip="loading"]')).toBeTruthy()
+    await act(async () => { resolve(analysisFor(27009)) })
+    await flush()
+    expect(screen.getByTestId('analysis').getAttribute('data-arriving')).toBe('true')
+    expect(container.querySelector('[data-settle-strip]')).toBeNull()
+    await at(400)
+    expect(container.querySelector('[data-skeleton]')).toBeNull()
+    expect(container.querySelector('[data-settle-strip]')).toBeNull()
+  })
+
   it('a warm answer (< 300 ms) shows the page with no loader and no arrival', async () => {
     api.fetchAnalysis.mockResolvedValue(analysisFor(27008))
     api.fetchSessionMeta.mockResolvedValue(meta(27008))

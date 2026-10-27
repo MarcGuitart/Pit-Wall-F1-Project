@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { FREE_SEASONS, PRO_PRICE, PRO_PRICE_PERIOD, proSeasons } from '@/lib/access'
 import { RACE_LIST_HREF } from '@/lib/routes'
+import { RACES_LABEL } from '@/lib/sweep'
+import { SweepLink } from '@/components/layout/SweepLink'
 import { useAccessStore } from '@/stores/accessStore'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
 import { buttonClass } from '@/components/ui'
@@ -29,7 +31,7 @@ export function Plans() {
             <li>Seasons {FREE_SEASONS.join(' and ')}</li>
             <li>No access code needed</li>
           </ul>
-          <div><Link href={RACE_LIST_HREF} className={buttonClass('default', true)}>Pick a race</Link></div>
+          <div><SweepLink href={RACE_LIST_HREF} label={RACES_LABEL} className={buttonClass('default', true)}>Pick a race</SweepLink></div>
         </div>
         <div className={h.plan} data-reveal>
           <h3 className={h.planName}>PRO</h3>

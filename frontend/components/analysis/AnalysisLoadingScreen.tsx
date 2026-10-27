@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { SessionMeta } from '@/types'
-import { TIMEOUT_AFTER_MS, loadStartedAt, ruleTargetAt, useLoadPhase } from '@/lib/loadPhase'
+import { TIMEOUT_AFTER_MS, loadStartedAt, useLoadPhase } from '@/lib/loadPhase'
 import { pingApi } from '@/lib/api'
 import { useSessionMeta } from '@/lib/sessionMeta'
-import { useReducedMotion } from '@/lib/motion'
 import { RACE_LIST_HREF } from '@/lib/routes'
 import { buttonClass } from '@/components/ui'
 import { AnalysisSkeleton } from './loader/AnalysisSkeleton'
@@ -39,8 +38,9 @@ type Props = {
  * progress. By elapsed time since the click (lib/loadPhase.ts):
  *   1. 0 – 300 ms   nothing: the space is reserved, the shell does not change
  *   2. 0.3 – 8 s    the page's own skeleton (real header facts, bars where data
- *                   goes), a time rule that never completes, the real elapsed
- *                   clock, and the method panel's static copy
+ *                   goes), the settled sweep strip beside the title (concept A:
+ *                   its accent band's opacity is the only motion), the real
+ *                   elapsed clock, and the method panel's static copy
  *   3. 8 – 75 s     a long wait. The API is asked whether it answers (GET /health):
  *                   if it does, or until it is known, "This analysis is being
  *                   computed and can take up to a minute" (the OpenF1 rate limit
@@ -79,7 +79,6 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
   const apiSilent = useApiSilent(phase === 'waking' && !failed)
   const fetched = useSessionMeta(given === undefined && sessionKey != null ? sessionKey : null)
   const meta = given !== undefined ? given : fetched.meta
-  const reduced = useReducedMotion()
 
   if (phase === 'hidden' && !failed && !leaving) return <div className={s.reserve} aria-busy="true" />
 
@@ -96,7 +95,7 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
       data-state={state}
     >
       <div className={k.statusHead}>
-        <span className={`${k.dot} ${state === 'waking' ? k.dotWaking : ''} ${state !== 'error' ? k.dotLive : ''}`} aria-hidden="true" />
+        <span className={`${k.dot} ${state === 'waking' ? k.dotWaking : ''}`} aria-hidden="true" />
         {state === 'loading' ? 'Loading analysis'
           : state === 'computing' ? 'This analysis is being computed and can take up to a minute'
           : state === 'waking' ? 'Waking up the analysis server' : 'Analysis did not load'}
@@ -110,12 +109,7 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
       <p className={k.statusBody}>
         {state === 'loading' && 'Requesting the full race analysis.'}
         {state === 'computing' && 'The server is up and working on it. The page opens by itself when it is ready.'}
-        {state === 'waking' && (
-          <>
-            <span className={k.long}>The first request after a period of inactivity can take up to about 30 seconds. Nothing is wrong. The page opens by itself when the server answers.</span>
-            <span className={k.short}>The first request after idle can take up to about 30 seconds. The page opens by itself.</span>
-          </>
-        )}
+        {state === 'waking' && 'The server is not answering yet. The page opens by itself when it does.'}
         {state === 'error' && `The server did not answer within ${TIMEOUT_AFTER_MS / 1000} seconds.`}
       </p>
       {state === 'error' && (
@@ -134,7 +128,6 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
         meta={meta ?? null}
         mode={leaving ? 'leaving' : state === 'computing' ? 'loading' : state}
         status={status}
-        rule={leaving ? 1 : ruleTargetAt(state === 'error' ? TIMEOUT_AFTER_MS : elapsedMs, reduced)}
       />
     </div>
   )

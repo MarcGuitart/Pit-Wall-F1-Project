@@ -45,39 +45,49 @@
 .barTall { height: 28px; }
 .barThin { height: 8px; }
 
-/* Breathing: one animated layer per module, staggered 120 ms × (index mod 6). */
-.breathe .bars { animation: pwBreathe 1600ms ease-in-out infinite; animation-delay: calc(var(--i, 0) * 120ms); }
-@keyframes pwBreathe { 50% { opacity: 0.5; } }
-.paused .bars, .paused .dot { animation-play-state: paused; }
-
-/* ── the time rule: over the band's top rule (the grid's first 2 px), takes no space ── */
-.rule { position: absolute; left: 0; right: 0; top: 0; height: 2px; pointer-events: none; z-index: 1; }
-.ruleGrey, .ruleAccent { position: absolute; inset: 0; transform-origin: left center; }
-.ruleGrey { background: var(--pw-muted); }
-.ruleAccent { background: var(--pw-accent); transition: transform 1000ms linear, opacity 200ms linear; }
+/* ── concept A "Settle": the sweep's accent and grey bands, settled as a strip
+   at -22 degrees in the gutter beside the title. Absolutely placed against the
+   title's left edge and clipped to the gutter, so it takes no space and never
+   covers a letter: the arriving page lines up with the skeleton as before.
+   The accent band's opacity is the loader's only continuous motion; nothing
+   else loops (no breathing bars, no pulsing dot, no time rule). Height in em
+   of the title, so the slant fits the gutter from 390 to 1440 px. ── */
+.headLeftWrap { position: relative; }
+.titleAnchor { position: relative; display: block; }
+.strip {
+  position: absolute; right: 100%; top: 0.1em; width: var(--pw-gutter); height: 0.34em;
+  overflow: hidden; display: flex; justify-content: center; gap: 3px; pointer-events: none;
+}
+.stripAccent, .stripGrey { flex: none; width: 6px; height: 100%; transform: skewX(-22deg); }
+.stripAccent { background: var(--pw-accent); }
+.stripGrey { background: var(--pw-divider); }
+@media (max-width: 640px) {
+  .strip { gap: 2px; }
+  .stripAccent, .stripGrey { width: 3px; }
+}
+.waiting .stripAccent { animation: pwSettle 1600ms ease-in-out infinite; }
+@keyframes pwSettle { 50% { opacity: 0.45; } }
+.paused .stripAccent { animation-play-state: paused; }
+/* The known facts arrive with the shell: a 6 px rise, 160 ms. */
+.waiting .headLeftWrap header > div:first-child { animation: pwRise 160ms var(--pw-ease-out) both; }
 
 /* ── status cell (in the band's first column) ── */
 .status { border: 2px solid var(--pw-divider); padding: 14px 16px; display: grid; gap: 8px; min-height: 168px; align-content: start; }
 .statusErr { border-color: var(--pw-accent); }
-.statusIn { animation: pwRise 200ms var(--pw-ease-out) both; }
+.statusIn { animation: pwFade 200ms var(--pw-ease-out) both; }
 @keyframes pwRise { from { opacity: 0; transform: translateY(6px); } }
 .statusHead { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pw-accent); }
-.dotLive { animation: pwDot 1200ms ease-in-out infinite; }
-@keyframes pwDot { 50% { opacity: 0.3; } }
 .dotWaking { background: var(--pw-amber); }
 .dotGrey { background: var(--pw-muted); }
 .clockRow { display: flex; align-items: baseline; gap: 10px; }
 .clock { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .statusBody { margin: 0; font-size: 13px; line-height: 1.5; color: var(--pw-muted); }
-.short { display: none; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 860px) {
   .status { min-height: 148px; }
   .clock { font-size: 26px; }
   .statusBody { font-size: 12px; }
-  .long { display: none; }
-  .short { display: inline; }
 }
 
 /* ── method panel (the Race Brain slot) ── */
@@ -86,10 +96,10 @@
 .method b { font-weight: 800; color: var(--pw-accent-text); }
 
 /* ── waking / error ── */
-.waking .dim { opacity: 0.6; }
-.error .dim { opacity: 0.3; transition: opacity 240ms ease-out; }
-.error .bars { animation: none; }
-.error .ruleAccent { opacity: 0; }
+.waking .dim { opacity: 0.5; }
+.error .dim { opacity: 0.35; transition: opacity 240ms ease-out; }
+.error .strip { opacity: 0.4; }
+.error .stripAccent { animation: none; }
 
 /* ── arrival: the skeleton under the arriving page, fading module by module
    with the content's own stagger (20 ms × index), then removed ── */
@@ -102,7 +112,6 @@
 .leaving [data-skel='4'] { animation-delay: 80ms; }
 .leaving [data-skel='5'] { animation-delay: 100ms; }
 .leaving [data-skel='6'] { animation-delay: 120ms; }
-.leaving .ruleAccent { transform: scaleX(1) !important; transition: transform 80ms ease-out; animation: pwOut 80ms linear 80ms both; }
 @keyframes pwOut { to { opacity: 0; } }
 
 /* ── blocked pages: the same grid as a 40 % ghost, one status panel on top ── */
@@ -127,13 +136,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .shellIn { animation-duration: 120ms; }
-  .breathe .bars { animation: none; opacity: 0.75; }
-  .dotLive { animation: none; }
-  .ruleAccent { transition: none; }
+  .waiting .stripAccent { animation: none; }
+  .waiting .headLeftWrap header > div:first-child { animation: pwFade 120ms linear both; }
   .statusIn, .panel { animation: pwFade 120ms linear both; }
   .dim { transition: none; }
   .leaving [data-skel] { animation: none; }
   .leaving { animation: pwOut 120ms linear both; }
-  .leaving .ruleAccent { transition: none; animation: none; }
 }
 @keyframes pwFade { from { opacity: 0; } }

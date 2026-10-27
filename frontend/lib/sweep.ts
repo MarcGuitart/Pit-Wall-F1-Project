@@ -4,6 +4,9 @@ import { WAKING_AFTER_MS } from '@/lib/loadPhase'
 /**
  * The diagonal sweep (block 34): three skewed bands cross the screen when a
  * click opens a race or live mode, and leave over the destination's loader.
+ * Block 48: also into the race list, /races, from the landing's calls to
+ * action and the top bar ("Races" on the bands). Docs and Settings keep the
+ * page fade.
  *
  *   cover    0 to 260 ms      the bands come in
  *   hold     at least 120 ms, then until the route has arrived
@@ -15,18 +18,40 @@ import { WAKING_AFTER_MS } from '@/lib/loadPhase'
  *
  * Only a plain click sweeps. Not a modified or middle click (a new tab), not
  * back or forward (nothing calls navigateWithSweep then), not with reduced
- * motion, not to the page already open, not to any other route.
+ * motion, not to the page already open, not to any other route. A first
+ * load is never a click, so it never sweeps either.
  */
 export const COVER_MS = 260
 export const HOLD_MS = 120
 export const UNCOVER_MS = 320
 export const GIVE_UP_MS = WAKING_AFTER_MS
+/** From here the bands say "This is taking longer than usual" (block 48). */
+export const LONG_WAIT_MS = WAKING_AFTER_MS
+/**
+ * The race list has no loader of its own behind the bands: they hold past
+ * 8 s (saying the wait is long) until it arrives, and give up here.
+ */
+export const LIST_GIVE_UP_MS = 20_000
+
+/** When the bands give up on a destination that has not arrived. */
+export function giveUpAfter(href: string | null): number {
+  return href !== null && sweepTarget(href) === 'races' ? LIST_GIVE_UP_MS : GIVE_UP_MS
+}
+
+/** Real elapsed time as mm:ss; never a percentage or a count of anything. */
+export function elapsedClock(ms: number): string {
+  const secs = Math.max(0, Math.floor(ms / 1000))
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
+}
 
 export type SweepPhase = 'idle' | 'cover' | 'hold' | 'uncover'
 export type SweepDirection = 'forward' | 'reverse'
 
-export function sweepTarget(href: string): 'race' | 'live' | null {
+export const RACES_LABEL = 'Races'
+
+export function sweepTarget(href: string): 'race' | 'live' | 'races' | null {
   const path = href.split(/[?#]/)[0]
+  if (path === '/races') return 'races'
   if (/^\/race\/\d+$/.test(path)) return 'race'
   if (/^\/live\/\d+$/.test(path)) return 'live'
   return null
@@ -55,11 +80,12 @@ export function shouldSweep(href: string, pathname: string, click: ClickLike | n
 
 /**
  * When the bands start to leave, given when the cover ended and when the
- * route arrived (null: not yet). Never later than GIVE_UP_MS from the click.
+ * route arrived (null: not yet). Never later than `limitMs` from the click
+ * (GIVE_UP_MS, or LIST_GIVE_UP_MS for the race list: giveUpAfter).
  */
-export function uncoverAt(startedAt: number, readyAt: number | null): { at: number; gaveUp: boolean } {
+export function uncoverAt(startedAt: number, readyAt: number | null, limitMs = GIVE_UP_MS): { at: number; gaveUp: boolean } {
   const earliest = startedAt + COVER_MS + HOLD_MS
-  const limit = startedAt + GIVE_UP_MS
+  const limit = startedAt + limitMs
   if (readyAt !== null && Math.max(earliest, readyAt) <= limit) return { at: Math.max(earliest, readyAt), gaveUp: false }
   return { at: limit, gaveUp: true }
 }

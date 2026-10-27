@@ -13,6 +13,7 @@ import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
 import s from './shell.module.css'
 import { SweepLink } from './SweepLink'
+import { RACES_LABEL } from '@/lib/sweep'
 
 type BreadcrumbItem = {
   label: string
@@ -62,7 +63,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             {breadcrumb.map((item, i) => (
               <li key={i}>
                 {item.href
-                  ? <Link href={item.href}>{item.label}</Link>
+                  ? item.href === '/races'
+                    ? <SweepLink href="/races" label={RACES_LABEL}>{item.label}</SweepLink>
+                    : <Link href={item.href}>{item.label}</Link>
                   : <span aria-current={i === breadcrumb.length - 1 ? 'page' : undefined}>{item.label}</span>}
               </li>
             ))}
@@ -74,7 +77,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
         {/* Historical — the race list (Block 29: "/" is the landing, the list is /races) */}
         {historical
           ? <Link href="/races" className={`${s.navLink} ${s.navOn}`} aria-current="page">Historical</Link>
-          : <Link href="/races" className={s.navLink}>Historical</Link>}
+          : <SweepLink href="/races" label={RACES_LABEL} className={s.navLink}>Historical</SweepLink>}
 
         {/* Live — a real link once a session is live (verified against the live
             server, never the clock alone); the next session in a popover when

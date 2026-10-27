@@ -4,10 +4,12 @@ import { COVER_MS, GIVE_UP_MS, HOLD_MS, UNCOVER_MS, shouldSweep, sweepTarget, un
 const click = { button: 0 }
 
 describe('sweepTarget', () => {
-  it('only a race or live mode', () => {
+  it('a race, live mode, or the race list (block 48)', () => {
     expect(sweepTarget('/race/9636')).toBe('race')
     expect(sweepTarget('/live/11377?x=1')).toBe('live')
-    for (const href of ['/races', '/', '/docs', '/settings', '/race/', '/race/abc', '/preview/race/9636']) {
+    expect(sweepTarget('/races')).toBe('races')
+    expect(sweepTarget('/races?year=2024')).toBe('races')
+    for (const href of ['/', '/docs', '/settings', '/races/x', '/race/', '/race/abc', '/preview/race/9636']) {
       expect(sweepTarget(href)).toBeNull()
     }
   })
@@ -30,8 +32,15 @@ describe('shouldSweep: only a plain click to another race or live page', () => {
   it('not with reduced motion, not to the page already open, not to other routes', () => {
     expect(shouldSweep('/race/9636', '/races', click, true)).toBe(false)
     expect(shouldSweep('/race/9636', '/race/9636', click, false)).toBe(false)
-    expect(shouldSweep('/races', '/', click, false)).toBe(false)
     expect(shouldSweep('/settings', '/', click, false)).toBe(false)
+    expect(shouldSweep('/docs', '/', click, false)).toBe(false)
+  })
+  it('the race list sweeps on a plain click, never with reduced motion, never onto itself', () => {
+    expect(shouldSweep('/races', '/', click, false)).toBe(true)
+    expect(shouldSweep('/races', '/race/9636', click, false)).toBe(true)
+    expect(shouldSweep('/races', '/', click, true)).toBe(false)
+    expect(shouldSweep('/races', '/races', click, false)).toBe(false)
+    expect(shouldSweep('/races', '/', null, false)).toBe(false)            // back, forward, first load
   })
 })
 

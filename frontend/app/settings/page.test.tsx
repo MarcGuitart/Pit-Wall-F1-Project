@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+// The top bar's Historical link sweeps into /races (block 48) through the router.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/settings' }))
+
 import SettingsPage from './page'
 import { useAccessStore } from '@/stores/accessStore'
 import { storeToken } from '@/lib/access'

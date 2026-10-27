@@ -12,6 +12,8 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/api', () => api)
 const openRace = vi.fn()
+// Race links warm their route on pointer over, focus or touch (block 48, lib/warm.ts) through the router.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }), usePathname: () => '/races' }))
 vi.mock('@/lib/raceNav', () => ({ useOpenRace: () => openRace }))
 vi.mock('@/lib/seasons', () => ({ seasonYears: () => [2026, 2025, 2024, 2023], currentSeason: () => 2026 }))
 vi.mock('@/stores/accessStore', () => ({
