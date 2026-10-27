@@ -103,6 +103,8 @@ describe('the badge links to Settings', () => {
 describe('the Live pill — a PRO visitor with a session actually live', () => {
   it('is a real link to /live/[sessionKey], verified against the live server', async () => {
     vi.spyOn(liveStatus, 'fetchLiveServerStatus').mockResolvedValue({ reachable: true, sessionKey: 11377 })
+    // The live server is asked only while a session is on or near (block 51): the calendar says one is on now.
+    vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue({ place: 'Baku', circuitShortName: 'Baku', sessionKey: 11377, sessionName: 'Race', dateStart: new Date(Date.now() - 600_000).toISOString(), dateEnd: new Date(Date.now() + 3_600_000).toISOString() })
     useAccessStore.setState({ pro: true, showBadge: true })
     render(<TopBar />)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findEarliestUpcomingSession } from './liveStatus'
+import { findEarliestUpcomingSession , inLiveWindow } from './liveStatus'
 import type { SessionInfo } from '@/types'
 
 function session(overrides: Partial<SessionInfo>): SessionInfo {
@@ -56,5 +56,25 @@ describe('findEarliestUpcomingSession', () => {
 
   it('an empty list returns null', () => {
     expect(findEarliestUpcomingSession([], NOW)).toBeNull()
+  })
+})
+
+describe('inLiveWindow (block 51): when the live server may be asked', () => {
+  const at = (iso: string) => Date.parse(iso)
+  const s = { dateStart: '2026-10-25T19:00:00Z', dateEnd: '2026-10-25T21:00:00Z' }
+  it('from 30 minutes before the start to the scheduled end', () => {
+    expect(inLiveWindow(s, at('2026-10-25T18:29:59Z'))).toBe(false)
+    expect(inLiveWindow(s, at('2026-10-25T18:30:00Z'))).toBe(true)
+    expect(inLiveWindow(s, at('2026-10-25T21:00:00Z'))).toBe(true)
+    expect(inLiveWindow(s, at('2026-10-25T21:00:01Z'))).toBe(false)
+  })
+  it('no end in the calendar: two hours from the start', () => {
+    const open = { dateStart: s.dateStart, dateEnd: null }
+    expect(inLiveWindow(open, at('2026-10-25T20:59:59Z'))).toBe(true)
+    expect(inLiveWindow(open, at('2026-10-25T21:00:01Z'))).toBe(false)
+  })
+  it('no next session, or an unreadable start: never', () => {
+    expect(inLiveWindow(null)).toBe(false)
+    expect(inLiveWindow({ dateStart: 'soon', dateEnd: null })).toBe(false)
   })
 })

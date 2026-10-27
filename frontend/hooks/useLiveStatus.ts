@@ -18,17 +18,19 @@
  *   - one poller per season for the whole tab, however many components mount
  *     the hook (TopBar and ProSection on the landing share it);
  *   - nothing is asked while the tab is hidden; it asks again when shown;
- *   - the live server's /health every POLL_MS; when it is up and following a
- *     session, the calendar is not asked at all;
- *   - otherwise the calendar (/races?year= and the meetings' /sessions) at most
- *     once per CALENDAR_TTL_MS per browser tab (sessionStorage), or sooner once
- *     the next session it named has started.
+ *   - the calendar (/races?year= and the meetings' /sessions) at most once per
+ *     CALENDAR_TTL_MS per browser tab (sessionStorage), or sooner once the next
+ *     session it named has started;
+ *   - the live server's /health every POLL_MS, but only inside the live window
+ *     (lib/liveStatus.ts inLiveWindow: from 30 min before the next session to its
+ *     end). Outside it the live server is never asked, so an open tab does not
+ *     keep a sleeping free Render service awake (block 51).
  */
 import { useEffect, useState } from 'react'
-import { fetchLiveServerStatus, fetchNextLiveSession, type NextLiveSessionInfo } from '@/lib/liveStatus'
+import { fetchLiveServerStatus, fetchNextLiveSession, inLiveWindow, type NextLiveSessionInfo } from '@/lib/liveStatus'
 
 export const POLL_MS = 60_000
-export const CALENDAR_TTL_MS = 30 * 60_000
+export const CALENDAR_TTL_MS = 6 * 60 * 60_000
 const STORE_KEY = 'pw_next_live_session'
 
 export type LiveStatus = {
@@ -101,12 +103,14 @@ function poll(p: Poller): Promise<void> {
   if (hidden()) return Promise.resolve()
   if (p.inFlight) return p.inFlight
   p.inFlight = (async () => {
-    const status = await fetchLiveServerStatus()
-    if (status.reachable && status.sessionKey !== null) {
-      publish(p, { liveSessionKey: status.sessionKey, liveChecked: true, nextLive: p.value.nextLive })
-      return
-    }
     const next = await nextSession(p.year).catch(() => null)
+    if (inLiveWindow(next)) {
+      const status = await fetchLiveServerStatus()
+      if (status.reachable && status.sessionKey !== null) {
+        publish(p, { liveSessionKey: status.sessionKey, liveChecked: true, nextLive: next })
+        return
+      }
+    }
     publish(p, { liveSessionKey: null, liveChecked: true, nextLive: next })
   })().finally(() => { p.inFlight = null })
   return p.inFlight

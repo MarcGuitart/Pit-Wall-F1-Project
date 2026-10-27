@@ -42,7 +42,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); __resetLiveStatusForTests(); vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('useLiveStatus: capped polling', () => {
-  it('two mounted components: at most one /races?year in 30 min, one /health per minute', async () => {
+  it('two mounted components: one calendar request in 6 h, and the live server never asked with no session near', async () => {
     const { getByTestId } = render(<><Probe id="top" /><Probe id="pro" /></>)
     await at(0)
     expect(getByTestId('top').dataset.next).toBe('11400')
@@ -50,7 +50,7 @@ describe('useLiveStatus: capped polling', () => {
     await at(CALENDAR_TTL_MS - 1_000)
     expect(api.fetchRaces).toHaveBeenCalledTimes(1)
     expect(api.fetchSessions).toHaveBeenCalledTimes(1)
-    expect(health.mock.calls.length).toBeLessThanOrEqual(30)        // one poller, not two
+    expect(health).not.toHaveBeenCalled()                           // next session is 31 h away
     await at(2 * POLL_MS)
     expect(api.fetchRaces).toHaveBeenCalledTimes(2)                 // the cache expired once
   })
@@ -74,19 +74,40 @@ describe('useLiveStatus: capped polling', () => {
     setHidden(false)
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
     await at(0)
-    expect(health).toHaveBeenCalledTimes(1)
     expect(api.fetchRaces).toHaveBeenCalledTimes(1)
+    expect(health).not.toHaveBeenCalled()                           // no session near
   })
 
-  it('with a session live on the live server, the calendar is never asked', async () => {
+  it('a session starting in 20 min: the live server is asked once a minute, by one poller', async () => {
+    api.fetchSessions.mockResolvedValue([sessionAt(11400, new Date(NOW + 20 * 60_000).toISOString())])
     live = { session_key: 11400 }
     const { getByTestId } = render(<><Probe id="top" /><Probe id="pro" /></>)
     await at(0)
-    await at(30 * POLL_MS)
     expect(getByTestId('top').dataset.live).toBe('11400')
-    expect(health.mock.calls.length).toBeGreaterThan(1)
-    expect(api.fetchRaces).not.toHaveBeenCalled()
-    expect(api.fetchSessions).not.toHaveBeenCalled()
+    await at(10 * POLL_MS)
+    expect(health.mock.calls.length).toBe(11)                       // at mount, then every minute
+    expect(api.fetchRaces).toHaveBeenCalledTimes(1)
+  })
+
+  it('31 min before the start the live server is not asked yet; at 30 min it is', async () => {
+    api.fetchSessions.mockResolvedValue([sessionAt(11400, new Date(NOW + 31 * 60_000).toISOString())])
+    render(<Probe id="a" />)
+    await at(0)
+    expect(health).not.toHaveBeenCalled()
+    await at(POLL_MS)
+    expect(health).toHaveBeenCalledTimes(1)
+  })
+
+  it('after the scheduled end the live server is no longer asked', async () => {
+    const s = { ...sessionAt(11400, new Date(NOW - 60 * 60_000).toISOString()), date_end: new Date(NOW + 5 * 60_000).toISOString() }
+    api.fetchSessions.mockResolvedValue([s])
+    render(<Probe id="a" />)
+    await at(0)
+    expect(health).toHaveBeenCalledTimes(1)
+    await at(5 * POLL_MS)
+    const asked = health.mock.calls.length
+    await at(30 * POLL_MS)
+    expect(health.mock.calls.length).toBe(asked)
   })
 
   it('the live server down: the calendar is asked, still capped', async () => {
@@ -96,7 +117,7 @@ describe('useLiveStatus: capped polling', () => {
     expect(api.fetchRaces).toHaveBeenCalledTimes(1)
   })
 
-  it('once the session it named has started, the calendar is asked again before 30 min', async () => {
+  it('once the session it named has started, the calendar is asked again before the 6 h', async () => {
     api.fetchSessions.mockResolvedValue([sessionAt(11399, new Date(NOW + 3 * POLL_MS).toISOString())])
     render(<Probe id="a" />)
     await at(0)
