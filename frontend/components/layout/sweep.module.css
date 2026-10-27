@@ -1,0 +1,79 @@
+/* Block 34: three diagonal bands side by side (skewX -22deg), accent, ground
+   and the rule grey, all from the design tokens (the layer carries the system
+   root's class, see SweepOverlay.tsx). The rule grey is --pw-divider laid over
+   the ground, so the band is opaque. Each is skewed about its own centre and all share the same height,
+   so their slanted edges stay parallel and the three always tile the screen.
+   They travel the same distance (in vw), staggered, so the stripes arrive one
+   after another. Only transform and opacity move. */
+.layer { position: fixed; inset: 0; z-index: 1000; overflow: hidden; pointer-events: auto; }
+.layer[data-phase="uncover"] { pointer-events: none; }
+.band {
+  position: absolute; top: -10vh; bottom: -10vh;
+  transform: translateX(-220vw) skewX(-22deg); will-change: transform;
+}
+.accent { left: -70vw; width: 102vw; background: var(--pw-accent); z-index: 2; }
+.ground { left: 30vw; width: 40vw; background: var(--pw-bg); z-index: 3; display: grid; place-items: center; }
+.grey { left: 68vw; width: 102vw; background: linear-gradient(var(--pw-divider), var(--pw-divider)), var(--pw-bg); z-index: 1; }
+@media (max-width: 640px) {
+  .accent { left: -80vw; width: 102vw; }
+  .ground { left: 20vw; width: 60vw; }
+  .grey { left: 78vw; width: 102vw; }
+}
+.layer[data-direction="reverse"] .band { transform: translateX(220vw) skewX(-22deg); }
+
+/* Cover: 260 ms in all, the leading band first. */
+.layer[data-phase="cover"] .band { animation: coverIn 200ms cubic-bezier(.2, .7, .2, 1) forwards; }
+.layer[data-phase="cover"][data-direction="forward"] .grey { animation-delay: 0ms; }
+.layer[data-phase="cover"][data-direction="forward"] .ground { animation-delay: 30ms; }
+.layer[data-phase="cover"][data-direction="forward"] .accent { animation-delay: 60ms; }
+.layer[data-phase="cover"][data-direction="reverse"] .band { animation-name: coverInReverse; }
+.layer[data-phase="cover"][data-direction="reverse"] .accent { animation-delay: 0ms; }
+.layer[data-phase="cover"][data-direction="reverse"] .ground { animation-delay: 30ms; }
+.layer[data-phase="cover"][data-direction="reverse"] .grey { animation-delay: 60ms; }
+
+.layer[data-phase="hold"] .band { transform: translateX(0) skewX(-22deg); }
+
+/* Uncover: 320 ms in all, out the far side. */
+.layer[data-phase="uncover"] .band { transform: translateX(0) skewX(-22deg); animation: uncoverOut 260ms cubic-bezier(.6, 0, .8, .4) forwards; }
+.layer[data-phase="uncover"][data-direction="forward"] .grey { animation-delay: 0ms; }
+.layer[data-phase="uncover"][data-direction="forward"] .ground { animation-delay: 30ms; }
+.layer[data-phase="uncover"][data-direction="forward"] .accent { animation-delay: 60ms; }
+.layer[data-phase="uncover"][data-direction="reverse"] .band { animation-name: uncoverOutReverse; }
+.layer[data-phase="uncover"][data-direction="reverse"] .accent { animation-delay: 0ms; }
+.layer[data-phase="uncover"][data-direction="reverse"] .ground { animation-delay: 30ms; }
+.layer[data-phase="uncover"][data-direction="reverse"] .grey { animation-delay: 60ms; }
+
+@keyframes coverIn { from { transform: translateX(-220vw) skewX(-22deg); } to { transform: translateX(0) skewX(-22deg); } }
+@keyframes coverInReverse { from { transform: translateX(220vw) skewX(-22deg); } to { transform: translateX(0) skewX(-22deg); } }
+@keyframes uncoverOut { from { transform: translateX(0) skewX(-22deg); } to { transform: translateX(220vw) skewX(-22deg); } }
+@keyframes uncoverOutReverse { from { transform: translateX(0) skewX(-22deg); } to { transform: translateX(-220vw) skewX(-22deg); } }
+
+/* The destination and the wait, upright on the dark band. */
+.upright { transform: skewX(22deg); display: grid; justify-items: center; gap: 18px; max-width: 30vw; }
+@media (max-width: 640px) { .upright { max-width: 44vw; } }
+.label {
+  color: var(--pw-text); font-weight: 900; text-transform: uppercase; line-height: 1;
+  font-size: clamp(20px, 3.4vw, 48px); letter-spacing: -0.01em; text-align: center; overflow-wrap: anywhere;
+  opacity: 0; animation: labelIn 120ms ease-out 140ms forwards;
+}
+.layer[data-phase="hold"] .label { opacity: 1; animation: none; }
+.layer[data-phase="uncover"] .label { opacity: 1; animation: labelOut 100ms ease-in forwards; }
+@keyframes labelIn { to { opacity: 1; } }
+@keyframes labelOut { to { opacity: 0; } }
+
+/* Block 48: the wait. Shown in the hold (the cover is too short to read),
+   gone with the uncover. The stroke's opacity is the only loop (the Settle
+   strip's pulse); the clock's text changes once a second, nothing moves. */
+.wait { display: grid; justify-items: center; gap: 8px; color: var(--pw-muted); font-size: 13px; letter-spacing: 0.04em; opacity: 0; }
+.layer[data-phase="hold"] .wait { animation: labelIn 120ms ease-out forwards; }
+.waitHead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; text-align: center; }
+.stroke { width: 4px; height: 16px; flex: none; background: var(--pw-accent); transform: skewX(-22deg); }
+.layer[data-phase="hold"] .stroke { animation: strokePulse 1600ms ease-in-out infinite; }
+@keyframes strokePulse { 50% { opacity: 0.45; } }
+.clock { color: var(--pw-text); font-weight: 800; font-variant-numeric: tabular-nums; }
+.waitLong { color: var(--pw-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .layer[data-phase="hold"] .stroke { animation: none; }
+  .layer[data-phase="hold"] .wait { animation: none; opacity: 1; }
+}

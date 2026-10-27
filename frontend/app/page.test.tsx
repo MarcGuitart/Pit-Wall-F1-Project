@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, waitFor } from '@testing-library/react'
 
 // Block 29, task 7: "/" as rendered — one global header and footer, none of
 // the prototype's placeholders, and a live card that never shows timing.
@@ -10,7 +10,8 @@ vi.mock('@/lib/liveStatus', async (orig) => ({
   ...(await orig<typeof import('@/lib/liveStatus')>()),
   fetchLiveServerStatus: vi.fn(async () => ({ reachable: true, sessionKey: 11377 })),
   fetchLivePublicState: vi.fn(async () => live.state),
-  fetchNextLiveSession: vi.fn(async () => ({ place: 'Austin', circuitShortName: 'Austin', sessionKey: 11740, sessionName: 'Practice 1', dateStart: '2026-10-23T17:30:00Z', dateEnd: '2026-10-23T18:30:00Z' })),
+  // A session on track now (started 10 min ago): the live card only asks /live/state inside that window (block 51).
+  fetchNextLiveSession: vi.fn(async () => ({ place: 'Austin', circuitShortName: 'Austin', sessionKey: 11740, sessionName: 'Practice 1', dateStart: new Date(Date.now() - 10 * 60_000).toISOString(), dateEnd: new Date(Date.now() + 50 * 60_000).toISOString() })),
 }))
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
@@ -45,7 +46,8 @@ describe('"/"', () => {
   it('shows real figures from /stats', async () => {
     const { container } = await renderHome()
     expect(container.querySelector('[data-island="stats"]')?.getAttribute('data-state')).toBe('ok')
-    expect(container.textContent).toContain('27,303')
+    // The figures count up once the data is in (block 37): wait for the end.
+    await waitFor(() => expect(container.textContent).toContain('27,303'), { timeout: 3000 })
   })
 
   it('a live session gives state and a link, never times, positions or drivers', async () => {

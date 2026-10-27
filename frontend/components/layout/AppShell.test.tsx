@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import * as liveStatus from '@/lib/liveStatus'
+import { __resetLiveStatusForTests } from '@/hooks/useLiveStatus'
 import { usePendingRace } from '@/lib/raceNav'
 import { resetLoadClock } from '@/lib/loadPhase'
 
@@ -11,6 +12,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () =
 import { AppShell } from './AppShell'
 
 beforeEach(() => {
+  __resetLiveStatusForTests()   // the poller and its calendar are shared per tab: one per test
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-16T12:00:00Z'))
   vi.spyOn(liveStatus, 'fetchLiveServerStatus').mockResolvedValue({ reachable: false, sessionKey: null })
@@ -38,6 +40,15 @@ describe('AppShell while a clicked race is on its way', () => {
     render(<AppShell><p>race page</p></AppShell>)
     expect(screen.getByText('race page')).toBeTruthy()
     expect(usePendingRace.getState().pending).toBeNull()
+  })
+
+  it('a pending live route shows live mode\'s shell loader, not the page being left (block 34)', () => {
+    usePendingRace.setState({ pending: { href: '/live/11400', key: 11400, kind: 'live' } })
+    pathname = '/races'
+    render(<AppShell><p>old page</p></AppShell>)
+    expect(screen.queryByText('old page')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('Opening live mode')
+    usePendingRace.setState({ pending: null })
   })
 
   it('shows the page as usual with nothing pending', () => {

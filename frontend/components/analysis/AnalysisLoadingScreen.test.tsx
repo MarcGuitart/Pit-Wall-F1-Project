@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import type { SessionMeta } from '@/types'
 
-vi.mock('@/lib/api', () => ({ fetchSessionMeta: vi.fn(() => new Promise(() => {})) }))
+const ping = vi.hoisted(() => ({ answer: true as boolean }))
+vi.mock('@/lib/api', () => ({
+  fetchSessionMeta: vi.fn(() => new Promise(() => {})),
+  pingApi: vi.fn(async () => ping.answer),
+}))
 vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a href={href} {...p}>{children}</a> }))
 
 import { AnalysisLoadingScreen } from './AnalysisLoadingScreen'
@@ -27,7 +31,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 const at = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 const state = (c: HTMLElement) => c.querySelector('[data-state]')?.getAttribute('data-state')
-const ruleScale = (c: HTMLElement) => Number(/scaleX\(([\d.]+)\)/.exec((c.querySelector('[class*="ruleAccent"]') as HTMLElement).style.transform)![1])
+const strip = (c: HTMLElement) => c.querySelector('[data-settle-strip]')?.getAttribute('data-settle-strip') ?? null
 
 describe('AnalysisLoadingScreen — states by elapsed time', () => {
   it('state 1: nothing for the first 300 ms, only the reserved space', () => {
@@ -48,27 +52,47 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     expect(screen.getByText('2024 · Race · 23 Jun 2024')).toBeTruthy()
     expect(screen.getByLabelText('Elapsed 3 seconds').textContent).toBe('00:03')
     expect(screen.getByText('How this is measured')).toBeTruthy()
-    expect(screen.getByText('Pit, safety-car, red/yellow-flag and outlier laps are excluded from pace.')).toBeTruthy()
+    expect(screen.getByText('Pit, safety car, red or yellow flag and outlier laps are excluded from pace.')).toBeTruthy()
     expect(screen.getByText('Pace, tyre and pit estimates carry a confidence label.')).toBeTruthy()
     expect(screen.getByText('n is the number of clean laps behind a pace figure.')).toBeTruthy()
   })
 
-  it('state 3: waking at 8 s, with no ETA', () => {
+  it('state 3: at 8 s with the API answering, "being computed", with no ETA', async () => {
+    ping.answer = true
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
     at(7_999)
     expect(state(container)).toBe('loading')
     at(1)
-    expect(state(container)).toBe('waking')
-    expect(screen.getByText('Waking up the analysis server')).toBeTruthy()
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    expect(screen.getByText('This analysis is being computed and can take up to a minute')).toBeTruthy()
+    expect(screen.queryByText('Waking up the analysis server')).toBeNull()
     expect(container.textContent).not.toMatch(/\bETA\b|remaining|\d+\s*%/i)
   })
 
-  it('state 4: at 45 s the fact, Retry and Back to race list; the clock goes', () => {
+  it('state 3: "waking up" only when the API does not answer', async () => {
+    ping.answer = false
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(8_000)
+    await act(async () => {})
+    expect(state(container)).toBe('waking')
+    expect(screen.getByText('Waking up the analysis server')).toBeTruthy()
+    expect(screen.getByText('The server is not answering yet. The page opens by itself when it does.')).toBeTruthy()
+    ping.answer = true
+    at(8_000)                                  // asked again while it stays silent
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    ping.answer = true
+  })
+
+  it('state 4: at 75 s the fact, Retry and Back to race list; the clock goes', () => {
     const retry = vi.fn()
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} onRetry={retry} />)
-    at(45_000)
+    at(74_999)
+    expect(state(container)).not.toBe('error')   // "up to a minute" is kept: no cut before 75 s
+    at(1)
     expect(state(container)).toBe('error')
-    expect(screen.getByText('The server did not answer within 45 seconds.')).toBeTruthy()
+    expect(screen.getByText('The server did not answer within 75 seconds.')).toBeTruthy()
     expect(screen.queryByText(/Elapsed/)).toBeNull()
     screen.getByRole('button', { name: 'Retry' }).click()
     expect(retry).toHaveBeenCalled()
@@ -78,16 +102,6 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
   it('failed (the page aborted) shows state 4 at once', () => {
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} failed />)
     expect(state(container)).toBe('error')
-  })
-
-  it('the time rule creeps every second and never completes', () => {
-    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
-    at(300)
-    const first = ruleScale(container)
-    at(1_000)
-    expect(ruleScale(container)).toBeGreaterThan(first)
-    at(43_000)
-    expect(ruleScale(container)).toBeLessThan(0.94)
   })
 
   it('without facts yet, the header keeps bars instead of inventing a name', () => {
@@ -100,5 +114,65 @@ describe('AnalysisLoadingScreen — states by elapsed time', () => {
     const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
     at(20_000)
     expect(container.textContent ?? '').not.toMatch(/found|\b\d+\s+(laps?|modules?|drivers?|stints?|signals?)\b/i)
+  })
+})
+
+describe('concept A "Settle": the strip beside the title', () => {
+  it('is not drawn in the first 300 ms, then stands in every waiting state', async () => {
+    ping.answer = false
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    expect(strip(container)).toBeNull()
+    at(300)
+    expect(strip(container)).toBe('loading')
+    at(7_700)
+    await act(async () => {})
+    expect(state(container)).toBe('waking')
+    expect(strip(container)).toBe('waking')
+    at(67_000)
+    expect(state(container)).toBe('error')
+    expect(strip(container)).toBe('error')
+    ping.answer = true
+  })
+
+  it('stays while the analysis is being computed (the API answers)', async () => {
+    ping.answer = true
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(9_000)
+    await act(async () => {})
+    expect(state(container)).toBe('computing')
+    expect(strip(container)).toBe('loading')
+  })
+
+  it('is gone once the data is in (the arrival overlay draws none)', () => {
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} leaving />)
+    expect(container.querySelector('[data-skeleton="leaving"]')).toBeTruthy()
+    expect(strip(container)).toBeNull()
+  })
+
+  it('sits inside the title, hidden from assistive tech, and adds no text', () => {
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} />)
+    at(300)
+    const el = container.querySelector('[data-settle-strip]')!
+    expect(el.closest('h1')).toBeTruthy()
+    expect(el.getAttribute('aria-hidden')).toBe('true')
+    expect(el.textContent).toBe('')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Barcelona')
+  })
+
+  it('draws no progress: no time rule, no percentage, and the only numbers are the clock and the 75 s fact', async () => {
+    ping.answer = true
+    const retry = vi.fn()
+    const { container } = render(<AnalysisLoadingScreen sessionKey={9539} meta={META} onRetry={retry} />)
+    let now = 0
+    for (const t of [300, 3_000, 9_000, 30_000, 75_000]) {
+      at(t - now)
+      now = t
+      await act(async () => {})
+      expect(container.querySelector('[data-skel-rule]')).toBeNull()
+      const status = container.querySelector('[data-state]')!.textContent ?? ''
+      expect(status).not.toMatch(/%/)
+      const numbers = (status.match(/\d+(?::\d+)?/g) ?? []).filter((n) => !/^\d\d:\d\d$/.test(n))
+      expect(numbers.every((n) => n === '75')).toBe(true)
+    }
   })
 })

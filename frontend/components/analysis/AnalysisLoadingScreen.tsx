@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { SessionMeta } from '@/types'
-import { loadStartedAt, ruleTargetAt, useLoadPhase } from '@/lib/loadPhase'
+import { TIMEOUT_AFTER_MS, loadStartedAt, useLoadPhase } from '@/lib/loadPhase'
+import { pingApi } from '@/lib/api'
 import { useSessionMeta } from '@/lib/sessionMeta'
-import { useReducedMotion } from '@/lib/motion'
 import { RACE_LIST_HREF } from '@/lib/routes'
 import { buttonClass } from '@/components/ui'
 import { AnalysisSkeleton } from './loader/AnalysisSkeleton'
@@ -20,7 +20,7 @@ type Props = {
   startedAt?: number
   /** When the page already holds it; otherwise read from /sessions/{key}/meta. */
   meta?: SessionMeta | null
-  /** State 4 decided by the page (the request was aborted at 45 s): show the error now. */
+  /** State 4 decided by the page (the request was aborted at TIMEOUT_AFTER_MS): show the error now. */
   failed?: boolean
   onRetry?: () => void
   /** Arrival: the loader under the arriving page, fading module by module (lib/arrival.ts). */
@@ -38,22 +38,51 @@ type Props = {
  * progress. By elapsed time since the click (lib/loadPhase.ts):
  *   1. 0 – 300 ms   nothing: the space is reserved, the shell does not change
  *   2. 0.3 – 8 s    the page's own skeleton (real header facts, bars where data
- *                   goes), a time rule that never completes, the real elapsed
- *                   clock, and the method panel's static copy
- *   3. 8 – 45 s     "Waking up the analysis server": grid dims, yellow dot, no ETA
- *   4. 45 s         the page aborts; the fact, Retry and Back to race list
+ *                   goes), the settled sweep strip beside the title (concept A:
+ *                   its accent band's opacity is the only motion), the real
+ *                   elapsed clock, and the method panel's static copy
+ *   3. 8 – 75 s     a long wait. The API is asked whether it answers (GET /health):
+ *                   if it does, or until it is known, "This analysis is being
+ *                   computed and can take up to a minute" (the OpenF1 rate limit
+ *                   is the usual cause, see the 24 Oct sweep); only when it does
+ *                   not answer, "Waking up the analysis server". No ETA either way.
+ *   4. 75 s         the page aborts; the fact, Retry and Back to race list
  */
+/**
+ * During a long wait, whether the API has stopped answering: null until known
+ * (treated as answering), true after a /health that got nothing back. Asked
+ * when the wait begins and every 8 s while it stays silent.
+ */
+function useApiSilent(active: boolean): boolean {
+  const [silent, setSilent] = useState(false)
+  useEffect(() => {
+    if (!active) return
+    let live = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const ask = () => {
+      pingApi(4000).then((ok) => {
+        if (!live) return
+        setSilent(!ok)
+        if (!ok) timer = setTimeout(ask, 8000)
+      })
+    }
+    ask()
+    return () => { live = false; if (timer) clearTimeout(timer) }
+  }, [active])
+  return silent
+}
+
 export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta: given, failed = false, onRetry, leaving = false }: Props) {
   const [fallbackStart] = useState(() => Date.now())
   const startedAt = givenStart ?? (sessionKey != null ? loadStartedAt(sessionKey) : fallbackStart)
   const { phase, elapsedMs } = useLoadPhase(startedAt, 250)
+  const apiSilent = useApiSilent(phase === 'waking' && !failed)
   const fetched = useSessionMeta(given === undefined && sessionKey != null ? sessionKey : null)
   const meta = given !== undefined ? given : fetched.meta
-  const reduced = useReducedMotion()
 
   if (phase === 'hidden' && !failed && !leaving) return <div className={s.reserve} aria-busy="true" />
 
-  const state = failed || phase === 'timeout' ? 'error' : phase === 'waking' ? 'waking' : 'loading'
+  const state = failed || phase === 'timeout' ? 'error' : phase === 'waking' ? (apiSilent ? 'waking' : 'computing') : 'loading'
   const secs = Math.floor(elapsedMs / 1000)
   const clock = `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
 
@@ -66,8 +95,10 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
       data-state={state}
     >
       <div className={k.statusHead}>
-        <span className={`${k.dot} ${state === 'waking' ? k.dotWaking : ''} ${state !== 'error' ? k.dotLive : ''}`} aria-hidden="true" />
-        {state === 'loading' ? 'Loading analysis' : state === 'waking' ? 'Waking up the analysis server' : 'Analysis did not load'}
+        <span className={`${k.dot} ${state === 'waking' ? k.dotWaking : ''}`} aria-hidden="true" />
+        {state === 'loading' ? 'Loading analysis'
+          : state === 'computing' ? 'This analysis is being computed and can take up to a minute'
+          : state === 'waking' ? 'Waking up the analysis server' : 'Analysis did not load'}
       </div>
       {state !== 'error' && (
         <div className={k.clockRow}>
@@ -77,13 +108,9 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
       )}
       <p className={k.statusBody}>
         {state === 'loading' && 'Requesting the full race analysis.'}
-        {state === 'waking' && (
-          <>
-            <span className={k.long}>The first request after a period of inactivity can take up to about 30 seconds. Nothing is wrong. The page opens by itself when the server answers.</span>
-            <span className={k.short}>The first request after idle can take up to about 30 seconds. The page opens by itself.</span>
-          </>
-        )}
-        {state === 'error' && 'The server did not answer within 45 seconds.'}
+        {state === 'computing' && 'The server is up and working on it. The page opens by itself when it is ready.'}
+        {state === 'waking' && 'The server is not answering yet. The page opens by itself when it does.'}
+        {state === 'error' && `The server did not answer within ${TIMEOUT_AFTER_MS / 1000} seconds.`}
       </p>
       {state === 'error' && (
         <div className={k.actions}>
@@ -99,9 +126,8 @@ export function AnalysisLoadingScreen({ sessionKey, startedAt: givenStart, meta:
       <AnalysisSkeleton
         sessionKey={sessionKey ?? 0}
         meta={meta ?? null}
-        mode={leaving ? 'leaving' : state}
+        mode={leaving ? 'leaving' : state === 'computing' ? 'loading' : state}
         status={status}
-        rule={leaving ? 1 : ruleTargetAt(state === 'error' ? 45_000 : elapsedMs, reduced)}
       />
     </div>
   )

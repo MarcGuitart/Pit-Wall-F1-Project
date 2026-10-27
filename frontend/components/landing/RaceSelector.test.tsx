@@ -12,6 +12,8 @@ vi.mock('@/lib/api', () => ({
   fetchRaces: vi.fn(async () => races2026),
   fetchSessions: vi.fn(async () => sessions),
 }))
+// Race links warm their route on pointer over, focus or touch (block 48, lib/warm.ts) through the router.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }), usePathname: () => '/races' }))
 vi.mock('@/lib/raceNav', () => ({ useOpenRace: () => vi.fn() }))
 
 import { RaceSelector } from './RaceSelector'

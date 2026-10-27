@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   fetchAnalysis: vi.fn(),
   fetchSessionMeta: vi.fn(),
   redeemAccessCode: vi.fn(),
+  pingApi: vi.fn(async () => true),   // a long wait asks whether the API answers
 }))
 vi.mock('@/lib/api', () => api)
 
@@ -140,6 +141,23 @@ describe('loader → page', () => {
     expect(container.querySelector('[data-skeleton]')).toBeNull()
   })
 
+  it('the settled strip stands while waiting and is gone the moment the analysis arrives', async () => {
+    let resolve!: (v: FullRaceAnalysis) => void
+    api.fetchAnalysis.mockImplementation(() => new Promise((r) => { resolve = r }))
+    api.fetchSessionMeta.mockResolvedValue(meta(27009))
+    const { container } = open(27009)
+    await flush()
+    await at(3_200)
+    expect(container.querySelector('[data-settle-strip="loading"]')).toBeTruthy()
+    await act(async () => { resolve(analysisFor(27009)) })
+    await flush()
+    expect(screen.getByTestId('analysis').getAttribute('data-arriving')).toBe('true')
+    expect(container.querySelector('[data-settle-strip]')).toBeNull()
+    await at(400)
+    expect(container.querySelector('[data-skeleton]')).toBeNull()
+    expect(container.querySelector('[data-settle-strip]')).toBeNull()
+  })
+
   it('a warm answer (< 300 ms) shows the page with no loader and no arrival', async () => {
     api.fetchAnalysis.mockResolvedValue(analysisFor(27008))
     api.fetchSessionMeta.mockResolvedValue(meta(27008))
@@ -149,7 +167,7 @@ describe('loader → page', () => {
     expect(container.querySelector('[data-skeleton]')).toBeNull()
   })
 
-  it('aborted at 45 s: state 4 in the loader; Retry asks again', async () => {
+  it('aborted at 75 s, not at 45 s: state 4 in the loader; Retry asks again', async () => {
     api.fetchAnalysis.mockImplementation((_k: number, signal?: AbortSignal) => new Promise((_r, reject) => {
       signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
     }))
@@ -157,6 +175,9 @@ describe('loader → page', () => {
     const { container } = open(27009)
     await flush()
     await at(45_000)
+    await flush()
+    expect(container.querySelector('[data-state="error"]')).toBeNull()   // still waiting: "up to a minute"
+    await at(30_000)
     await flush()
     expect(container.querySelector('[data-state="error"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))

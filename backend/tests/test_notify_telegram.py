@@ -178,3 +178,36 @@ def test_html_in_a_race_name_is_escaped(nt):
                                          "meeting_name": "Grand Prix <b>of</b> & Co"}]}
     m = nt.build_message(report, ENV)
     assert "&lt;b&gt;of&lt;/b&gt; &amp; Co" in m
+
+
+ERR = "could not list 2026 sessions: OpenF1 answered 401 to sessions; no OpenF1 credentials are configured here"
+
+
+def _err(runs):
+    return {"published": [], "stuck": [], "errors": [
+        {"error": ERR, "runs": runs, "first_at": "2026-10-25T18:17:00+00:00", "persistent": runs >= 3}]}
+
+
+def test_a_new_error_is_said_once_with_its_count(nt):
+    m = nt.build_message(_err(1), ENV)
+    assert "❌ Errors in this run" in m and "New: 1 run" in m
+
+
+def test_the_same_error_on_the_next_runs_sends_nothing(nt):
+    assert nt.build_message(_err(2), ENV) is None
+    assert nt.build_message(_err(4), ENV) is None
+
+
+def test_at_three_runs_it_says_still_failing_and_points_at_the_issue(nt):
+    m = nt.build_message(_err(3), ENV)
+    assert "Still failing, 3 runs in a row" in m
+    assert "An issue is open" in m
+
+
+def test_persist_runs_matches_autopublish():
+    import re
+    from pathlib import Path
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    a = re.search(r"^PERSIST_RUNS = (\d+)", (scripts / "autopublish.py").read_text(), re.M).group(1)
+    b = re.search(r"^PERSIST_RUNS = (\d+)", (scripts / "notify_telegram.py").read_text(), re.M).group(1)
+    assert a == b

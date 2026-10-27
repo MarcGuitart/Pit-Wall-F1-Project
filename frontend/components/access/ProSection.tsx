@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAccessStore } from '@/stores/accessStore'
+import { formatUntil, useHasAccess, useOpenAccess } from '@/lib/openAccess'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { PRO_PRICE_LABEL, proSeasons } from '@/lib/access'
 import { formatExpiry, formatLocalDateTime, formatUtcTime } from '@/lib/format'
@@ -25,6 +26,7 @@ import { fetchNextRaceCardInfo, type NextRaceCardInfo } from '@/lib/nextSession'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
 import { ui } from '@/components/ui'
 import l from '@/components/landing/landing.module.css'
+import { SweepLink } from '@/components/layout/SweepLink'
 
 const PRO_FEATURES = [
   { label: 'Races from 2025', sub: 'every session, fully analysed' },
@@ -33,7 +35,9 @@ const PRO_FEATURES = [
 ]
 
 export function ProSection() {
-  const pro = useAccessStore((s) => s.pro)
+  const token = useAccessStore((s) => s.pro)
+  const pro = useHasAccess()   // a token, or the open week (block 50)
+  const openUntil = useOpenAccess((st) => (st.open ? st.until : null))
   const expiresAt = useAccessStore((s) => s.expiresAt)
   const seasons = proSeasons()
   const currentSeasonYear = seasons[0]
@@ -65,13 +69,15 @@ export function ProSection() {
             Pit Wall <span className={ui.accent}>PRO</span>
           </h2>
           <p className={l.lead}>
-            {pro
+            {token
               ? 'Every season is open on this browser. The pit wall is yours.'
-              : 'The free seasons are 2023 and 2024. Everything newer sits behind the wall.'}
+              : openUntil
+                ? `Open week: every season and live mode are open to everyone until ${formatUntil(openUntil)}.`
+                : 'The free seasons are 2023 and 2024. Everything newer sits behind the wall.'}
           </p>
         </div>
 
-        <SettingsLink pro={pro} expiresAt={expiresAt} />
+        <SettingsLink pro={token} expiresAt={expiresAt} />
       </div>
 
       {/* The bays */}
@@ -126,9 +132,9 @@ export function ProSection() {
         {pro && (
           <p className={l.proText}>
             {liveSessionKey !== null ? (
-              <Link href={`/live/${liveSessionKey}`} className={ui.accent} style={{ fontWeight: 800 }}>
+              <SweepLink href={`/live/${liveSessionKey}`} label="Live mode" className={ui.accent} style={{ fontWeight: 800 }}>
                 ● Live now · open the pit wall →
-              </Link>
+              </SweepLink>
             ) : liveChecked && nextLive ? (
               <>
                 No live session right now. Next:{' '}

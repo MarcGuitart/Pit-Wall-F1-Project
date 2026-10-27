@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAccessStore } from '@/stores/accessStore'
+import { formatUntil, useHasAccess, useOpenAccess } from '@/lib/openAccess'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
@@ -11,6 +12,8 @@ import { Popover } from '@/components/ui'
 import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
 import s from './shell.module.css'
+import { SweepLink } from './SweepLink'
+import { RACES_LABEL } from '@/lib/sweep'
 
 type BreadcrumbItem = {
   label: string
@@ -31,7 +34,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
   // toggle) still set to show it. A token past its expiry, or hidden by choice,
   // shows nothing here rather than a stale or unwanted badge.
   const showProBadge = useAccessStore((st) => st.pro && st.showBadge)
-  const pro = useAccessStore((st) => st.pro)
+  // PRO features in the interface: a token, or the open week (lib/openAccess.ts).
+  const pro = useHasAccess()
+  const openWeek = useOpenAccess((st) => (st.open ? st.until : null))
   const currentSeasonYear = proSeasons()[0]
   const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
   const [showLiveTip, setShowLiveTip] = useState(false)
@@ -40,6 +45,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
 
   return (
     <header className={s.bar}>
+      {openWeek && (
+        <p className={s.openWeek} role="status">Open week: everything is free until {formatUntil(openWeek)}</p>
+      )}
       <Link href="/" className={s.brand}>PIT WALL<span>ENGINEER</span></Link>
 
       {/* PRO indicator — only when active, never a permanent "Free" that adds
@@ -55,7 +63,9 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             {breadcrumb.map((item, i) => (
               <li key={i}>
                 {item.href
-                  ? <Link href={item.href}>{item.label}</Link>
+                  ? item.href === '/races'
+                    ? <SweepLink href="/races" label={RACES_LABEL}>{item.label}</SweepLink>
+                    : <Link href={item.href}>{item.label}</Link>
                   : <span aria-current={i === breadcrumb.length - 1 ? 'page' : undefined}>{item.label}</span>}
               </li>
             ))}
@@ -67,7 +77,7 @@ export function TopBar({ breadcrumb }: TopBarProps) {
         {/* Historical — the race list (Block 29: "/" is the landing, the list is /races) */}
         {historical
           ? <Link href="/races" className={`${s.navLink} ${s.navOn}`} aria-current="page">Historical</Link>
-          : <Link href="/races" className={s.navLink}>Historical</Link>}
+          : <SweepLink href="/races" label={RACES_LABEL} className={s.navLink}>Historical</SweepLink>}
 
         {/* Live — a real link once a session is live (verified against the live
             server, never the clock alone); the next session in a popover when
@@ -76,10 +86,10 @@ export function TopBar({ breadcrumb }: TopBarProps) {
             to Settings without PRO. Status shared with the landing page's Live
             bay via useLiveStatus. */}
         {pro && liveSessionKey !== null ? (
-          <Link href={`/live/${liveSessionKey}`} className={`${s.navLink} ${s.liveOn}`}>
+          <SweepLink href={`/live/${liveSessionKey}`} label="Live mode" className={`${s.navLink} ${s.liveOn}`}>
             <span className={s.liveDot} aria-hidden="true" />
             Live
-          </Link>
+          </SweepLink>
         ) : pro ? (
           <span className={s.tipWrap}>
             <Popover

@@ -72,3 +72,27 @@
 .bayTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
 .textLink { color: var(--pw-text); font-size: 13px; font-weight: 700; text-underline-offset: 4px; }
 @media (max-width: 640px) { .settingsLink { align-items: flex-start; text-align: left; } }
+
+/* Block 33: a meeting's sessions, in line under its row. Spans the whole grid row. */
+.panel {
+  grid-column: 1 / -1; background: var(--pw-bg); padding: 16px 20px 20px;
+  border-top: 2px solid var(--pw-accent); animation: panelIn 160ms ease-out;
+}
+@keyframes panelIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+.panelTitle { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.panelList { list-style: none; margin: 0; padding: 0; }
+.panelRow {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: center; gap: 8px 16px; min-height: 48px; padding: 6px 0; border-top: 1px solid var(--pw-divider);
+}
+@media (max-width: 640px) { .panelRow { grid-template-columns: minmax(0, 1fr) auto; } .panelWhen { grid-column: 1; } .panelAction { grid-column: 1 / -1; } }
+.panelName { font-weight: 800; }
+.panelWhen { font-size: 13px; color: var(--pw-muted); }
+.panelState { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-muted); }
+.panelRow[data-state="published"] .panelState { color: var(--pw-accent-text); }
+.panelAction { justify-self: end; }
+.panelSkeleton span { display: block; height: 12px; background: var(--pw-divider); opacity: 0.6; }
+.panelError { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--pw-accent-text); font-size: 14px; }
+.panelEmpty { margin: 0; font-size: 14px; color: var(--pw-muted); }
+.raceCell[aria-expanded="true"] { background: var(--pw-accent-tint); }

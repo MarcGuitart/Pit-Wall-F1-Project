@@ -4,7 +4,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { TopBar } from './TopBar'
 import { useAccessStore } from '@/stores/accessStore'
 import * as liveStatus from '@/lib/liveStatus'
+import { __resetLiveStatusForTests } from '@/hooks/useLiveStatus'
 import * as ics from '@/lib/ics'
+import { useSweep } from '@/lib/sweep'
+
+// The Live pill is a SweepLink (block 34), which navigates through the router.
+const push = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }), usePathname: () => '/' }))
 
 /**
  * The TopBar PRO indicator: shown only when both a valid token and the
@@ -21,6 +27,7 @@ function resetStore() {
 }
 
 beforeEach(() => {
+  __resetLiveStatusForTests()   // the poller and its calendar are shared per tab: one per test
   resetStore()
   // Safe default for every test that doesn't care about the Live pill
   // specifically: no live session, nothing scheduled — so a test that merely
@@ -96,6 +103,8 @@ describe('the badge links to Settings', () => {
 describe('the Live pill — a PRO visitor with a session actually live', () => {
   it('is a real link to /live/[sessionKey], verified against the live server', async () => {
     vi.spyOn(liveStatus, 'fetchLiveServerStatus').mockResolvedValue({ reachable: true, sessionKey: 11377 })
+    // The live server is asked only while a session is on or near (block 51): the calendar says one is on now.
+    vi.spyOn(liveStatus, 'fetchNextLiveSession').mockResolvedValue({ place: 'Baku', circuitShortName: 'Baku', sessionKey: 11377, sessionName: 'Race', dateStart: new Date(Date.now() - 600_000).toISOString(), dateEnd: new Date(Date.now() + 3_600_000).toISOString() })
     useAccessStore.setState({ pro: true, showBadge: true })
     render(<TopBar />)
 
@@ -221,5 +230,34 @@ describe('the next-session popover', () => {
     await openIt()
     const text = screen.getByRole('dialog').textContent ?? ''
     expect(text).not.toMatch(/push|e-?mail|sms|we(\'|’)ll (remind|notify) you|we will (remind|notify)/i)
+  })
+})
+
+describe('block 48: the top bar sweeps into /races', () => {
+  beforeEach(() => {
+    useSweep.getState().reset()
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
+    push.mockReset()
+  })
+
+  it('Historical sweeps with "Races" on the bands', () => {
+    render(<TopBar />)
+    fireEvent.click(screen.getByRole('link', { name: 'Historical' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('cover')
+    expect(useSweep.getState().label).toBe('Races')
+    expect(push).toHaveBeenCalledWith('/races')
+  })
+
+  it('the breadcrumb links to the race list sweep too', () => {
+    render(<TopBar breadcrumb={[{ label: '2024', href: '/races' }, { label: 'Race' }]} />)
+    fireEvent.click(screen.getByRole('link', { name: '2024' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('cover')
+    expect(useSweep.getState().label).toBe('Races')
+  })
+
+  it('Docs keeps the page fade: no sweep', () => {
+    render(<TopBar />)
+    fireEvent.click(screen.getByRole('link', { name: 'Docs' }), { button: 0 })
+    expect(useSweep.getState().phase).toBe('idle')
   })
 })

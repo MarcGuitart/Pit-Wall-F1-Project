@@ -14,6 +14,7 @@ import { REDEEM_ERROR } from '@/components/access/ProWall'
 import { buttonClass, ui } from '@/components/ui'
 import { AnalysisSkeleton } from './AnalysisSkeleton'
 import k from './skeleton.module.css'
+import { SweepLink } from '@/components/layout/SweepLink'
 
 /**
  * Pages with no analysis (Block 27): the same header and grid as the loader,
@@ -155,7 +156,7 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
               }}
             />
           )}
-          {liveHere && <Link href={`/live/${sessionKey}`} className={buttonClass('ink')}>It is live now · open the pit wall</Link>}
+          {liveHere && <SweepLink href={`/live/${sessionKey}`} label={meta ? `Live · ${placeOf(meta)}` : 'Live mode'} className={buttonClass('ink')}>It is live now · open the pit wall</SweepLink>}
           {back}
         </>
       )

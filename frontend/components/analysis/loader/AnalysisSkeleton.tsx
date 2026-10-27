@@ -12,6 +12,12 @@ import k from './skeleton.module.css'
  * the real module has (measured, skeleton.module.css), bars where data goes.
  * Used three ways: the loader (live), the arrival overlay (leaving) and the
  * blocked pages (ghost).
+ *
+ * Concept A "Settle" (approved 24 Oct): while the loader waits, the sweep's
+ * accent and grey bands stand as a narrow strip at -22 degrees in the gutter,
+ * beside the title. It takes no space (the arriving page lines up with the
+ * skeleton as before), its accent band is the only thing that moves (opacity),
+ * and it is not drawn once the data is in (leaving) or on a blocked page.
  */
 export type SkeletonMode = 'loading' | 'waking' | 'error' | 'leaving' | 'ghost'
 
@@ -21,8 +27,6 @@ type Props = {
   mode: SkeletonMode
   /** The band's first column: the status cell (loader) — nothing otherwise. */
   status?: ReactNode
-  /** The time rule's scaleX (0–1); omitted on blocked pages, which have none. */
-  rule?: number
   /** Over everything, top-left: the blocked pages' status panel. */
   panel?: ReactNode
   className?: string
@@ -40,7 +44,7 @@ function Bars({ widths, tall = 0 }: { widths: string[]; tall?: number }) {
   )
 }
 
-/** Animations pause while the tab is hidden (motion table: breathing). */
+/** The strip's opacity loop pauses while the tab is hidden. */
 function useTabHidden() {
   const [hidden, setHidden] = useState(false)
   useEffect(() => {
@@ -57,7 +61,7 @@ export function MethodPanel() {
     <>
       <h2 className={k.modTitle}>How this is measured</h2>
       <ol className={k.method}>
-        <li><b>01</b><span>Pit, safety-car, red/yellow-flag and outlier laps are excluded from pace.</span></li>
+        <li><b>01</b><span>Pit, safety car, red or yellow flag and outlier laps are excluded from pace.</span></li>
         <li><b>02</b><span>Pace, tyre and pit estimates carry a confidence label.</span></li>
         <li><b>03</b><span>n is the number of clean laps behind a pace figure.</span></li>
       </ol>
@@ -65,22 +69,34 @@ export function MethodPanel() {
   )
 }
 
-export function AnalysisSkeleton({ sessionKey, meta, mode, status, rule, panel, className = '' }: Props) {
+/** The settled sweep: accent and grey, skewed like the sweep's bands. Only while the loader waits. */
+export function SettleStrip({ mode }: { mode: SkeletonMode }) {
+  if (mode !== 'loading' && mode !== 'waking' && mode !== 'error') return null
+  return (
+    <span className={k.strip} aria-hidden="true" data-settle-strip={mode}>
+      <span className={k.stripAccent} />
+      <span className={k.stripGrey} />
+    </span>
+  )
+}
+
+export function AnalysisSkeleton({ sessionKey, meta, mode, status, panel, className = '' }: Props) {
   const hidden = useTabHidden()
   const facts = headerFacts(sessionKey, meta)
   const live = mode === 'loading' || mode === 'waking'
   const modeClass = mode === 'waking' ? k.waking : mode === 'error' ? k.error : mode === 'ghost' ? k.ghost : mode === 'leaving' ? k.leaving : ''
+  const title = facts.title ?? <span className={`${k.bar} ${k.titleGhost}`} aria-hidden="true" />
 
   return (
     <div
-      className={`${k.page} ${modeClass} ${live ? k.breathe : ''} ${hidden ? k.paused : ''} ${className}`}
+      className={`${k.page} ${modeClass} ${live || mode === 'error' ? k.waiting : ''} ${hidden ? k.paused : ''} ${className}`}
       aria-busy={live || undefined}
       data-skeleton={mode}
     >
       <div className={k.headLeftWrap}>
         <PageHeader
           kicker={facts.kicker}
-          title={facts.title ?? <span className={`${k.bar} ${k.titleGhost}`} aria-hidden="true" />}
+          title={<span className={k.titleAnchor}><SettleStrip mode={mode} />{title}</span>}
           meta={facts.line ?? <span className={`${k.bar} ${k.lineGhost}`} aria-hidden="true" />}
           right={
             mode === 'ghost' ? undefined : (
@@ -94,12 +110,6 @@ export function AnalysisSkeleton({ sessionKey, meta, mode, status, rule, panel, 
       </div>
 
       <div className={k.gridWrap}>
-      {rule != null && (
-        <div className={k.rule} aria-hidden="true" data-skel-rule>
-          <span className={k.ruleGrey} style={{ transform: `scaleX(${rule})` }} />
-          <span className={k.ruleAccent} style={{ transform: `scaleX(${rule})` }} />
-        </div>
-      )}
       <div className={k.grid}>
         <div className={`${k.mod} ${k.band}`} data-skel="1" style={i(1)}>
           {status ?? <div aria-hidden="true" />}

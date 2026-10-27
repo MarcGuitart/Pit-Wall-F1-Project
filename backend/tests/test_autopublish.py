@@ -678,3 +678,57 @@ def test_a_mixed_run_leaves_files_only_for_the_session_that_succeeded(tmp_path, 
         "the failed session must leave no trace on disk for the workflow to commit"
     )
     assert (tmp_path / str(OK_KEY) / "_analysis.json").exists()
+
+
+# ── an error repeated across hourly runs: counted, said once, escalated ──────
+
+REFUSED = "could not list 2026 sessions: OpenF1 answered 401 to sessions; no OpenF1 credentials are configured here"
+
+
+def _report(*errors):
+    return {"at": "2026-10-25T20:17:00+00:00", "errors": [dict(e) for e in errors]}
+
+
+def test_the_same_error_is_counted_run_after_run_and_marked_persistent_at_three(tmp_path):
+    script = _load_autopublish_script()
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"lap_counts": {"11377": 51}}))
+    runs = []
+    for _ in range(4):
+        r = _report({"error": REFUSED})
+        script.track_errors(state, r)
+        runs.append((r["errors"][0]["runs"], r["errors"][0]["persistent"]))
+    assert runs == [(1, False), (2, False), (3, True), (4, True)]
+    assert script.read_state(state) == {"11377": 51}, "the lap counts survive"
+
+
+def test_a_resolved_error_is_forgotten_and_counts_as_new_if_it_returns(tmp_path):
+    script = _load_autopublish_script()
+    state = tmp_path / "state.json"
+    script.track_errors(state, _report({"error": REFUSED}))
+    script.track_errors(state, _report({"error": REFUSED}))
+    quiet = _report()
+    script.track_errors(state, quiet)
+    assert quiet["resolved_errors"] == ["-|" + REFUSED]
+    back = _report({"error": REFUSED})
+    script.track_errors(state, back)
+    assert back["errors"][0]["runs"] == 1
+
+
+def test_distinct_errors_are_counted_apart(tmp_path):
+    script = _load_autopublish_script()
+    state = tmp_path / "state.json"
+    script.track_errors(state, _report({"error": REFUSED}))
+    r = _report({"error": REFUSED}, {"session_key": 11400, "error": "/analysis returned 503"})
+    script.track_errors(state, r)
+    assert [e["runs"] for e in r["errors"]] == [2, 1]
+
+
+def test_write_state_keeps_the_error_counters(tmp_path):
+    script = _load_autopublish_script()
+    state = tmp_path / "state.json"
+    script.track_errors(state, _report({"error": REFUSED}))
+    script.write_state(state, {"11377": 52})
+    r = _report({"error": REFUSED})
+    script.track_errors(state, r)
+    assert r["errors"][0]["runs"] == 2

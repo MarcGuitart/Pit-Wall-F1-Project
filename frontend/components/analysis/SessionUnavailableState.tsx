@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import type { ErrorCode } from '@/lib/errors'
 import { fetchLiveServerStatus } from '@/lib/liveStatus'
 import { buttonClass, ui, PageContainer } from '@/components/ui'
 import st from './states.module.css'
+import { SweepLink } from '@/components/layout/SweepLink'
 
 type SessionUnavailableStateProps = {
   code: ErrorCode
@@ -123,9 +123,9 @@ export function SessionUnavailableState({
       {code === 'SESSION_NOT_HISTORICAL_YET' && sessionKey != null && (
         <div style={{ display: 'grid', gap: 14 }}>
           {liveHere && (
-            <Link href={`/live/${sessionKey}`} className={buttonClass('primary', true)} style={{ justifySelf: 'start' }}>
+            <SweepLink href={`/live/${sessionKey}`} label="Live mode" className={buttonClass('primary', true)} style={{ justifySelf: 'start' }}>
               It is live now · open the pit wall
-            </Link>
+            </SweepLink>
           )}
         </div>
       )}

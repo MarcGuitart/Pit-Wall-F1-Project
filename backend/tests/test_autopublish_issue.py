@@ -156,3 +156,19 @@ def test_no_stuck_session_files_nothing(monkeypatch):
     monkeypatch.setenv("REPORT", '{"published": [], "stuck": []}')
     monkeypatch.setattr(issue, "gh", lambda *a: pytest.fail("gh must not be called"))
     assert issue.main() == 0
+
+
+ERR = {"error": "could not list 2026 sessions: OpenF1 answered 401 to sessions; no OpenF1 credentials are configured here",
+       "first_at": "2026-10-25T18:17:00+00:00"}
+
+
+def test_a_persistent_error_is_filed_at_three_runs_then_every_six():
+    filed = [n for n in range(1, 16) if issue.should_file({**ERR, "runs": n, "persistent": n >= 3})]
+    assert filed == [3, 9, 15]
+
+
+def test_a_persistent_error_title_is_stable_and_names_it():
+    t = issue.error_title(ERR)
+    assert t == issue.error_title({**ERR, "runs": 7})
+    assert t.startswith("autopublish: still failing, could not list 2026 sessions")
+    assert "3 runs in a row" in issue.error_body({**ERR, "runs": 3}, "https://run")

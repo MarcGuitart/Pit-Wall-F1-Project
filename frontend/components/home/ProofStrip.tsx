@@ -2,6 +2,7 @@
 
 import { fetchStats, type SiteStats } from '@/lib/api'
 import { useIsland } from '@/lib/island'
+import { CountUp } from './CountUp'
 import h from './home.module.css'
 
 // Same sentences as GET /stats' definitions (app/api/stats.py), here so the
@@ -13,12 +14,13 @@ const NOTES = [
   'Sections every analysis is built from, as the pipeline defines them.',
 ]
 
-const TILES: { label: string; value: (s: SiteStats) => string; sub?: (s: SiteStats) => string }[] = [
-  { label: 'Sessions analysed', value: (s) => s.sessions.toLocaleString('en-GB') },
-  { label: 'Driver laps examined', value: (s) => s.driver_laps.toLocaleString('en-GB') },
-  { label: 'Seasons covered', value: (s) => String(s.seasons.length), sub: (s) => s.seasons.join(', ') },
-  { label: 'Analysis modules', value: (s) => String(s.modules) },
+const TILES: { label: string; value: (s: SiteStats) => number; sub?: (s: SiteStats) => string }[] = [
+  { label: 'Sessions analysed', value: (s) => s.sessions },
+  { label: 'Driver laps examined', value: (s) => s.driver_laps },
+  { label: 'Seasons covered', value: (s) => s.seasons.length, sub: (s) => s.seasons.join(', ') },
+  { label: 'Analysis modules', value: (s) => s.modules },
 ]
+const fmt = (n: number) => n.toLocaleString('en-GB')
 
 /** The proof strip: GET /stats, counts from the published analyses. */
 export function ProofStrip() {
@@ -27,11 +29,13 @@ export function ProofStrip() {
     <section aria-label="The site in figures" data-island="stats" data-state={island.status}>
       <div className={`${h.grid} ${h.g4} ${h.proof}`}>
         {TILES.map((t, i) => (
-          <div key={t.label} className={h.tile}>
+          // Focusable so its definition (the footnote) shows on focus as on hover (block 37).
+          <div key={t.label} className={h.tile} tabIndex={0} aria-describedby={`proof-def-${i}`}>
             <div className={h.cardLabel}>{t.label}<span className={h.fn} aria-hidden="true">{i + 1}</span></div>
+            <div className={h.tileDef} role="tooltip" aria-hidden="true">{NOTES[i]}</div>
             {island.status === 'ok' ? (
               <>
-                <div className={h.tileValue}>{t.value(island.data)}</div>
+                <div className={h.tileValue}><CountUp value={t.value(island.data)} format={fmt} /></div>
                 {t.sub && <div className={h.tileSub}>{t.sub(island.data)}</div>}
               </>
             ) : island.status === 'loading' ? (
@@ -43,7 +47,7 @@ export function ProofStrip() {
         ))}
       </div>
       <div className={h.foot}>
-        <ol className={h.footList}>{NOTES.map((n) => <li key={n}>{n}</li>)}</ol>
+        <ol className={h.footList}>{NOTES.map((n, i) => <li key={n} id={`proof-def-${i}`}>{n}</li>)}</ol>
       </div>
     </section>
   )

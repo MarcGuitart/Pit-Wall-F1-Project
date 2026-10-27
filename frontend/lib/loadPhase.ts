@@ -11,12 +11,13 @@ import { useEffect, useState } from 'react'
  *   hidden    0 – 300 ms    nothing: a cache hit answers in ~150 ms, and a
  *                           loader that flashes for a frame reads as a glitch
  *   loading   300 ms – 8 s  the loader
- *   waking    8 – 45 s      the free-tier server is probably asleep: say so
- *   timeout   45 s          give up (the request is aborted) and offer a retry
+ *   waking    8 – 75 s      a long wait: being computed (the OpenF1 rate limit makes a
+ *                           cold analysis take up to a minute), or the server asleep
+ *   timeout   75 s          give up (the request is aborted) and offer a retry
  */
 export const SHOW_AFTER_MS = 300
 export const WAKING_AFTER_MS = 8_000
-export const TIMEOUT_AFTER_MS = 45_000
+export const TIMEOUT_AFTER_MS = 75_000
 
 export type LoadPhase = 'hidden' | 'loading' | 'waking' | 'timeout'
 
@@ -27,26 +28,11 @@ export function phaseAt(elapsedMs: number): LoadPhase {
   return 'timeout'
 }
 
-/**
- * Time-based progress for a request that reports none: rises quickly, then
- * slows, and never reaches 1 — 0.94 at t → ∞ — so a bar never claims the
- * analysis is done before it has actually arrived.
+/*
+ * No progress is drawn: /analysis reports none, so concept A "Settle" (24 Oct)
+ * dropped the time rule that crept towards 0.94. What moves is the real clock
+ * and the strip's opacity, neither of which claims how far along it is.
  */
-export function progressAt(elapsedMs: number): number {
-  return 0.94 * (1 - Math.exp(-elapsedMs / 10_000))
-}
-
-/**
- * Where the time rule under the header points for the second now running
- * (Block 27). The rule is a transform (scaleX) with a 1 s linear transition,
- * retargeted once a second to the NEXT second's value, so it creeps without
- * stopping and never completes. Reduced motion: 2 s steps, no transition, so
- * the target is the value at the start of the current 2 s step.
- */
-export function ruleTargetAt(elapsedMs: number, reduced = false): number {
-  if (reduced) return progressAt(Math.floor(elapsedMs / 2000) * 2000)
-  return progressAt((Math.floor(elapsedMs / 1000) + 1) * 1000)
-}
 
 /** Once the loader is on screen it stays at least this long: an answer at 350 ms must not flash it. */
 export const MIN_VISIBLE_MS = 300

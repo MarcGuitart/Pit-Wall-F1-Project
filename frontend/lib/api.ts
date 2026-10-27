@@ -221,6 +221,62 @@ export async function billingPortalUrl(): Promise<string> {
   return (await apiFetch<{ url: string }>('/billing/portal', { method: 'POST' })).url
 }
 
+export type PublishedIndex = { count: number; sessions: { session_key: number; meeting_key: number | null; year: number | null; session_name: string | null; session_type: string | null }[] }
+
+/**
+ * Which sessions have a published analysis (block 33). Null when the API does
+ * not answer within timeoutMs: the /races cells then show no state rather than
+ * wait, and never say Published or Processing on a guess.
+ */
+export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await apiFetch<PublishedIndex>('/published', { signal: ctrl.signal })
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** The open week (block 50): GET /access/open, read at run time so the week opens, extends and closes with the
+ *  API's OPEN_ACCESS_UNTIL alone. Never throws: no answer reads as closed. */
+export type OpenAccess = { open: boolean; until: string | null; answered: boolean }
+
+export async function fetchOpenAccess(timeoutMs = 4000): Promise<OpenAccess> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/access/open`, { signal: ctrl.signal })
+    if (!res.ok) return { open: false, until: null, answered: false }
+    const body = await res.json()
+    return { open: body?.open === true, until: typeof body?.until === 'string' ? body.until : null, answered: true }
+  } catch {
+    return { open: false, until: null, answered: false }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Whether the API answers at all (GET /health, no token). The analysis loader
+ * asks once a long wait has begun: an answer means the server is up and the
+ * analysis is being computed; silence means it is asleep or unreachable.
+ */
+export async function pingApi(timeoutMs = 4000): Promise<boolean> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/health`, { signal: ctrl.signal })
+    return res.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function fetchRaces(year?: number): Promise<RaceListItem[]> {
   const query = year ? `?year=${year}` : ''
   return apiFetch<RaceListItem[]>(`/races${query}`)

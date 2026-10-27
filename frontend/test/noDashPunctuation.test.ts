@@ -17,12 +17,11 @@ import { describe, expect, it } from 'vitest'
  *
  * Exceptions, and why:
  *   lib/liveContext.ts         the prompt sent to the language model, never shown
- *   app/api/engineer-chat/     a dead route (block 39 deletes it)
  *   app/preview/               the redesign preview (its fate is block 39's)
  *   components/notify/         removed by block 32, task 5
  */
 const ROOT = join(__dirname, '..')
-const EXCEPT = [/^lib\/liveContext\.ts$/, /^app\/api\/engineer-chat\//, /^app\/preview\//, /^components\/notify\//]
+const EXCEPT = [/^lib\/liveContext\.ts$/, /^app\/preview\//, /^components\/notify\//]
 const DASH = /[—–]|\S - [A-Za-z]/
 
 function files(dir: string, out: string[] = []): string[] {

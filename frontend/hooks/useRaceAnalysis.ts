@@ -21,7 +21,7 @@ const inFlight = new Set<number>()
 export const TIMEOUT_ERROR: AnalysisError = {
   code: 'ANALYSIS_TIMEOUT',
   message:
-    'The analysis server did not answer within 45 seconds. It may still be waking up. Try again.',
+    `The analysis server did not answer within ${TIMEOUT_AFTER_MS / 1000} seconds. It may still be waking up. Try again.`,
 }
 
 /**

@@ -92,8 +92,9 @@ from starlette.routing import Route  # noqa: E402
 from app.clients.openf1_auth import token_manager  # read-only use  # noqa: E402
 from app.clients.openf1_client import fetch_json  # read-only, one-shot — see resolve_profile_once()  # noqa: E402
 from app.core.branding import PRO_NAME  # noqa: E402
-from app.core.access import decode_token  # the API's verifier, not a copy  # noqa: E402
+from app.core.access import decode_token, is_open_access  # the API's verifier, not a copy  # noqa: E402
 from app.core.config import settings  # noqa: E402
+from app.utils.origins import any_of, netlify_preview_origin_regex  # the API's, not a copy  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # live_state.py sits next to this file
 from live_state import (  # noqa: E402
@@ -116,7 +117,36 @@ ALLOWED_ORIGINS = PRODUCTION_ORIGINS + tuple(
 )
 LOCAL_ORIGIN_RE = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
+
+def origin_regex(allowed: tuple[str, ...]) -> str:
+    """
+    Local dev origins, plus the Netlify deploy previews of any
+    https://<site>.netlify.app in `allowed` — derived by the same function the
+    API uses, so the two servers can never disagree on what a preview is.
+    """
+    return any_of(LOCAL_ORIGIN_RE, netlify_preview_origin_regex(allowed))
+
 STARTED_AT = time.time()
+# /live/state: a session is "live" while its messages are this fresh.
+LIVE_FRESH_S = 180.0
+
+
+def public_state(state: RaceState) -> dict:
+    """
+    What the public landing may know (Block 29): whether a session is on air
+    and which one — nothing else. No times, positions, drivers or message
+    counts: those are the PRO stream's, behind the gate. "live" means messages
+    for a session arrived in the last LIVE_FRESH_S and its chequered flag has
+    not fallen; anything else is "no_session" (the page works out "under an
+    hour" from the calendar).
+    """
+    with state.lock:
+        key = state.session_key
+        last = state.last_message_at
+        done = state.chequered
+    fresh = last is not None and (state.clock() - last) < LIVE_FRESH_S
+    live = key is not None and fresh and not done
+    return {"state": "live" if live else "no_session", "session_key": key if live else None}
 PUSH_INTERVAL_S = 2.0          # how often a snapshot is pushed to browsers
 RENEW_BEFORE_S = 420.0
 HERE = Path(__file__).resolve().parent
@@ -400,8 +430,11 @@ def has_pro_access(request: Request) -> bool:
     version, tampered payload, bad signature, expired, or a code since revoked.
     A live server deployed without PRO_TOKEN_SECRET therefore serves nobody,
     which is the correct direction for a gate to fail.
+
+    The open week (OPEN_ACCESS_UNTIL, app.core.access) opens it to everyone
+    until that instant, exactly as it opens the API.
     """
-    return decode_token(bearer(request)) is not None
+    return is_open_access() or decode_token(bearer(request)) is not None
 
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -451,6 +484,9 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
 
     async def snapshot_json(request: Request) -> Response:
         return JSONResponse(snapshot_payload(state, hub, feed))
+
+    async def live_state(request: Request) -> Response:
+        return JSONResponse(public_state(state), headers={"Cache-Control": "no-store"})
 
     async def health(request: Request) -> Response:
         return JSONResponse({
@@ -506,7 +542,7 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
         Middleware(
             CORSMiddleware,
             allow_origins=list(ALLOWED_ORIGINS),
-            allow_origin_regex=LOCAL_ORIGIN_RE,
+            allow_origin_regex=origin_regex(ALLOWED_ORIGINS),
             allow_methods=["GET"],
             allow_headers=["Content-Type", "Authorization"],
         ),
@@ -519,6 +555,7 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
         Route("/live/{session_key:int}/snapshot", snapshot_route),
         Route("/live/{session_key:int}/stream", stream_route),
         Route("/health", health),
+        Route("/live/state", live_state),
     ]
     if dev_routes:
         # Unauthenticated. Only ever reachable from this machine — see the
