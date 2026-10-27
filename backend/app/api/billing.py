@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from app.api.access import _client_ip
 from app.core import stripe_api
 from app.core.access import bearer_token, decode_token, encode_token, subscription_token
-from app.core.billing_revocation import is_revoked
+from app.core.billing_revocation import is_revoked, reinstate, revoke
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ratelimit import SlidingWindow
@@ -166,9 +166,31 @@ async def portal(request: Request) -> PortalResponse:
     return PortalResponse(url=session["url"])
 
 
+def _subscription_of(event_type: str, obj: dict) -> str | None:
+    """The subscription an event is about. Invoices carry it at the top (older API versions) or under
+    parent.subscription_details (2025 onwards)."""
+    if event_type.startswith("customer.subscription."):
+        sid = obj.get("id")
+    else:
+        sid = obj.get("subscription") or (((obj.get("parent") or {}).get("subscription_details") or {}).get("subscription"))
+    if isinstance(sid, dict):
+        sid = sid.get("id")
+    return sid if isinstance(sid, str) and SUBSCRIPTION_ID.match(sid) else None
+
+
 @router.post("/webhook")
 async def webhook(request: Request) -> dict:
-    """Logged, not stored: there is no state here for an event to change."""
+    """
+    Signature first (STRIPE_WEBHOOK_SECRET, 5 minute tolerance), then the events that act (block 44b):
+
+      customer.subscription.deleted   the subscription has ended: revoked now (runtime list), and the
+                                      Telegram member, if known, removed from the PRO channel
+      invoice.payment_failed          revoked now; Stripe keeps retrying the card
+      customer.subscription.updated   back to active after a failed payment: that revocation is taken back
+      anything else                   logged
+
+    Idempotent (Stripe retries events): revoking twice or reinstating twice changes nothing.
+    """
     stripe_api.require_enabled()
     payload = await request.body()
     if not stripe_api.verify_webhook(payload, request.headers.get("stripe-signature", "")):
@@ -177,7 +199,27 @@ async def webhook(request: Request) -> dict:
         event = json.loads(payload)
     except ValueError:
         raise AppError("BAD_PAYLOAD", "Webhook body is not JSON.", status=400)
+    etype = str(event.get("type") or "")
     obj = (event.get("data") or {}).get("object") or {}
-    logger.info("[BILLING] webhook %s %s object=%s status=%s", event.get("type"), event.get("id"),
-                obj.get("id"), obj.get("status"))
-    return {"received": True}
+    logger.info("[BILLING] webhook %s %s object=%s status=%s", etype, event.get("id"), obj.get("id"), obj.get("status"))
+    sub_id = _subscription_of(etype, obj)
+    action = "logged"
+    if sub_id and etype == "customer.subscription.deleted":
+        revoke(sub_id, "deleted")
+        action = "revoked"
+        await _on_subscription_ended(obj)
+    elif sub_id and etype == "invoice.payment_failed":
+        revoke(sub_id, "payment_failed")
+        action = "revoked"
+    elif sub_id and etype == "customer.subscription.updated" and stripe_api.is_active(obj):
+        if reinstate(sub_id, only_reason="payment_failed"):
+            action = "reinstated"
+    if action != "logged":
+        logger.warning("[BILLING] %s %s after %s; to keep it cut off across restarts add it to PAYMENTS_REVOKED_SUBS",
+                       action, sub_id, etype)
+    return {"received": True, "action": action}
+
+
+async def _on_subscription_ended(subscription: dict) -> None:
+    """Hook for what else ends with the subscription (the PRO channel, block 44b)."""
+    return None

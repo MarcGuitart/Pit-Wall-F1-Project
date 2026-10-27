@@ -65,8 +65,11 @@ def stripe(monkeypatch):
     monkeypatch.setattr(settings, "pro_access_codes", ["owner-code-1"])
     monkeypatch.setattr(settings, "free_seasons", [2023, 2024])
     billing._checkout_limiter._hits.clear()
+    from app.core import billing_revocation
+    billing_revocation._reset_runtime_for_tests()          # the webhook now revokes (block 44b)
     yield fake
     stripe_api.set_transport(None)
+    billing_revocation._reset_runtime_for_tests()
 
 
 client = TestClient(app)
@@ -169,13 +172,13 @@ def _signed(body: bytes, t: int, secret: str = "whsec_test") -> str:
     return f"t={t},v1={sig}"
 
 
-def test_webhook_verifies_the_signature_and_only_logs(stripe, caplog):
+def test_webhook_verifies_the_signature_and_logs(stripe, caplog):
     body = json.dumps({"id": "evt_1", "type": "customer.subscription.deleted",
                        "data": {"object": {"id": "sub_ABC123", "status": "canceled"}}}).encode()
     caplog.set_level("INFO", logger="app.api.billing")
     now = int(time.time())
     ok = client.post("/billing/webhook", content=body, headers={"Stripe-Signature": _signed(body, now)})
-    assert ok.status_code == 200 and ok.json() == {"received": True}
+    assert ok.status_code == 200 and ok.json()["received"] is True
     assert "customer.subscription.deleted" in caplog.text
     bad = client.post("/billing/webhook", content=body, headers={"Stripe-Signature": _signed(body, now, "whsec_other")})
     assert bad.status_code == 400
