@@ -6,28 +6,33 @@ GET  /billing/success    ?session_id=cs_...: verified with Stripe, answers the P
 POST /billing/renew      Bearer subscription token (expired is fine): Stripe says
                          whether it is still paid, and if so a fresh token comes back
 POST /billing/portal     Bearer subscription token: a Customer Portal session to cancel
-POST /billing/webhook    signature verified, the event logged, nothing stored
+POST /billing/webhook    signature verified; deleted and payment_failed revoke at once (block 44b)
+POST /billing/restore    {email}: always the same answer; a signed 15 minute link by email when Stripe has an
+                         active subscription for it (block 44b)
+POST /billing/restore/redeem  {token}: that link's token for a PRO token
 
 Everything answers 503 PAYMENTS_DISABLED unless PAYMENTS_ENABLED is set, so with
 the flag off the site keeps saying "Subscriptions are not open yet".
 
 No database. Stripe is the record of who pays; the token carries the
 subscription id and lasts until the end of the paid period plus GRACE_DAYS.
-/billing/restore (lost token, by payment email) waits for the owner's choice of
-email provider.
+A lost token comes back by email (/billing/restore, through Resend).
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import logging
 import re
 import time
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Query, Request
 from pydantic import BaseModel
 
 from app.api.access import _client_ip
-from app.core import stripe_api
+from app.core import resend_api, stripe_api
 from app.core.access import bearer_token, decode_token, encode_token, subscription_token
 from app.core.billing_revocation import is_revoked, reinstate, revoke
 from app.core.config import settings
@@ -223,3 +228,125 @@ async def webhook(request: Request) -> dict:
 async def _on_subscription_ended(subscription: dict) -> None:
     """Hook for what else ends with the subscription (the PRO channel, block 44b)."""
     return None
+
+
+# ── restore access by email (block 44b) ──────────────────────────────────────
+
+RESTORE_TTL_S = 15 * 60
+RESTORE_PREFIX = "rs1"
+RESTORE_IP_LIMIT, RESTORE_EMAIL_LIMIT, RESTORE_WINDOW_S = 5, 3, 3600
+_restore_ip_limiter = SlidingWindow(RESTORE_IP_LIMIT, RESTORE_WINDOW_S)
+_restore_email_limiter = SlidingWindow(RESTORE_EMAIL_LIMIT, RESTORE_WINDOW_S)
+EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,253}\.[^@\s]{2,}$")
+RESTORE_ANSWER = "If an active subscription uses that email, a link to restore access is on its way. It works for 15 minutes."
+
+
+class RestoreRequest(BaseModel):
+    email: str
+
+
+class RestoreResponse(BaseModel):
+    sent: bool = True
+    message: str = RESTORE_ANSWER
+
+
+class RedeemRestoreRequest(BaseModel):
+    token: str
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _unb64(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def _restore_secret() -> bytes:
+    secret = settings.pro_token_secret.get_secret_value()
+    if not secret:
+        raise AppError("PAYMENTS_UNAVAILABLE", "Subscriptions are not open yet.", status=503)
+    # Domain-separated from the PRO tokens signed with the same secret.
+    return hashlib.sha256(b"restore-link:" + secret.encode()).digest()
+
+
+def restore_link_token(subscription_id: str, now: int | None = None) -> str:
+    payload = _b64(json.dumps({"sub": subscription_id, "exp": (now or int(time.time())) + RESTORE_TTL_S},
+                              separators=(",", ":")).encode())
+    sig = _b64(hmac.new(_restore_secret(), f"{RESTORE_PREFIX}.{payload}".encode(), hashlib.sha256).digest())
+    return f"{RESTORE_PREFIX}.{payload}.{sig}"
+
+
+def read_restore_token(raw: str, now: int | None = None) -> str:
+    """The subscription id in a valid, unexpired link token, or an error."""
+    parts = raw.split(".")
+    if len(parts) != 3 or parts[0] != RESTORE_PREFIX:
+        raise AppError("RESTORE_LINK_INVALID", "This link is not valid. Ask for a new one.", status=400)
+    expected = _b64(hmac.new(_restore_secret(), f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).digest())
+    if not hmac.compare_digest(expected, parts[2]):
+        raise AppError("RESTORE_LINK_INVALID", "This link is not valid. Ask for a new one.", status=400)
+    try:
+        claims = json.loads(_unb64(parts[1]))
+    except ValueError:
+        raise AppError("RESTORE_LINK_INVALID", "This link is not valid. Ask for a new one.", status=400)
+    if int(claims.get("exp", 0)) < (now or int(time.time())):
+        raise AppError("RESTORE_LINK_EXPIRED", "This link has expired. Ask for a new one.", status=410)
+    sub = str(claims.get("sub", ""))
+    if not SUBSCRIPTION_ID.match(sub):
+        raise AppError("RESTORE_LINK_INVALID", "This link is not valid. Ask for a new one.", status=400)
+    return sub
+
+
+async def _send_restore_link(email: str) -> None:
+    """After the answer has gone: Stripe, then Resend. Every failure is logged and swallowed."""
+    try:
+        customers = await stripe_api.call("GET", "/customers", params=[("email", email), ("limit", "10")])
+        for customer in customers.get("data") or []:
+            subs = await stripe_api.call("GET", "/subscriptions",
+                                         params=[("customer", str(customer.get("id"))), ("status", "all"), ("limit", "10")])
+            for sub in subs.get("data") or []:
+                sid = str(sub.get("id", ""))
+                if stripe_api.is_active(sub) and SUBSCRIPTION_ID.match(sid) and not is_revoked(sid):
+                    link = f"{stripe_api.return_url()}/billing/restore?token={restore_link_token(sid)}"
+                    text = ("Here is your link to restore Pit Wall Engineer PRO on this browser:\n\n"
+                            f"{link}\n\nIt works for 15 minutes. If you did not ask for it, ignore this email.")
+                    ok = await resend_api.send(email, "Restore your Pit Wall Engineer PRO access", text)
+                    logger.info("[BILLING] restore link for %s: %s", sid, "sent" if ok else "not sent")
+                    return
+        logger.info("[BILLING] restore asked for an email with no active subscription")
+    except AppError as e:
+        logger.warning("[BILLING] restore lookup failed: %s", e.code)
+
+
+@router.post("/restore", response_model=RestoreResponse)
+async def restore(body: RestoreRequest, request: Request, background: BackgroundTasks) -> RestoreResponse:
+    """
+    Always the same answer, sent before anything is looked up, so neither the text nor the time it takes says
+    whether the email belongs to a subscriber. Over the limits (per IP, per email) nothing is looked up.
+    """
+    stripe_api.require_enabled()
+    email = body.email.strip().lower()[:320]
+    ip = _client_ip(request)
+    email_key = hashlib.sha256(email.encode()).hexdigest()
+    allowed = (EMAIL.match(email) is not None
+               and _restore_ip_limiter.retry_after(ip) <= 0
+               and _restore_email_limiter.retry_after(email_key) <= 0)
+    _restore_ip_limiter.hit(ip)
+    if EMAIL.match(email):
+        _restore_email_limiter.hit(email_key)
+    if allowed:
+        background.add_task(_send_restore_link, email)
+    return RestoreResponse()
+
+
+@router.post("/restore/redeem", response_model=TokenResponse)
+async def redeem_restore(body: RedeemRestoreRequest) -> TokenResponse:
+    stripe_api.require_enabled()
+    sub_id = read_restore_token(body.token.strip())
+    sub = await stripe_api.call("GET", f"/subscriptions/{sub_id}")
+    if not stripe_api.is_active(sub):
+        raise AppError("SUBSCRIPTION_INACTIVE", "This subscription is no longer active.", status=402)
+    if is_revoked(sub_id):
+        raise AppError("SUBSCRIPTION_REVOKED", "Access for this subscription has been withdrawn.", status=403)
+    logger.info("[BILLING] access restored for %s", sub_id)
+    return _token_for(sub, int(time.time()))
