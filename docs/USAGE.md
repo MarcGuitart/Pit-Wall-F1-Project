@@ -26,8 +26,13 @@ server only fit if they sleep most of the time.
 
 - The frontend, after block 51: the live server only inside a session's window; the API on page loads only (4 to 10
   requests per open tab and hour, measured), the calendar at most once per 6 h per tab.
-- The publication Action: it does not call Render, but each commit it makes to the deployed branch starts a deploy
-  (a build and a fresh, awake instance). Whether Render honours `[skip ci]` in the commit message: **a verificar**.
+- The publication Action: it does not call Render, but each commit it makes to main starts a deploy of the API
+  (auto-deploy on, from 1 Nov): a build (build minutes) and a fresh, awake instance (hours). That is by design: Render
+  has no disk, so a published race reaches the site only through a new image. The Action's commits carry `[skip ci]`,
+  which stops GitHub Actions re-triggering on them and stops Netlify building (Netlify honours `[skip ci]`), while
+  Render only skips on `[skip render]`, `[render skip]`, `[skip deploy]` or `[skip cd]` (publish-race.yml, its header).
+  Expected: **Render deploys on each Action commit, Netlify does not**. Checked on Sunday 1 Nov (see the log below).
+  The live server has auto-deploy off from 1 Nov, so these commits never redeploy it.
 - Manual checks against production: the QA tools (`tools/lib/common.sh`, `tools/browser/prodshots.mjs`),
   `scripts/stats_snippet.sh` and `scripts/prepublish_check.sh` of the launch video. Each run wakes what it calls.
 - Render's own health checks (`healthCheckPath: /health`) run against an awake instance; they do not keep a free
