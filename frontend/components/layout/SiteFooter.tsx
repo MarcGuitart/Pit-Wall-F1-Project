@@ -17,6 +17,12 @@ export function SiteFooter() {
       <p>
         <Link href="/docs">Docs</Link>
         {' · '}
+        <Link href="/terms">Terms</Link>
+        {' · '}
+        <Link href="/privacy">Privacy</Link>
+        {' · '}
+        <Link href="/refunds">Refunds</Link>
+        {' · '}
         Unofficial project, not associated in any way with the Formula 1 companies. F1, FORMULA 1
         and related marks are trademarks of Formula One Licensing B.V. Data via{' '}
         <b style={{ color: 'var(--pw-text)', fontWeight: 600 }}>OpenF1</b> &amp; FastF1; team radio clips are
