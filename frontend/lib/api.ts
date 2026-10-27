@@ -215,18 +215,18 @@ export async function fetchPublished(timeoutMs = 3000): Promise<PublishedIndex |
 
 /** The open week (block 50): GET /access/open, read at run time so the week opens, extends and closes with the
  *  API's OPEN_ACCESS_UNTIL alone. Never throws: no answer reads as closed. */
-export type OpenAccess = { open: boolean; until: string | null }
+export type OpenAccess = { open: boolean; until: string | null; answered: boolean }
 
 export async function fetchOpenAccess(timeoutMs = 4000): Promise<OpenAccess> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
     const res = await fetch(`${BASE_URL}/access/open`, { signal: ctrl.signal })
-    if (!res.ok) return { open: false, until: null }
+    if (!res.ok) return { open: false, until: null, answered: false }
     const body = await res.json()
-    return { open: body?.open === true, until: typeof body?.until === 'string' ? body.until : null }
+    return { open: body?.open === true, until: typeof body?.until === 'string' ? body.until : null, answered: true }
   } catch {
-    return { open: false, until: null }
+    return { open: false, until: null, answered: false }
   } finally {
     clearTimeout(timer)
   }

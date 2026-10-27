@@ -39,7 +39,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 async function week(open: boolean) {
-  api.fetchOpenAccess.mockResolvedValue(open ? { open: true, until: UNTIL } : { open: false, until: null })
+  api.fetchOpenAccess.mockResolvedValue(open ? { open: true, until: UNTIL, answered: true } : { open: false, until: null, answered: true })
   await act(async () => { await loadOpenAccess() })
 }
 
