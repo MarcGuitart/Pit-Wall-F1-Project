@@ -62,16 +62,26 @@ describe('findEarliestUpcomingSession', () => {
 describe('inLiveWindow (block 51): when the live server may be asked', () => {
   const at = (iso: string) => Date.parse(iso)
   const s = { dateStart: '2026-10-25T19:00:00Z', dateEnd: '2026-10-25T21:00:00Z' }
-  it('from 30 minutes before the start to the scheduled end', () => {
+  it('from 30 minutes before the start to 90 minutes after the scheduled end', () => {
     expect(inLiveWindow(s, at('2026-10-25T18:29:59Z'))).toBe(false)
     expect(inLiveWindow(s, at('2026-10-25T18:30:00Z'))).toBe(true)
-    expect(inLiveWindow(s, at('2026-10-25T21:00:00Z'))).toBe(true)
-    expect(inLiveWindow(s, at('2026-10-25T21:00:01Z'))).toBe(false)
+    expect(inLiveWindow(s, at('2026-10-25T22:30:00Z'))).toBe(true)
+    expect(inLiveWindow(s, at('2026-10-25T22:30:01Z'))).toBe(false)
   })
-  it('no end in the calendar: two hours from the start', () => {
+  it('no end in the calendar: two hours from the start, plus the 90 minutes', () => {
     const open = { dateStart: s.dateStart, dateEnd: null }
-    expect(inLiveWindow(open, at('2026-10-25T20:59:59Z'))).toBe(true)
-    expect(inLiveWindow(open, at('2026-10-25T21:00:01Z'))).toBe(false)
+    expect(inLiveWindow(open, at('2026-10-25T22:29:59Z'))).toBe(true)
+    expect(inLiveWindow(open, at('2026-10-25T22:30:01Z'))).toBe(false)
+  })
+  it('the calendar keeps a session through its tail, and leaves out one known to be over', () => {
+    const rows = [
+      { session_key: 1, session_name: 'Race', session_type: 'Race', date_start: '2026-10-25T19:00:00Z', date_end: '2026-10-25T21:00:00Z' },
+      { session_key: 2, session_name: 'Race', session_type: 'Race', date_start: '2026-11-01T19:00:00Z', date_end: '2026-11-01T21:00:00Z' },
+    ] as never
+    const now = new Date('2026-10-25T21:30:00Z')
+    expect(findEarliestUpcomingSession(rows, now)?.session_key).toBe(2)
+    expect(findEarliestUpcomingSession(rows, now, 90 * 60_000)?.session_key).toBe(1)
+    expect(findEarliestUpcomingSession(rows, now, 90 * 60_000, new Set([1]))?.session_key).toBe(2)
   })
   it('no next session, or an unreadable start: never', () => {
     expect(inLiveWindow(null)).toBe(false)

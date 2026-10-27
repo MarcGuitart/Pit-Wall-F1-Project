@@ -27,7 +27,7 @@
  *     keep a sleeping free Render service awake (block 51).
  */
 import { useEffect, useState } from 'react'
-import { fetchLiveServerStatus, fetchNextLiveSession, inLiveWindow, type NextLiveSessionInfo } from '@/lib/liveStatus'
+import { LIVE_TAIL_MS, fetchLivePublicState, fetchLiveServerStatus, fetchNextLiveSession, inLiveWindow, scheduledEnd, type NextLiveSessionInfo } from '@/lib/liveStatus'
 
 export const POLL_MS = 60_000
 export const CALENDAR_TTL_MS = 6 * 60 * 60_000
@@ -50,6 +50,8 @@ const EMPTY: LiveStatus = { liveSessionKey: null, liveChecked: false, nextLive: 
 
 type Calendar = { year: number; at: number; next: NextLiveSessionInfo | null }
 let calendar: Calendar | null = null
+/** Sessions /live/state said were over after their scheduled end: skipped by the calendar from then on. */
+const ended = new Set<number>()
 
 function readStored(year: number): Calendar | null {
   try {
@@ -74,7 +76,8 @@ async function nextSession(year: number): Promise<NextLiveSessionInfo | null> {
     calendar = known
     return known.next
   }
-  const next = await fetchNextLiveSession(year)
+  // The tail: a session stays "next" until 90 min after its scheduled end, unless it is known to be over.
+  const next = await fetchNextLiveSession(year, new Date(), LIVE_TAIL_MS, ended)
   calendar = { year, at: Date.now(), next }
   try { sessionStorage.setItem(STORE_KEY, JSON.stringify(calendar)) } catch { /* private mode */ }
   return next
@@ -104,14 +107,27 @@ function poll(p: Poller): Promise<void> {
   if (p.inFlight) return p.inFlight
   p.inFlight = (async () => {
     const next = await nextSession(p.year).catch(() => null)
-    if (inLiveWindow(next)) {
-      const status = await fetchLiveServerStatus()
-      if (status.reachable && status.sessionKey !== null) {
-        publish(p, { liveSessionKey: status.sessionKey, liveChecked: true, nextLive: next })
-        return
+    if (next && inLiveWindow(next)) {
+      if (Date.now() <= scheduledEnd(next)) {
+        const status = await fetchLiveServerStatus()
+        if (status.reachable && status.sessionKey !== null) {
+          publish(p, { liveSessionKey: status.sessionKey, liveChecked: true, nextLive: next })
+          return
+        }
+      } else {
+        // Past the scheduled end: still on only while /live/state says so; once it does not, the session is over and
+        // the calendar moves on to the next one.
+        const state = await fetchLivePublicState().catch(() => null)
+        if (state?.state === 'live' && state.sessionKey !== null) {
+          publish(p, { liveSessionKey: state.sessionKey, liveChecked: true, nextLive: next })
+          return
+        }
+        ended.add(next.sessionKey)
+        calendar = null
+        try { sessionStorage.removeItem(STORE_KEY) } catch { /* none */ }
       }
     }
-    publish(p, { liveSessionKey: null, liveChecked: true, nextLive: next })
+    publish(p, { liveSessionKey: null, liveChecked: true, nextLive: next && ended.has(next.sessionKey) ? null : next })
   })().finally(() => { p.inFlight = null })
   return p.inFlight
 }
@@ -147,6 +163,7 @@ export function __resetLiveStatusForTests() {
   pollers.forEach((p) => { if (p.timer) clearInterval(p.timer); document.removeEventListener('visibilitychange', p.onVisible) })
   pollers.clear()
   calendar = null
+  ended.clear()
   try { sessionStorage.removeItem(STORE_KEY) } catch { /* none */ }
 }
 

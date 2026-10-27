@@ -75,11 +75,14 @@ export async function fetchLivePublicState(timeoutMs = 3000): Promise<LivePublic
 /** The chronologically nearest session in a meeting that has not ended yet —
  *  any type, not only the Race: whichever one a live server would actually
  *  be following next. */
-export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date): SessionInfo | null {
+/** `graceMs` keeps a session for that long after its scheduled end (the live window's tail); `skip` leaves out
+ *  sessions already known to be over. Both default to nothing, as before. */
+export function findEarliestUpcomingSession(sessions: SessionInfo[], now: Date, graceMs = 0, skip: ReadonlySet<number> = new Set()): SessionInfo | null {
   const upcoming = sessions
     .filter((s) => {
       if (!s.date_start) return false
-      if (s.date_end && new Date(s.date_end).getTime() <= now.getTime()) return false
+      if (skip.has(s.session_key)) return false
+      if (s.date_end && new Date(s.date_end).getTime() + graceMs <= now.getTime()) return false
       return true
     })
     .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
@@ -102,18 +105,25 @@ const MAX_MEETINGS_TRIED = 4
 /**
  * Render hours (block 51): the live server is a free service that sleeps after 15 minutes without requests, and
  * every request wakes it. So the interface asks it only while a session is on or about to start: from LIVE_LEAD_MS
- * before the next session's start until its scheduled end (or start + LIVE_DEFAULT_MS when the calendar has none).
+ * before the next session's start until 90 min after its scheduled end (start + LIVE_DEFAULT_MS when the calendar has
+ * none), the tail ending earlier if /live/state says the session is over (hooks/useLiveStatus.ts).
  * Outside that window the answer is "nothing live" without asking.
  */
 export const LIVE_LEAD_MS = 30 * 60_000
 export const LIVE_DEFAULT_MS = 2 * 60 * 60_000
+/** After the scheduled end, a session can still be running (red flags, delays): the window stays open this long,
+ *  or until the live server's /live/state says the session is over, whichever comes first. */
+export const LIVE_TAIL_MS = 90 * 60_000
+
+export function scheduledEnd(next: Pick<NextLiveSessionInfo, 'dateStart' | 'dateEnd'>): number {
+  return next.dateEnd ? Date.parse(next.dateEnd) : Date.parse(next.dateStart) + LIVE_DEFAULT_MS
+}
 
 export function inLiveWindow(next: Pick<NextLiveSessionInfo, 'dateStart' | 'dateEnd'> | null, now: number = Date.now()): boolean {
   if (!next) return false
   const start = Date.parse(next.dateStart)
   if (!Number.isFinite(start)) return false
-  const end = next.dateEnd ? Date.parse(next.dateEnd) : start + LIVE_DEFAULT_MS
-  return now >= start - LIVE_LEAD_MS && now <= end
+  return now >= start - LIVE_LEAD_MS && now <= scheduledEnd(next) + LIVE_TAIL_MS
 }
 
 /**
@@ -122,7 +132,7 @@ export function inLiveWindow(next: Pick<NextLiveSessionInfo, 'dateStart' | 'date
  * say so explicitly rather than render nothing; this file only reports what
  * it found.
  */
-export async function fetchNextLiveSession(year: number, now: Date = new Date()): Promise<NextLiveSessionInfo | null> {
+export async function fetchNextLiveSession(year: number, now: Date = new Date(), graceMs = 0, skip: ReadonlySet<number> = new Set()): Promise<NextLiveSessionInfo | null> {
   let meetings: RaceListItem[]
   try {
     meetings = await fetchRaces(year)
@@ -138,7 +148,7 @@ export async function fetchNextLiveSession(year: number, now: Date = new Date())
     } catch {
       continue
     }
-    const next = findEarliestUpcomingSession(sessions, now)
+    const next = findEarliestUpcomingSession(sessions, now, graceMs, skip)
     if (!next) continue
     return {
       place: placeOf(meeting),
