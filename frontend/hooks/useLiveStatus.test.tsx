@@ -14,9 +14,18 @@ const MEETING = { meeting_key: 1297, meeting_name: 'United States Grand Prix', c
 const sessionAt = (key: number, iso: string) => ({ session_key: key, session_name: 'Race', session_type: 'Race', date_start: iso, date_end: null })
 
 let live: { session_key: number | null } | 'down' = { session_key: null }
-const health = vi.fn(async () => (live === 'down'
-  ? Promise.reject(new Error('down'))
-  : new Response(JSON.stringify({ status: 'ok', ...live }), { status: 200 })))
+let liveState: 'live' | 'no_session' = 'no_session'
+// The live server: /health (counted in `health`) and /live/state (counted in `stateCalls`).
+const stateCalls = vi.fn()
+const health = vi.fn()
+const liveServer = vi.fn(async (url: string) => {
+  if (String(url).endsWith('/live/state')) {
+    stateCalls(url)
+    return new Response(JSON.stringify({ state: liveState, session_key: liveState === 'live' ? 11400 : null }), { status: 200 })
+  }
+  health(url)
+  return live === 'down' ? Promise.reject(new Error('down')) : new Response(JSON.stringify({ status: 'ok', ...live }), { status: 200 })
+})
 
 function setHidden(h: boolean) {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') })
@@ -34,8 +43,8 @@ beforeEach(() => {
   __resetLiveStatusForTests()
   setHidden(false)
   live = { session_key: null }
-  health.mockClear()
-  vi.stubGlobal('fetch', health)
+  health.mockClear(); stateCalls.mockClear(); liveServer.mockClear(); liveState = 'no_session'
+  vi.stubGlobal('fetch', liveServer)
   api.fetchRaces.mockReset().mockResolvedValue([MEETING])
   api.fetchSessions.mockReset().mockResolvedValue([sessionAt(11400, '2026-10-25T19:00:00Z')])
 })
@@ -98,16 +107,40 @@ describe('useLiveStatus: capped polling', () => {
     expect(health).toHaveBeenCalledTimes(1)
   })
 
-  it('after the scheduled end the live server is no longer asked', async () => {
-    const s = { ...sessionAt(11400, new Date(NOW - 60 * 60_000).toISOString()), date_end: new Date(NOW + 5 * 60_000).toISOString() }
-    api.fetchSessions.mockResolvedValue([s])
+  it('past the scheduled end: /live/state while it says live, then the session is over and the calendar moves on', async () => {
+    const s1 = { ...sessionAt(11400, new Date(NOW - 2 * 3600_000).toISOString()), date_end: new Date(NOW - 60_000).toISOString() }
+    const s2 = sessionAt(11401, new Date(NOW + 48 * 3600_000).toISOString())
+    api.fetchSessions.mockResolvedValue([s1, s2])
+    liveState = 'live'                                                // red flags: still running 1 min after its end
+    const { getByTestId } = render(<Probe id="a" />)
+    await at(0)
+    expect(getByTestId('a').dataset.live).toBe('11400')
+    expect(health).not.toHaveBeenCalled()                             // past the end it asks /live/state, not /health
+    await at(5 * POLL_MS)
+    expect(stateCalls.mock.calls.length).toBe(6)
+    liveState = 'no_session'                                          // the session ends
+    await at(POLL_MS)
+    expect(getByTestId('a').dataset.live).toBe('null')
+    const races = api.fetchRaces.mock.calls.length
+    await at(POLL_MS)
+    expect(api.fetchRaces.mock.calls.length).toBe(races + 1)          // the calendar is asked again, without 11400
+    expect(getByTestId('a').dataset.next).toBe('11401')
+    const asked = stateCalls.mock.calls.length + health.mock.calls.length
+    await at(30 * POLL_MS)
+    expect(stateCalls.mock.calls.length + health.mock.calls.length).toBe(asked)   // 11401 is two days away
+  })
+
+  it('90 minutes after the scheduled end it stops asking even if /live/state still says live', async () => {
+    const s1 = { ...sessionAt(11400, new Date(NOW - 2 * 3600_000).toISOString()), date_end: new Date(NOW - 80 * 60_000).toISOString() }
+    api.fetchSessions.mockResolvedValue([s1])
+    liveState = 'live'
     render(<Probe id="a" />)
     await at(0)
-    expect(health).toHaveBeenCalledTimes(1)
-    await at(5 * POLL_MS)
-    const asked = health.mock.calls.length
+    await at(9 * POLL_MS)                                             // up to 89 min after the end
+    const asked = stateCalls.mock.calls.length
+    expect(asked).toBeGreaterThan(5)
     await at(30 * POLL_MS)
-    expect(health.mock.calls.length).toBe(asked)
+    expect(stateCalls.mock.calls.length).toBeLessThanOrEqual(asked + 1)
   })
 
   it('the live server down: the calendar is asked, still capped', async () => {
