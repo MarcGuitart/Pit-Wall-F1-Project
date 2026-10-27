@@ -12,6 +12,10 @@ import { useAccessStore } from '@/stores/accessStore'
  * extended on Render reaches open tabs too. No answer reads as closed: the interface is then exactly as before.
  */
 export const REFRESH_MS = 10 * 60_000
+/** A free Render API sleeps and takes about a minute to wake (block 51): no answer is asked again every RETRY_MS,
+ *  RETRIES times (90 s in all), so a visitor arriving at a sleeping API still sees the week once it answers. */
+export const RETRY_MS = 20_000
+export const RETRIES = 4
 
 type OpenState = { open: boolean; until: string | null; checkedAt: number }
 export const useOpenAccess = create<OpenState>(() => ({ open: false, until: null, checkedAt: 0 }))
@@ -30,9 +34,17 @@ function apply(open: boolean, until: string | null) {
   }
 }
 
-export function loadOpenAccess(): Promise<void> {
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+export function loadOpenAccess(attempt = 0): Promise<void> {
   if (!inFlight) {
-    inFlight = fetchOpenAccess().then((r) => apply(r.open, r.until)).finally(() => { inFlight = null })
+    inFlight = fetchOpenAccess().then((r) => {
+      apply(r.open, r.until)
+      if (!r.answered && attempt < RETRIES) {
+        if (retryTimer) clearTimeout(retryTimer)
+        retryTimer = setTimeout(() => { retryTimer = null; void loadOpenAccess(attempt + 1) }, RETRY_MS)
+      }
+    }).finally(() => { inFlight = null })
   }
   return inFlight
 }
@@ -59,6 +71,8 @@ export function formatUntil(until: string): string {
 }
 
 export function __resetOpenAccessForTests() {
+  if (retryTimer) clearTimeout(retryTimer)
+  retryTimer = null
   if (closeTimer) clearTimeout(closeTimer)
   closeTimer = null
   inFlight = null

@@ -8,7 +8,7 @@ const access = vi.hoisted(() => ({ pro: false }))
 vi.mock('@/stores/accessStore', () => ({ useAccessStore: (pick: (s: { pro: boolean }) => unknown) => pick({ pro: access.pro }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }), usePathname: () => '/' }))
 
-import { REFRESH_MS, __resetOpenAccessForTests, formatUntil, loadOpenAccess, refreshOpenAccessIfStale, useHasAccess, useOpenAccess } from './openAccess'
+import { REFRESH_MS, RETRIES, RETRY_MS, __resetOpenAccessForTests, formatUntil, loadOpenAccess, refreshOpenAccessIfStale, useHasAccess, useOpenAccess } from './openAccess'
 import { MeetingPanel } from '@/components/landing/MeetingPanel'
 
 const UNTIL = '2026-11-03T10:00:00+01:00'
@@ -30,7 +30,7 @@ describe('the open week (block 50)', () => {
   })
 
   it('before the date it is open, and it closes by itself at the date', async () => {
-    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL })
+    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL, answered: true })
     await act(async () => { await loadOpenAccess() })
     expect(useOpenAccess.getState().open).toBe(true)
     act(() => { vi.advanceTimersByTime(59_000) })
@@ -41,13 +41,13 @@ describe('the open week (block 50)', () => {
 
   it('after the date it stays closed even if an old answer still says open', async () => {
     vi.setSystemTime(new Date('2026-11-03T09:00:01Z'))
-    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL })
+    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL, answered: true })
     await act(async () => { await loadOpenAccess() })
     expect(useOpenAccess.getState().open).toBe(false)
   })
 
   it('no answer, or no variable on the API: closed, everything as today', async () => {
-    api.fetchOpenAccess.mockResolvedValue({ open: false, until: null })
+    api.fetchOpenAccess.mockResolvedValue({ open: false, until: null, answered: true })
     await act(async () => { await loadOpenAccess() })
     expect(useOpenAccess.getState()).toMatchObject({ open: false, until: null })
     const { result } = renderHook(() => useHasAccess())
@@ -55,12 +55,12 @@ describe('the open week (block 50)', () => {
   })
 
   it('a tab coming back after 10 minutes asks again (a week extended or closed on Render reaches it)', async () => {
-    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL })
+    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL, answered: true })
     await act(async () => { await loadOpenAccess() })
     refreshOpenAccessIfStale()
     expect(api.fetchOpenAccess).toHaveBeenCalledTimes(1)
     vi.setSystemTime(new Date(BEFORE.getTime() + REFRESH_MS + 1))
-    api.fetchOpenAccess.mockResolvedValue({ open: false, until: UNTIL })   // closed early on Render
+    api.fetchOpenAccess.mockResolvedValue({ open: false, until: UNTIL, answered: true })   // closed early on Render
     await act(async () => { refreshOpenAccessIfStale(); await Promise.resolve() })
     expect(api.fetchOpenAccess).toHaveBeenCalledTimes(2)
   })
@@ -84,5 +84,27 @@ describe('the open week (block 50)', () => {
     act(() => { useOpenAccess.setState({ open: true, until: UNTIL }) })
     rerender(<MeetingPanel {...props} />)
     expect(screen.queryByText('PRO')).toBeNull()
+  })
+
+  it('a sleeping API (no answer) is asked again every 20 s, and the week shows once it wakes', async () => {
+    api.fetchOpenAccess.mockResolvedValue({ open: false, until: null, answered: false })
+    await act(async () => { await loadOpenAccess() })
+    expect(useOpenAccess.getState().open).toBe(false)
+    api.fetchOpenAccess.mockResolvedValue({ open: true, until: UNTIL, answered: true })
+    await act(async () => { await vi.advanceTimersByTimeAsync(RETRY_MS) })
+    expect(api.fetchOpenAccess).toHaveBeenCalledTimes(2)
+    expect(useOpenAccess.getState().open).toBe(true)
+  })
+
+  it('gives up after 90 s without an answer, and an explicit "closed" is never retried', async () => {
+    api.fetchOpenAccess.mockResolvedValue({ open: false, until: null, answered: false })
+    await act(async () => { await loadOpenAccess() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * RETRY_MS) })
+    expect(api.fetchOpenAccess).toHaveBeenCalledTimes(1 + RETRIES)
+    __resetOpenAccessForTests(); api.fetchOpenAccess.mockReset()
+    api.fetchOpenAccess.mockResolvedValue({ open: false, until: null, answered: true })
+    await act(async () => { await loadOpenAccess() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * RETRY_MS) })
+    expect(api.fetchOpenAccess).toHaveBeenCalledTimes(1)
   })
 })
