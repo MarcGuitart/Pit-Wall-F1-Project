@@ -154,6 +154,11 @@ fallback in development). `drivers`: up to 5 codes. `lap_mode`:
 `fastest_clean | representative`. Race sessions only. Returns TelemetryData
 (`frontend/types/telemetry.ts`).
 
+### /billing (PRO subscription, off unless PAYMENTS_ENABLED)
+`POST /billing/checkout`, `GET /billing/success?session_id=`, `POST /billing/renew`,
+`POST /billing/portal`, `POST /billing/webhook`. All answer `503 PAYMENTS_DISABLED`
+while the flag is off. Details, limitations and test mode: [PAYMENTS.md](PAYMENTS.md).
+
 ### POST /admin/clear-cache/{session_key}
 Clears filesystem cache for a session. Dev only.
 

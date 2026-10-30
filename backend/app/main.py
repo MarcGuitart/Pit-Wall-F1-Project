@@ -16,6 +16,7 @@ from app.api.session_meta import router as session_meta_router
 from app.api.stats import router as stats_router
 from app.api.session_index import router as session_index_router
 from app.api import published_set
+from app.api.billing import router as billing_router
 from app.utils.origins import netlify_preview_origin_regex
 
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,7 @@ app.include_router(laps_router)
 app.include_router(session_meta_router)
 app.include_router(stats_router)
 app.include_router(session_index_router)
+app.include_router(billing_router)
 
 
 @app.on_event("startup")
