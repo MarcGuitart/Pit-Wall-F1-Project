@@ -6,6 +6,7 @@ import { FREE_SEASONS, isFreeSeason } from '@/lib/access'
 import { currentSeason, seasonYears } from '@/lib/seasons'
 import { meetingState } from '@/lib/sessionStates'
 import { MeetingPanel, type PanelData } from './MeetingPanel'
+import { reconFor } from '@/lib/recon'
 import { seasonGrid, type GridRace } from '@/lib/seasonGrid'
 import { weekendLabel } from '@/lib/raceDates'
 import { useOpenRace } from '@/lib/raceNav'
@@ -163,6 +164,7 @@ export function SeasonGrid() {
                 ctx={{ ...ctxBase, published: publishedSet }}
                 onRetry={() => load(openCell.race.meeting_key)}
                 onOpen={(k, click, label) => openRace(k, { click, label })}
+                recon={reconFor(openCell.race)}
               />
             ) : null
             if (cancelled) {

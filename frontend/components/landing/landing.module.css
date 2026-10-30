@@ -80,6 +80,7 @@
 }
 @keyframes panelIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+.panelRecon { margin: 0 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13px; color: var(--pw-muted); }
 .panelTitle { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .panelList { list-style: none; margin: 0; padding: 0; }
 .panelRow {

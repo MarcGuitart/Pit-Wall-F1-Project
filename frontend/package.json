@@ -16,6 +16,7 @@
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.8.1",
+    "three": "^0.170.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^6.1.1",
     "ical.js": "^2.2.1",
     "jsdom": "^29.1.1",
