@@ -4,6 +4,10 @@ const nextConfig = {
     // The commit this build is (block 42): Netlify sets COMMIT_REF during the
     // build; it ends up in <meta name="pw-build"> and /version.json.
     NEXT_PUBLIC_PW_BUILD: process.env.COMMIT_REF || process.env.NEXT_PUBLIC_PW_BUILD || 'local',
+    // Always a literal, also when unset (block 52b): an undefined NEXT_PUBLIC_
+    // variable is left as a runtime process.env lookup, which pulls Node's
+    // process polyfill into the shared bundle. '' means the API only.
+    NEXT_PUBLIC_TELEMETRY_URL: process.env.NEXT_PUBLIC_TELEMETRY_URL || '',
   },
   // The redesign prototype is the site now: /preview and everything under it
   // go home. Temporary (307), so the decision can be undone without browsers
