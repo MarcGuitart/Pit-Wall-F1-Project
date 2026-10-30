@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { startCheckout } from '@/lib/api'
+import { startCheckout } from '@/lib/billingApi'
 import { PRO_PRICE, PRO_PRICE_PERIOD } from '@/lib/access'
 import { PAYMENTS_ENABLED } from '@/lib/payments'
 import { buttonClass, ui } from '@/components/ui'
