@@ -123,3 +123,21 @@ describe('block 36: OpenF1 telemetry from R2 first, the API otherwise', () => {
     expect(telemetrySource(null)).toBe('FastF1')
   })
 })
+
+describe('block 52b: no lateral g on FastF1 laps', () => {
+  it('drops lat_g from a FastF1 lap and keeps it on an OpenF1 lap', async () => {
+    const { withoutFastF1Lateral } = await import('./index')
+    const lap = { points: [{ lat_g: 0.4, lon_g: -3 }, { lat_g: -0.2, lon_g: 1 }] }
+    expect(withoutFastF1Lateral(lap, 'FastF1')!.points.every((p) => p.lat_g === null)).toBe(true)
+    expect(withoutFastF1Lateral(lap, 'FastF1')!.points.map((p) => (p as { lon_g: number }).lon_g)).toEqual([-3, 1])
+    expect(withoutFastF1Lateral(lap, 'OpenF1 car_data + location')).toBe(lap)
+  })
+
+  it('the meter says lateral g is not shown, and gives longitudinal g', async () => {
+    const { GForceMeter } = await import('./GForceMeter')
+    const pts = Array.from({ length: 20 }, (_, i) => ({ distance: i * 10, x: 0, y: 0, speed: 200, throttle: 50, brake: false, gear: 6, drs: 0, lat_g: null, lon_g: -1 + i * 0.1 }))
+    render(<GForceMeter driver={{ driver_code: 'VER', team_colour: '#36f', lap_time: 80, fastest_lap_number: 3, lap_mode: 'fastest_clean', points: pts, sector_1_time: null, sector_2_time: null, sector_3_time: null }} progress={0.5} />)
+    expect(document.querySelector('[data-lateral-hidden]')).not.toBeNull()
+    expect(document.body.textContent).toMatch(/Lat G\s*n\/a/)
+  })
+})

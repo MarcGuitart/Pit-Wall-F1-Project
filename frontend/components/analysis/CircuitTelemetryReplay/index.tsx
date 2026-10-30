@@ -17,6 +17,17 @@ import { GForceMeter } from './GForceMeter'
 import { Badge, Segmented, buttonClass, ui } from '@/components/ui'
 import t from './telemetry.module.css'
 
+/**
+ * Block 52b: FastF1's lateral g on this site is about ten times too small (the
+ * service reads decimetres as metres; fixed in a later block). Until then a
+ * FastF1 lap carries no lateral g: the meter shows longitudinal g only and the
+ * G-G diagram says why. OpenF1 laps (from R2) keep theirs.
+ */
+export function withoutFastF1Lateral<T extends { points: { lat_g?: number | null }[] }>(driver: T | undefined, source: string | null | undefined): T | undefined {
+  if (!driver || telemetrySource(source) !== 'FastF1') return driver
+  return { ...driver, points: driver.points.map((p) => ({ ...p, lat_g: null })) }
+}
+
 /** The badge's word for a telemetry answer's source (block 36): OpenF1 files from R2, or the API's FastF1. */
 export function telemetrySource(source: string | null | undefined): 'OpenF1' | 'FastF1' {
   return /openf1/i.test(source ?? '') ? 'OpenF1' : 'FastF1'
@@ -146,6 +157,7 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
     [data, selectedDrivers],
   )
 
+  const gDriver = useMemo(() => withoutFastF1Lateral(selectedTelemetry[0], data?.source), [selectedTelemetry, data?.source])
   const primaryLapTime = Math.max(1, selectedTelemetry[0]?.lap_time ?? 90)
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -273,8 +285,8 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
       {/* ── Bottom row: G-Force meter · GG diagram ── */}
       {selectedTelemetry.length === 1 && (
         <div className={t.bottom}>
-          <GForceMeter driver={selectedTelemetry[0]} progress={progress} />
-          <GGDiagram driver={selectedTelemetry[0]} />
+          <GForceMeter driver={gDriver!} progress={progress} />
+          <GGDiagram driver={gDriver!} />
         </div>
       )}
     </div>
