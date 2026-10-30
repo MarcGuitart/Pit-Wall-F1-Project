@@ -154,3 +154,16 @@
 }
 .tile:hover .tileDef, .tile:focus-visible .tileDef { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tileDef { transition: none; } }
+
+/* Recon Lap card (block 52b): static, between the hero and the proof strip */
+.recon { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 24px; align-items: center; margin: 0 var(--pw-gutter) 40px; padding: 20px 24px; border: 2px solid var(--pw-divider); }
+.reconMap { width: 120px; height: auto; display: block; }
+.reconText { display: grid; gap: 6px; min-width: 0; }
+.reconTitle { margin: 0; font-size: 28px; line-height: 1.05; font-weight: 800; letter-spacing: -0.02em; }
+.reconSub { margin: 0; font-size: 14px; line-height: 1.5; color: var(--pw-muted); max-width: 46em; }
+@media (max-width: 760px) {
+  .recon { grid-template-columns: 72px minmax(0, 1fr); gap: 14px 16px; padding: 16px; }
+  .reconMap { width: 72px; }
+  .recon > a { grid-column: 1 / -1; justify-self: start; }
+  .reconTitle { font-size: 22px; }
+}

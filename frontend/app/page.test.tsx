@@ -77,4 +77,22 @@ describe('"/"', () => {
       .filter((t) => /^\d\d · /.test(t)).map((t) => t.slice(0, 2))
     expect(nums).toEqual(anchors.map((_, i) => String(i + 1).padStart(2, '0')))
   })
+
+  it('features the Recon Lap as a plain link, with no canvas and no 3D (block 52b)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-11-04T12:00:00Z'))
+      const { container, unmount } = await renderHome()
+      const card = container.querySelector('section[aria-labelledby="recon-card-title"]')
+      expect(card?.querySelector('a')?.getAttribute('href')).toBe('/recon/interlagos')
+      expect(card?.textContent).toContain('Lando Norris')
+      expect(container.querySelector('canvas')).toBeNull()
+      unmount()
+      vi.setSystemTime(new Date('2026-11-10T12:00:00Z'))
+      const after = await renderHome()
+      expect(after.container.querySelector('section[aria-labelledby="recon-card-title"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

@@ -5,6 +5,7 @@ import { AnchorBar } from '@/components/home/AnchorBar'
 import { Hero } from '@/components/home/Hero'
 import { NextSessionCard } from '@/components/home/NextSessionCard'
 import { ProofStrip } from '@/components/home/ProofStrip'
+import { ReconCard } from '@/components/home/ReconCard'
 import { Questions } from '@/components/home/Questions'
 import { LiveSection } from '@/components/home/LiveSection'
 import { Plans } from '@/components/home/Plans'
@@ -46,6 +47,7 @@ export default function HomePage() {
       <div className={h.page}>
         <AnchorBar />
         <Hero aside={<NextSessionCard />} />
+        <ReconCard />
         <ProofStrip />
         <Questions />
         <LiveSection />
