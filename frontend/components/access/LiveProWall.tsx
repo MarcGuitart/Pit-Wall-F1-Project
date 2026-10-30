@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
+import { ProOffer } from '@/components/billing/ProOffer'
 import { Badge, PageContainer, ui } from '@/components/ui'
 import { RACE_LIST_HREF } from '@/lib/routes'
 
@@ -19,7 +20,7 @@ export function LiveProWall({ onUnlocked }: { onUnlocked: () => void }) {
           <div><Badge tone="warn">Pit Wall PRO</Badge></div>
           <h1 id="live-wall-title" className={ui.h1} style={{ fontSize: 'clamp(32px, 6vw, 48px)', margin: 0 }}>Live mode is PRO</h1>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--pw-text)' }}>Live mode and races from 2025 are part of PRO.</p>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--pw-text)' }}>Subscriptions are not open yet: access today is by a code.</p>
+          <ProOffer id="live-wall-subscribe" />
           <AccessCodeForm id="live-wall-code" onRedeemed={onUnlocked} />
           <div>
             <Link href={RACE_LIST_HREF} style={{ color: 'var(--pw-text)', fontSize: 13, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 4 }}>

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { fetchAccessStatus, type AccessStatus } from '@/lib/api'
+import { renewIfDue } from '@/lib/payments'
 import {
   ACCESS_CHANGED_EVENT,
   announceAccessChange,
@@ -70,6 +71,9 @@ export const useAccessStore = create<AccessState>((set) => {
 
   async function doRefresh() {
     applyLocalGuess()
+    // A subscription token near its end is renewed first (block 44); with
+    // payments off, or a code token, this does nothing.
+    if (await renewIfDue()) applyLocalGuess()
     let status: AccessStatus
     try {
       status = await fetchAccessStatus()

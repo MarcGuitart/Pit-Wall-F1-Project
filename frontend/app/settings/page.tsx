@@ -15,6 +15,7 @@ import { formatExpiry } from '@/lib/format'
 import { Badge, PageContainer, PageHeader } from '@/components/ui'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
 import pg from '@/components/layout/page.module.css'
+import { ManageSubscription } from '@/components/billing/ManageSubscription'
 
 export default function SettingsPage() {
   const pro = useAccessStore((s) => s.pro)
@@ -93,6 +94,7 @@ export default function SettingsPage() {
                   : 'The PRO badge is hidden in the top bar. Your access code is still active. This only changed what is displayed.'}
               </p>
 
+              <ManageSubscription className={pg.linkBtn} />
               <button type="button" onClick={signOut} className={pg.linkBtn}>Sign out of PRO</button>
             </div>
           ) : (

@@ -18,6 +18,7 @@ import { redeemAccessCode } from '@/lib/api'
 import { PRO_PRICE_LABEL } from '@/lib/access'
 import { ApiError } from '@/lib/errors'
 import { Badge, buttonClass, ui, PageContainer } from '@/components/ui'
+import { ProOffer } from '@/components/billing/ProOffer'
 
 export const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
@@ -64,7 +65,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
             {year ? `The ${year} season` : 'This season'} is PRO
           </h1>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55 }}>2023 and 2024 are free to read. {PRO_PRICE_LABEL}.</p>
-          <p className={ui.sub} style={{ margin: 0 }}>Subscriptions are not open yet: €2.99/month is what it will cost.</p>
+          <ProOffer id="wall-subscribe" />
 
           <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 6 }}>
@@ -128,9 +129,7 @@ export function ProWall({ year, onUnlocked, variant = 'classic' }: { year?: numb
         <p className="font-body text-[14px] text-text-secondary leading-relaxed mb-1">
           2023 and 2024 are free to read. {PRO_PRICE_LABEL}.
         </p>
-        <p className="font-mono text-[length:var(--pw-text-xs)] text-text-muted mb-6">
-          Subscriptions are not open yet: €2.99/month is what it will cost.
-        </p>
+        <div className="mb-6"><ProOffer id="wall-subscribe-classic" /></div>
 
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2 mb-2">
           <div className="flex-1 min-w-[200px]">

@@ -9,6 +9,7 @@
  * Server component — this content never changes per visitor, so it does not
  * need 'use client' or any store.
  */
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { FREE_SEASONS, PRO_PRICE_LABEL } from '@/lib/access'
@@ -86,8 +87,8 @@ export default function DocsPage() {
           <p>{PRO_PRICE_LABEL}.</p>
           <p>
             PRO covers races from 2025 onwards, the current season as it is published (usually within a
-            few hours of the chequered flag), and Live mode. Subscriptions are not open yet: access
-            today is by a code, entered once in{' '}
+            few hours of the chequered flag), and Live mode. {PAYMENTS_ENABLED ? 'It is a monthly subscription, or a code' : 'Subscriptions open soon: access today is by a code'},
+            entered once in{' '}
             <Link href="/settings">
               Settings
             </Link>.

@@ -1,5 +1,6 @@
 'use client'
 
+import { ProOffer } from '@/components/billing/ProOffer'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { SessionMeta } from '@/types'
@@ -165,8 +166,8 @@ export function BlockedPage({ kind, sessionKey, meta, earliestAt, retryAfterSeco
     case 'pro':
       head = 'PRO required'
       title = 'This analysis is part of PRO'
-      body = 'Enter your access code to open it.'
-      extra = <CodeForm onUnlocked={onUnlocked} />
+      body = 'Enter an access code to open it.'
+      extra = <><CodeForm onUnlocked={onUnlocked} /><ProOffer id="race-wall-subscribe" /></>
       break
     case 'cancelled':
       head = 'Session cancelled'

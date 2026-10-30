@@ -8,10 +8,12 @@ import { RACES_LABEL } from '@/lib/sweep'
 import { SweepLink } from '@/components/layout/SweepLink'
 import { useAccessStore } from '@/stores/accessStore'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
+import { SubscribeButton } from '@/components/billing/SubscribeButton'
+import { PAYMENTS_ENABLED } from '@/lib/payments'
 import { buttonClass } from '@/components/ui'
 import h from './home.module.css'
 
-/** Free and PRO, from lib/access.ts. No checkout, no notify list: neither exists. */
+/** Free and PRO, from lib/access.ts. Subscribe appears only with payments on (block 44). */
 export function Plans() {
   const pro = useAccessStore((st) => st.pro)
   const [codeOpen, setCodeOpen] = useState(false)
@@ -21,7 +23,7 @@ export function Plans() {
       <div className={h.secHead}>
         <span className={h.secNum}>03 · Plans</span>
         <h2 id="plans-title" className={h.secTitle}>Free and PRO</h2>
-        <p className={h.secLead}>Subscriptions are not open yet. PRO is available with an access code.</p>
+        <p className={h.secLead}>{PAYMENTS_ENABLED ? 'PRO is a monthly subscription, or an access code.' : 'Subscriptions open soon. PRO is available with an access code.'}</p>
       </div>
       <div className={`${h.grid} ${h.g2}`}>
         <div className={h.plan} data-reveal>
@@ -35,7 +37,7 @@ export function Plans() {
         </div>
         <div className={h.plan} data-reveal>
           <h3 className={h.planName}>PRO</h3>
-          <div className={h.cardLabel}>Subscriptions not open</div>
+          <div className={h.cardLabel}>{PAYMENTS_ENABLED ? 'Monthly, cancel any time' : 'Subscriptions open soon'}</div>
           <div><span className={h.planPrice}>{PRO_PRICE}</span> <span className={h.nextWhen}>/ {PRO_PRICE_PERIOD}</span></div>
           <ul className={h.planList}>
             <li>Seasons {firstPro} onwards</li>
@@ -47,10 +49,13 @@ export function Plans() {
           ) : codeOpen ? (
             <AccessCodeForm id="plans-pro-code" autoFocus />
           ) : (
-            <div>
-              <button type="button" className={buttonClass('primary', true)} aria-expanded={false} onClick={() => setCodeOpen(true)}>
-                Enter access code
-              </button>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <SubscribeButton id="plans-subscribe" />
+              <div>
+                <button type="button" className={buttonClass(PAYMENTS_ENABLED ? 'default' : 'primary', true)} aria-expanded={false} onClick={() => setCodeOpen(true)}>
+                  Enter access code
+                </button>
+              </div>
             </div>
           )}
         </div>
