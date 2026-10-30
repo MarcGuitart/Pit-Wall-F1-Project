@@ -61,7 +61,10 @@ export function GForceMeter({ driver, progress }: Props) {
     }
   }, [pts, progress])
 
-  const { throttle, brake, lat_g, lon_g, speed, gear } = live
+  const { throttle, brake, lon_g, speed, gear } = live
+  // No lateral g on this lap (a FastF1 lap, block 52b): the dot moves on the longitudinal axis only.
+  const hasLat = useMemo(() => pts.some((p) => p.lat_g != null), [pts])
+  const lat_g = hasLat ? live.lat_g : 0
 
   // Total G magnitude (capped at gScale for display)
   const gMag = Math.sqrt(lat_g ** 2 + lon_g ** 2)
@@ -218,7 +221,7 @@ export function GForceMeter({ driver, progress }: Props) {
           {[
             { label: 'Speed', value: `${Math.round(speed)}`, unit: 'km/h' },
             { label: 'Gear',  value: `${gear}`,              unit: '' },
-            { label: 'Lat G', value: `${lat_g >= 0 ? '+' : ''}${lat_g.toFixed(2)}`, unit: 'g',
+            { label: 'Lat G', value: hasLat ? `${lat_g >= 0 ? '+' : ''}${lat_g.toFixed(2)}` : 'n/a', unit: hasLat ? 'g' : '',
               color: Math.abs(lat_g) > gScale * 0.6 ? '#FFB020' : undefined },
             { label: 'Lon G', value: `${lon_g >= 0 ? '+' : ''}${lon_g.toFixed(2)}`, unit: 'g',
               color: lon_g < -gScale * 0.5 ? '#E8001D' : lon_g > gScale * 0.3 ? '#23D18B' : undefined },
@@ -251,6 +254,11 @@ export function GForceMeter({ driver, progress }: Props) {
           </span>
         </div>
       </div>
+      {!hasLat && (
+        <p className="px-3 pb-2 m-0 text-[11px] leading-snug text-text-muted" data-lateral-hidden>
+          Lateral g is not shown for FastF1 laps until its calculation is fixed; longitudinal g is.
+        </p>
+      )}
     </div>
   )
 }

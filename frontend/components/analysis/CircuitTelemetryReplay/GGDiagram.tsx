@@ -104,7 +104,9 @@ export function GGDiagram({ driver }: Props) {
     return (
       <div className="p-6 flex items-center justify-center">
         <span className="text-[12px] text-text-muted">
-          G-G data requires FastF1 telemetry
+          {pts.some((p) => p.lon_g != null)
+            ? 'Lateral g is not shown for FastF1 laps until its calculation is fixed, so there is no G-G diagram for this lap.'
+            : 'No g-force data for this lap.'}
         </span>
       </div>
     )
