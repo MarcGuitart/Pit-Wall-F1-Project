@@ -6,6 +6,7 @@ import { Badge, buttonClass } from '@/components/ui'
 import { sessionState, showsProChip, type StateContext } from '@/lib/sessionStates'
 import { useOpenAccess } from '@/lib/openAccess'
 import { useWarmRace } from '@/lib/warm'
+import { reconHref, type ReconEntry } from '@/lib/recon'
 import l from './landing.module.css'
 
 const WHEN = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -22,7 +23,7 @@ export type PanelData =
  * so a modified click opens a tab; a plain one goes through onOpen (the sweep
  * and the analysis loader).
  */
-export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, onOpen }: {
+export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, onOpen, recon }: {
   id: string
   cellId: string
   place: string
@@ -31,11 +32,19 @@ export function MeetingPanel({ id, cellId, place, gpName, data, ctx, onRetry, on
   ctx: StateContext
   onRetry: () => void
   onOpen: (sessionKey: number, click: React.MouseEvent, label: string) => void
+  /** The circuit's Recon Lap for this season (lib/recon.ts), linked above the sessions. */
+  recon?: ReconEntry | null
 }) {
   const openWeek = useOpenAccess((st) => st.open)   // no PRO chip while everything is free (block 50)
   const warm = useWarmRace()
   return (
     <div id={id} className={l.panel} role="region" aria-labelledby={cellId} aria-busy={data.status === 'loading'}>
+      {recon && (
+        <p className={l.panelRecon}>
+          <a href={reconHref(recon.slug)} className={buttonClass('default')}>Recon Lap · {recon.forYear - 1} pole in 3D →</a>
+          <span>The circuit, its height and the braking zones, from last year&apos;s pole lap.</span>
+        </p>
+      )}
       <h3 className={l.panelTitle}>Sessions, {place}</h3>
       {data.status === 'loading' && (
         <ul className={l.panelList} aria-hidden="true">
