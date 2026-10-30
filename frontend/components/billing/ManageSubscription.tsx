@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { billingPortalUrl } from '@/lib/api'
+import { billingPortalUrl } from '@/lib/billingApi'
 import { PAYMENTS_ENABLED, isSubscriptionToken } from '@/lib/payments'
 
 /**

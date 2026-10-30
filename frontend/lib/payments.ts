@@ -1,5 +1,5 @@
 import { getToken, tokenExpiry } from '@/lib/access'
-import { renewSubscription } from '@/lib/api'
+import { renewSubscription } from '@/lib/billingApi'
 
 import { PAYMENTS_ENABLED } from '@/lib/paymentsFlag'
 
