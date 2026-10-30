@@ -38,6 +38,7 @@ on:
 permissions:
   contents: write      # commit the analysis
   issues: write        # report a session that will not settle
+  actions: write       # start the OpenF1 telemetry of what was published
 
 concurrency:
   # Two runs pushing to main at once is the one way this corrupts itself.
@@ -177,6 +178,25 @@ jobs:
             sleep 5
           done
           echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      # Block 36: the race's telemetry goes to R2 in its own workflow (minutes of
+      # OpenF1 requests, no commit, no deploy). Only what this run committed; the
+      # telemetry script skips anything that is not a race. Never fails this job:
+      # a race on the site without its telemetry falls back to the API's FastF1.
+      - name: Queue the OpenF1 telemetry of the races just published
+        if: steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          KEYS=$(python -c "
+          import json
+          r = json.load(open('report.json'))
+          print(','.join(str(p['session_key']) for p in r.get('published', []) if not p.get('dry_run')))
+          ")
+          if [ -n "$KEYS" ]; then
+            gh workflow run telemetry-openf1.yml --ref "${{ github.ref_name }}" -f sessions="$KEYS" \
+              && echo "telemetry queued for $KEYS" || echo "::warning::could not queue the telemetry for $KEYS"
+          fi
 
       - name: Open an issue for a session that will not settle
         if: always()

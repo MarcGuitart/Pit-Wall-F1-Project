@@ -1,0 +1,174 @@
+# Race telemetry from OpenF1 into Cloudflare R2 (block 36), in batches.
+#
+# The telemetry tab reads <TELEMETRY_URL>/telemetry/v1/<session_key>/<mode>.json
+# first and falls back to the API's FastF1 cache when the file is not there, so
+# nothing here touches the repo or a deploy: files go to R2, and the site sees
+# them on the next request.
+#
+# Started three ways:
+#   - by hand, for a list of sessions or a whole season (the backfill);
+#   - by publish-race.yml, with the sessions it has just published (only races
+#     are built; the others are reported as skipped);
+#   - never on a schedule: a race reaches R2 because it was published.
+#
+# OpenF1 allows the account 55 requests a minute, shared with publish-race's
+# hourly run, so batches run one after another at 45 a minute. A race takes
+# about 75 to 90 requests, so a batch of 6 is about 12 minutes.
+#
+# Before R2 is set up (docs/telemetry-openf1.md) every run stops at the plan
+# with a notice, and does not fail.
+
+name: Telemetry (OpenF1) to R2
+
+on:
+  workflow_dispatch:
+    inputs:
+      sessions:
+        description: 'Session keys, comma-separated (non-races are skipped)'
+        required: false
+        default: ''
+      season:
+        description: 'Or a whole season so far, e.g. 2024'
+        required: false
+        default: ''
+      batch_size:
+        description: 'Races per batch job'
+        required: false
+        default: '6'
+      force:
+        description: 'Rebuild races already in R2'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run at a time: two would share the OpenF1 allowance and race on the index.
+  group: telemetry-openf1
+  cancel-in-progress: false
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  AWS_DEFAULT_REGION: auto
+  R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  R2_BUCKET: ${{ vars.R2_BUCKET }}
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      batches: ${{ steps.plan.outputs.batches }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install httpx==0.27.0
+
+      - name: Is R2 configured?
+        id: r2
+        env:
+          ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          if [ -z "$ACCOUNT" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$R2_BUCKET" ]; then
+            echo "::notice::R2 is not configured yet (secrets R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and variable R2_BUCKET): nothing to do. See docs/telemetry-openf1.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sessions to build
+        id: plan
+        env:
+          READY: ${{ steps.r2.outputs.ready }}
+          OPENF1_USERNAME: ${{ secrets.OPENF1_USERNAME }}
+          OPENF1_PASSWORD: ${{ secrets.OPENF1_PASSWORD }}
+          SESSIONS: ${{ inputs.sessions }}
+          SEASON: ${{ inputs.season }}
+          BATCH: ${{ inputs.batch_size }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$READY" != "true" ]; then echo "batches=[]" >> "$GITHUB_OUTPUT"; echo "count=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "$SESSIONS" ] && [ -z "$SEASON" ]; then echo "::error::give sessions or a season"; exit 1; fi
+          aws s3 cp "s3://$R2_BUCKET/telemetry/v1/index.json" index.json --endpoint-url "$R2_ENDPOINT" --only-show-errors || echo '{"sessions":{}}' > index.json
+          ARGS="--list --rpm 45"
+          [ -n "$SESSIONS" ] && ARGS="$ARGS --sessions $SESSIONS"
+          [ -n "$SEASON" ] && ARGS="$ARGS --season $SEASON"
+          [ "$FORCE" != "true" ] && ARGS="$ARGS --skip-index index.json"
+          python scripts/openf1_telemetry.py $ARGS > keys.txt
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          keys = [k.strip() for k in open("keys.txt") if k.strip()]
+          n = max(1, int(os.environ.get("BATCH") or 6))
+          batches = [",".join(keys[i:i + n]) for i in range(0, len(keys), n)]
+          print("batches=" + json.dumps(batches))
+          print(f"count={len(keys)}")
+          PY
+          echo "### Telemetry plan" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(wc -l < keys.txt | tr -d ' ') sessions: $(paste -sd, keys.txt)" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      max-parallel: 1        # one OpenF1 allowance
+      fail-fast: false       # a failed batch does not cancel the next ones
+      matrix:
+        batch: ${{ fromJSON(needs.plan.outputs.batches) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install httpx==0.27.0
+
+      - name: Build
+        env:
+          OPENF1_USERNAME: ${{ secrets.OPENF1_USERNAME }}
+          OPENF1_PASSWORD: ${{ secrets.OPENF1_PASSWORD }}
+        run: |
+          set +e
+          python scripts/openf1_telemetry.py --sessions "${{ matrix.batch }}" --out out --rpm 45 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          set -e
+          grep '^REPORT:' build.log | tail -1 | cut -c8- > report.json
+          echo "### Batch ${{ matrix.batch }}" >> "$GITHUB_STEP_SUMMARY"
+          cat report.json >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+      - name: Upload to R2 (gzip, JSON, one day of cache)
+        if: always()
+        run: |
+          [ -d out/telemetry/v1 ] || { echo "nothing to upload"; exit 0; }
+          find out/telemetry/v1 -name '*.json' | while read -r f; do
+            key="${f#out/}"
+            gzip -9 -c "$f" > "$f.gz"
+            aws s3 cp "$f.gz" "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors \
+              --content-type application/json --content-encoding gzip --cache-control "public, max-age=86400"
+            echo "uploaded $key ($(wc -c < "$f.gz") bytes gzip)"
+          done
+
+  index:
+    needs: [plan, build]
+    if: always() && needs.plan.outputs.count != '0' && needs.plan.outputs.count != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild the index from the bucket
+        run: |
+          aws s3 ls "s3://$R2_BUCKET/telemetry/v1/" --recursive --endpoint-url "$R2_ENDPOINT" | python3 scripts/telemetry_index.py > index.json
+          aws s3 cp index.json "s3://$R2_BUCKET/telemetry/v1/index.json" --endpoint-url "$R2_ENDPOINT" --only-show-errors \
+            --content-type application/json --cache-control "public, max-age=300"
+          echo "### Index: $(python3 -c 'import json; print(len(json.load(open("index.json"))["sessions"]))') races with OpenF1 telemetry" >> "$GITHUB_STEP_SUMMARY"

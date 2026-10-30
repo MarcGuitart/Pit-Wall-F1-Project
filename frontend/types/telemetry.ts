@@ -67,7 +67,7 @@ export type TelemetryData = {
   sector_boundaries: SectorBoundaries
   total_distance: number
   confidence: string
-  source: string // "FastF1"
+  source: string // "FastF1", or "OpenF1 car_data + location" (block 36, from R2)
   note: string | null
 }
 
