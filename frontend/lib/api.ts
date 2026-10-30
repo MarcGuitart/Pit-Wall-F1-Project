@@ -394,7 +394,8 @@ export async function engineerChat(payload: {
 }
 
 /**
- * Circuit telemetry (FastF1), loaded when the telemetry tab opens.
+ * Circuit telemetry, loaded when the telemetry tab opens: OpenF1 from R2 when
+ * the race is there (block 36), else the API's FastF1 cache.
  *
  * Block 32, task 7: "unavailable" is a fact about the session, not a failure,
  * so it is told apart from an error worth retrying.
@@ -410,11 +411,42 @@ export type TelemetryResult =
   | { kind: 'unavailable'; reason: 'race_only' | 'not_prepared' | 'no_data' }
   | { kind: 'error' }
 
+/**
+ * Block 36: race telemetry from OpenF1, as files on Cloudflare R2
+ * (NEXT_PUBLIC_TELEMETRY_URL, e.g. https://telemetry.pitwallengineer.com;
+ * .github/workflows/telemetry-openf1.yml writes them). One file per race and
+ * lap mode with the whole field; the drivers asked for are picked from it.
+ * Anything short of a usable file (variable unset, 404, network, bad JSON,
+ * none of those drivers) is null, and the API's FastF1 answer is used instead.
+ */
+export function telemetryBase(): string | null {
+  return process.env.NEXT_PUBLIC_TELEMETRY_URL?.replace(/\/+$/, '') || null
+}
+
+async function telemetryFromR2(sessionKey: number, drivers: string[], lapMode: string): Promise<TelemetryData | null> {
+  const base = telemetryBase()
+  if (!base) return null
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 8000)
+    const r = await fetch(`${base}/telemetry/v1/${sessionKey}/${lapMode}.json`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
+    if (!r.ok) return null
+    const data = (await r.json()) as TelemetryData
+    const want = new Set(drivers)
+    const picked = (data?.drivers ?? []).filter((d) => want.has(d.driver_code))
+    return picked.length ? { ...data, drivers: picked } : null
+  } catch {
+    return null
+  }
+}
+
 export async function getTelemetry(
   sessionKey: number,
   drivers: string[],
   lapMode: 'fastest_clean' | 'representative' = 'fastest_clean',
 ): Promise<TelemetryResult> {
+  const r2 = await telemetryFromR2(sessionKey, drivers, lapMode)
+  if (r2) return { kind: 'data', data: r2 }
   try {
     const data = await apiFetch<TelemetryData>(
       `/telemetry/${sessionKey}?drivers=${drivers.join(',')}&lap_mode=${lapMode}`,

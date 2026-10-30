@@ -74,3 +74,52 @@ describe('getTelemetry tells unavailable from error', () => {
     expect(await getTelemetry(9539, ['VER'])).toEqual({ kind: 'error' })
   })
 })
+
+describe('block 36: OpenF1 telemetry from R2 first, the API otherwise', () => {
+  const file = (codes: string[]) => ({
+    circuit_key: 'interlagos_2024', circuit_name: 'Interlagos', year: 2024, session_type: 'Race', circuit_outline: [],
+    drivers: codes.map((c) => ({ driver_code: c, team_colour: '#fff', lap_time: 80, fastest_lap_number: 3, lap_mode: 'fastest_clean', points: [], sector_1_time: null, sector_2_time: null, sector_3_time: null })),
+    sector_boundaries: { sector_1_end: 1, sector_2_end: 2 }, total_distance: 4309, confidence: 'Medium',
+    source: 'OpenF1 car_data + location', note: 'scaled to the official lap length',
+  })
+  afterEach(() => vi.unstubAllEnvs())
+  const load = async () => (await vi.importActual<typeof import('@/lib/api')>('@/lib/api')).getTelemetry
+
+  it('reads the race file from R2 and keeps only the drivers asked for', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TELEMETRY_URL', 'https://telemetry.example/')
+    const fetchMock = vi.fn(async (_url: string) => new Response(JSON.stringify(file(["VER", "NOR", "LEC"])), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const r = await (await load())(9636, ['NOR', 'VER'], 'representative')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://telemetry.example/telemetry/v1/9636/representative.json')
+    expect(r.kind).toBe('data')
+    expect(r.kind === 'data' && r.data.drivers.map((d) => d.driver_code)).toEqual(['VER', 'NOR'])
+  })
+
+  it.each([
+    ['a 404 on R2', async () => new Response('missing', { status: 404 })],
+    ['R2 unreachable', async () => { throw new TypeError('Failed to fetch') }],
+    ['none of the drivers in the file', async () => new Response(JSON.stringify(file(['ALO'])), { status: 200 })],
+  ])('%s: falls back to the API', async (_, r2) => {
+    vi.stubEnv('NEXT_PUBLIC_TELEMETRY_URL', 'https://telemetry.example')
+    const api = { ...file(['VER']), source: 'FastF1' }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url.startsWith('https://telemetry.example') ? r2() : new Response(JSON.stringify(api), { status: 200 }))))
+    const r = await (await load())(9636, ['VER'])
+    expect(r.kind === 'data' && r.data.source).toBe('FastF1')
+  })
+
+  it('without NEXT_PUBLIC_TELEMETRY_URL, R2 is never asked', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TELEMETRY_URL', '')
+    const fetchMock = vi.fn(async (_url: string) => new Response(JSON.stringify({ ...file(['VER']), source: 'FastF1' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await (await load())(9636, ['VER'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/telemetry/9636?drivers=VER')
+  })
+
+  it('the badge names the source', async () => {
+    const { telemetrySource } = await import('./index')
+    expect(telemetrySource('OpenF1 car_data + location')).toBe('OpenF1')
+    expect(telemetrySource('FastF1')).toBe('FastF1')
+    expect(telemetrySource(null)).toBe('FastF1')
+  })
+})

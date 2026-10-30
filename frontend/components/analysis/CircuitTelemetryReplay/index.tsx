@@ -14,8 +14,13 @@ import { ReplayControls } from './ReplayControls'
 import { SectorCards } from './SectorCards'
 import { GGDiagram } from './GGDiagram'
 import { GForceMeter } from './GForceMeter'
-import { Segmented, buttonClass, ui } from '@/components/ui'
+import { Badge, Segmented, buttonClass, ui } from '@/components/ui'
 import t from './telemetry.module.css'
+
+/** The badge's word for a telemetry answer's source (block 36): OpenF1 files from R2, or the API's FastF1. */
+export function telemetrySource(source: string | null | undefined): 'OpenF1' | 'FastF1' {
+  return /openf1/i.test(source ?? '') ? 'OpenF1' : 'FastF1'
+}
 
 const MAX_FETCH = 5
 const MAX_SELECTED = 3
@@ -206,7 +211,11 @@ export function CircuitTelemetryReplay({ sessionKey, analysis }: Props) {
           onChange={setMetric}
           multiDriver={selectedDrivers.length > 1}
         />
-        <span className={ui.sub} style={{ marginLeft: 'auto' }}>FastF1 · {data.confidence} confidence</span>
+        {/* Block 36: where these laps come from, said as a badge; the note (method, scaling) on hover. */}
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }} data-telemetry-source={telemetrySource(data.source)}>
+          <Badge title={data.note ?? undefined}>{telemetrySource(data.source)}</Badge>
+          <span className={ui.sub}>{data.confidence} confidence</span>
+        </span>
       </div>
 
       {/* ── Main 50/50 grid: circuit left · channels right ── */}
