@@ -9,7 +9,7 @@
  * Server component — this content never changes per visitor, so it does not
  * need 'use client' or any store.
  */
-import { PAYMENTS_ENABLED } from '@/lib/payments'
+import { PAYMENTS_ENABLED } from '@/lib/paymentsFlag'
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { FREE_SEASONS, PRO_PRICE_LABEL } from '@/lib/access'

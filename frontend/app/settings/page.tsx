@@ -15,7 +15,7 @@ import { formatExpiry } from '@/lib/format'
 import { Badge, PageContainer, PageHeader } from '@/components/ui'
 import { AccessCodeForm } from '@/components/access/AccessCodeForm'
 import pg from '@/components/layout/page.module.css'
-import { ManageSubscription } from '@/components/billing/ManageSubscription'
+import { LazyManageSubscription as ManageSubscription } from '@/components/billing/lazy'
 
 export default function SettingsPage() {
   const pro = useAccessStore((s) => s.pro)
