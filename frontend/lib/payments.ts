@@ -1,12 +1,10 @@
 import { getToken, tokenExpiry } from '@/lib/access'
 import { renewSubscription } from '@/lib/api'
 
-/**
- * Subscriptions (block 44) are off unless the site is built with
- * NEXT_PUBLIC_PAYMENTS_ENABLED=1. Off, nothing about them is shown and the
- * site keeps saying "Subscriptions are not open yet".
- */
-export const PAYMENTS_ENABLED = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === '1'
+import { PAYMENTS_ENABLED } from '@/lib/paymentsFlag'
+
+/** The flag (lib/paymentsFlag.ts), re-exported for the billing pages and components. */
+export { PAYMENTS_ENABLED }
 
 /** Renew this many days before the stored token runs out. */
 export const RENEW_WITHIN_DAYS = 5

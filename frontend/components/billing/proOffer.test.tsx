@@ -16,7 +16,8 @@ describe('ProOffer', () => {
   it('payments on: Subscribe, and Restore access for someone already paying', async () => {
     const { ProOffer } = await load('1')
     render(<ProOffer />)
-    expect(screen.getByRole('button', { name: /^Subscribe, / })).toBeTruthy()
+    // the button is loaded on demand (components/billing/lazy.tsx): it arrives after the first render
+    expect(await screen.findByRole('button', { name: /^Subscribe, / })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Restore access' }).getAttribute('href')).toBe('/billing/restore')
   })
 

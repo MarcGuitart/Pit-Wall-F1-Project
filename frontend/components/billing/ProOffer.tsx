@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { PAYMENTS_ENABLED } from '@/lib/payments'
+import { PAYMENTS_ENABLED } from '@/lib/paymentsFlag'
 import { ui } from '@/components/ui'
-import { SubscribeButton } from './SubscribeButton'
+import { LazySubscribeButton as SubscribeButton } from './lazy'
 
 /**
  * What every PRO wall offers besides the access code (block 44b), so a wall is never a dead end once the open

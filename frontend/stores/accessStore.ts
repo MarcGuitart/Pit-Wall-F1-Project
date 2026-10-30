@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { fetchAccessStatus, type AccessStatus } from '@/lib/api'
-import { renewIfDue } from '@/lib/payments'
+import { PAYMENTS_ENABLED } from '@/lib/paymentsFlag'
 import {
   ACCESS_CHANGED_EVENT,
   announceAccessChange,
@@ -72,8 +72,9 @@ export const useAccessStore = create<AccessState>((set) => {
   async function doRefresh() {
     applyLocalGuess()
     // A subscription token near its end is renewed first (block 44); with
-    // payments off, or a code token, this does nothing.
-    if (await renewIfDue()) applyLocalGuess()
+    // payments off, or a code token, this does nothing. Imported on demand,
+    // and not at all with payments off (block 52b).
+    if (PAYMENTS_ENABLED && await (await import('@/lib/payments')).renewIfDue()) applyLocalGuess()
     let status: AccessStatus
     try {
       status = await fetchAccessStatus()
