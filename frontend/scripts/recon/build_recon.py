@@ -180,7 +180,11 @@ FLAT = {"las vegas", "miami", "baku", "jeddah", "lusail", "yas marina circuit", 
         "shanghai", "singapore", "mexico city", "monza", "madring"}
 FLAT_MAX_M, ANY_MAX_M = 15.0, 120.0
 # Held by name until someone has looked at them: published only with --force.
-HOLD = {"las vegas": "16 m of height on a flat street circuit (block 52b): to be reviewed before publishing"}
+HOLD = {
+    "las vegas": "16 m of height on a flat street circuit (block 52b): to be reviewed before publishing",
+    "sakhir": "16.4 m on the 2025 pole lap, over the flat limit; possibly a real slope (block 52b). Not needed while the "
+              "2026 Bahrain Grand Prix at Sakhir is cancelled: review before publishing",
+}
 
 
 def height_range(loc: list[dict], t0: float, dur: float) -> float:
