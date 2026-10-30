@@ -1,30 +1,9 @@
 import { BUILD_COMMIT } from '@/lib/build'
 import type { Metadata } from 'next'
-import { Barlow_Condensed, Barlow, JetBrains_Mono } from 'next/font/google'
+import { archivo, jetbrainsMono } from '@/lib/fonts'
 import './globals.css'
 import { AccessBootstrap } from '@/components/access/AccessBootstrap'
 import { SweepOverlay } from '@/components/layout/SweepOverlay'
-
-const barlowCondensed = Barlow_Condensed({
-  subsets: ['latin'],
-  weight: ['400', '600', '700', '800', '900'],
-  variable: '--font-barlow-condensed',
-  display: 'swap',
-})
-
-const barlow = Barlow({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  variable: '--font-barlow',
-  display: 'swap',
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-jetbrains-mono',
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   // Absolute URLs for canonical and og:image (Block 29).
@@ -56,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${barlowCondensed.variable} ${barlow.variable} ${jetbrainsMono.variable} font-body antialiased bg-bg-primary text-text-primary`}
+        className={`${archivo.variable} ${jetbrainsMono.variable} font-body antialiased bg-bg-primary text-text-primary`}
       >
         <AccessBootstrap />
         {children}

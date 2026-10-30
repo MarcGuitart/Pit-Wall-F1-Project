@@ -71,6 +71,10 @@
 }
 
 body {
+  /* Barlow and Barlow Condensed are gone (lib/fonts.ts): their variables are
+     Archivo, set here because --font-archivo is defined on <body> by its class. */
+  --font-barlow: var(--font-archivo), system-ui, sans-serif;
+  --font-barlow-condensed: var(--font-archivo), system-ui, sans-serif;
   color: var(--foreground);
   background: var(--background);
 }
