@@ -8,9 +8,13 @@ Writes docs/img/readme-{analysis,live,telemetry,chaos}.png at 1440x900, device
 scale factor 2. Everything is captured in English from a historical race that is
 already published, so the numbers on screen are the site's own, not a mock.
 
-Run it only after the deploy that the README describes is live. The live shot
-needs a /live page that is serving a replay of that race; if none is, it is
-skipped with a message rather than saving an empty "not live yet" screen.
+Run it only after the deploy that the README describes is live.
+
+The live shot is the one exception to "a historical race": the production live
+server only serves the session in progress. The script asks it (/live/state)
+which session that is and captures /live/<key>; with no session running it
+skips the shot with a message rather than saving a "not live yet" screen.
+PRO pages need a token (PW_PRO_TOKEN) unless an open week is on.
 """
 from __future__ import annotations
 
@@ -24,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "img"
 
 SITE = "https://pitwallengineer.com"
+LIVE_API = "https://pit-wall-f1-project-live.onrender.com"   # docs/live-deployment.md
 # São Paulo 2024 race: a free season, a published analysis and precomputed
 # telemetry (the same session the repo features elsewhere).
 RACE_KEY = 9636
@@ -47,6 +52,9 @@ def clean(page: Page) -> None:
             except Exception:
                 pass
     page.keyboard.press("Escape")
+    # The open week line in the top bar is a banner, not product content.
+    page.evaluate("""() => { for (const el of document.querySelectorAll('header [role="status"], header p'))
+        if (/^Open week/i.test(el.textContent.trim())) el.style.display = 'none' }""")
     page.add_style_tag(content="""
         [role="alert"], [data-banner], [aria-label*="cookie" i], [class*="toast" i],
         [class*="Toast"], [aria-label="Open race engineer"] { display: none !important; }
@@ -86,8 +94,12 @@ def analysis(page: Page) -> None:
 
 def telemetry(page: Page) -> None:
     open_race(page, "Telemetry")
-    # The replay fetches the precomputed lap; wait for the circuit map's SVG.
-    page.locator("svg").first.wait_for(timeout=60_000)
+    # The tab marks its state: wait for the laps themselves, not a loader or an "unavailable" panel.
+    try:
+        page.locator('[data-telemetry-panel="data"]').wait_for(timeout=90_000)
+    except PWTimeout:
+        print("skipped telemetry: the tab did not show laps for this race.", file=sys.stderr)
+        return
     page.wait_for_timeout(3000)
     clean(page)
     shot(page, "telemetry")
@@ -95,14 +107,32 @@ def telemetry(page: Page) -> None:
 
 def chaos(page: Page) -> None:
     open_race(page, "Strategy")
-    target = page.get_by_text("Chaos", exact=False).first
+    target = page.get_by_role("heading", name="Chaos Index").first
     target.scroll_into_view_if_needed()
     page.evaluate("window.scrollBy(0, -120)")
     page.wait_for_timeout(500)
     shot(page, "chaos")
 
 
-def live(page: Page, live_url: str) -> None:
+def current_live_url() -> str | None:
+    """The /live page of the session the live server is serving now, or None."""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"{LIVE_API}/live/state", timeout=90) as r:
+            state = json.load(r)
+    except Exception as e:  # the free instance may be asleep or down
+        print(f"live server not reachable ({e})", file=sys.stderr)
+        return None
+    key = state.get("session_key") if state.get("state") == "live" else None
+    return f"{SITE}/live/{key}" if key else None
+
+
+def live(page: Page, live_url: str | None) -> None:
+    live_url = live_url or current_live_url()
+    if not live_url:
+        print("skipped live: no session is live right now; run it again during a session.", file=sys.stderr)
+        return
     page.goto(live_url, wait_until="domcontentloaded", timeout=90_000)
     try:
         # A real Timing table means the page is rendering a session, not the
@@ -122,8 +152,8 @@ SHOTS = {"analysis": analysis, "telemetry": telemetry, "chaos": chaos}
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--only", nargs="+", choices=[*SHOTS, "live"], help="capture just these")
-    ap.add_argument("--live-url", default=f"{SITE}/live/{RACE_KEY}",
-                    help="a /live page that is serving a replay of the race (PRO: set PW_PRO_TOKEN)")
+    ap.add_argument("--live-url", default=None,
+                    help="a /live page to capture; by default the session the live server reports as live")
     ap.add_argument("--pro-token", default=None,
                     help="PRO token to place in localStorage for the live page; read from the "
                          "environment variable PW_PRO_TOKEN if omitted. Never commit it.")
