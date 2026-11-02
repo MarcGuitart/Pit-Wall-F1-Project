@@ -1,208 +1,225 @@
 <div align="center">
 
-# PitWallEngineer.com
+# Pit Wall Engineer
 
 ### Watch F1 like an engineer, not like a spectator.
 
-A post-race intelligence dashboard that turns raw Formula 1 timing data into the analysis a race engineer would actually run: real pace, tyre degradation, pit impact, race phases, weather crossovers, and telemetry replay.
+**[pitwallengineer.com](https://pitwallengineer.com)** · **[Docs: free, PRO and live mode](https://pitwallengineer.com/docs)** · [Leer en español](README.es.md)
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind-custom%20race%20UI-38BDF8?logo=tailwindcss&logoColor=white)
-![OpenF1](https://img.shields.io/badge/Data-OpenF1-E10600)
-![AI](https://img.shields.io/badge/AI-Ollama%20local-black)
-
-**[pitwallengineer.com](https://pitwallengineer.com)** · **[What's free, what's PRO, and how live mode works →](https://pitwallengineer.com/docs)**
+![Python](https://img.shields.io/badge/Python-3.11-3776AB)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688)
+![Next.js](https://img.shields.io/badge/Next.js-14-000000)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6)
+![Data](https://img.shields.io/badge/Data-OpenF1-555555)
 
 </div>
 
+---
+
+## What it is
+
+Pit Wall Engineer turns raw Formula 1 timing data into the analysis a race engineer would run: true pace, tyre degradation, pit impact, race phases, weather crossovers and telemetry replay.
+
+During a session, Live mode puts the same lens on the feed as it arrives: timing and sectors, track map, car data, tyres, race control and team radio.
+
+Every number carries its confidence and the size of the sample behind it. A reading that cannot be judged yet is labelled as such, never rounded into certainty.
+
 <p align="center">
-  <img src="assets/hero-demo.gif" alt="Pit Wall Engineer, live telemetry replay" width="100%" />
+  <img src="docs/img/readme-analysis.png" alt="Race analysis: strategy view" width="100%" />
 </p>
 
 ---
 
-## What it does
+## Product principle: confidence and sample size
 
-After a Formula 1 race, the broadcast tells you who finished where. Pit Wall Engineer tries to answer the harder question: **why did that happen?** It surfaces the underlying story: who was actually fast when you strip out safety cars and traffic, who gained or lost positions through pit timing, where tyres started to fall off the cliff, and which decisions shaped the final order.
+A ranking built on four laps is not a ranking built on forty. The product treats that as a design rule, not a footnote.
 
-The pipeline is straightforward: the backend fetches raw data from OpenF1 across eight endpoints (laps, stints, pit stops, position, intervals, race control, weather, driver metadata), caches it per session, then runs a sequence of analytical services that build a single canonical `RaceTimeline` object. Every service reads from the same timeline, which keeps the analysis consistent across modules. The result is a typed `FullRaceAnalysis` JSON payload served to the Next.js frontend.
+- Pace results show how many clean laps they rest on and carry a confidence level derived from that count.
+- Excluded laps are logged with the reason, so every ranking can be audited.
+- Weather crossovers that overlap a safety car are flagged and downgraded, not credited to tyre choice alone.
+- In Live mode, anything that only exists at the chequered flag, such as the final Chaos Index, stays empty until then.
+- Pit window signals are measurements with a confidence and a stated basis, never a predicted stop lap.
 
-What makes it more than a timing table is the layer of interpretation on top of the data. Clean laps are separated from safety car and traffic-affected laps before pace is ranked. Pit stop impact is calculated using timestamp-interpolated position data, not just lap numbers. Weather crossovers track which drivers were early, on-time, or late relative to when conditions changed, and flag when a safety car happened to coincide with the window. The telemetry replay lets you watch any driver's throttle, brake, gear, and speed trace with a synchronised circuit map.
+---
+
+## Modules and the question each one answers
+
+| Module | Strategic question |
+|---|---|
+| **True Pace** | Who was actually fast once pit laps, safety car laps and outliers are removed? |
+| **Tyre degradation** | Where did each stint start to fall off, and how steep was it? |
+| **Pit impact** | Did the stop gain or lose positions, and was the undercut real? |
+| **Race phases** | What was the race doing on each lap: sorting, pit window, safety car reset, final push? |
+| **Chaos Index** | How disordered was the race, and on which lap did it peak? |
+| **DRS trains** | When were cars stuck in a group, and for how long? |
+| **Weather crossovers** | Who was early, on time or late when the track changed? |
+| **Clean air value** | What was running free worth against running in traffic? |
+| **Telemetry replay** | How did the drivers differ through speed, throttle, brake and gear on one lap? |
+| **Race control and radio** | What did the stewards and the pit wall say, and when? |
+| **AI race engineer** | What does this specific race say about a question I have? |
+
+Live mode adds a session view with eight tabs: **Timing**, **Track and car**, **Strategy**, **Predictions** (only when the live server sends a projection), **Race control and radio**, **Lap charts**, **Engineer AI** and **Feed**. Practice and qualifying sessions get their own profile: best laps, sector colours, long runs and session status.
 
 <p align="center">
-  <img src="assets/landing.png" alt="Pit Wall Engineer landing page" width="100%" />
-  <br />
-  <em>Select any season, any Grand Prix, any session — see <a href="https://pitwallengineer.com/docs">/docs</a> for what's free and what's PRO.</em>
-</p>
-
-<p align="center">
-  <img src="assets/strategy-dashboard.png" alt="Strategy view, São Paulo Grand Prix 2024" width="100%" />
-  <br />
-  <em>Strategy view, São Paulo Grand Prix 2024: Chaos 100/100, Extreme.</em>
+  <img src="docs/img/readme-live.png" alt="Live mode: timing, track map and car data" width="100%" />
 </p>
 
 ---
 
-## Features
+## Screenshots
 
-### True Pace Ranking
+Captured from a published historical race by [`scripts/readme_shots.py`](scripts/readme_shots.py).
 
-Raw lap-time averages lie: they fold in pit laps, safety car crawls, and the odd mistake. The pace service filters every driver's laps down to clean racing laps, excluding pit in/out laps, safety car and VSC neutralised laps, laps with no timing, and statistical outliers beyond 2.5× IQR, then ranks drivers on the median of what's left. Each result carries a confidence level derived from the clean-lap sample size and an exclusion log that shows exactly which laps were dropped and why, so the ranking is auditable rather than a black box.
-
-<img src="assets/true-pace-card.png" alt="True Pace detail, Verstappen" width="100%" />
-
-### Tyre Degradation & Pit Stop Impact
-
-Degradation is measured as the linear-regression slope of lap time across each stint, so a driver nursing a set of hards shows a gentle gradient while someone on the edge shows a steep one, classified into a cliff-risk level. Pit stops are scored on `lane_duration` against a benchmark, then combined with position data one lap before and three laps after the stop to produce a verdict: positions gained, lost, or neutral. Together they answer whether an undercut actually worked or just looked busy.
-
-<img src="assets/tyre-pit-panel.png" alt="Tyre & Pit analysis panel" width="100%" />
-
-### Race Phase Timeline & Chaos Index
-
-The race is segmented into labelled phases, including start/sorting, pit window, safety car reset, VSC period, weather crossover, DRS compression, and final push, resolved by a priority order so that a lap under a safety car is never mislabelled as ordinary racing. The Chaos Index rolls the disorder into a single 0–100 score built from safety cars, yellow flags, investigations, penalties, rain transitions, and total position volatility, and pins down the single `peak_chaos_lap` where the race was most out of shape.
-
-<img src="assets/chaos-timeline.png" alt="Race Phase Timeline, Chaos 100" width="100%" />
-
-### Weather Winners & Losers
-
-When the track transitions wet→dry or dry→wet, the crossover detector finds the window and classifies each driver's timing. The important guard here is that when a safety car overlaps a weather transition, the summary explicitly notes the concurrent SC and downgrades confidence; position gains during a crossover under safety car aren't attributed to tyre choice alone, which is where naive analyses go wrong.
-
-<img src="assets/weather-crossover.png" alt="Weather Strategy Impact" width="100%" />
-
-### Circuit Telemetry Replay
-
-The telemetry tab pulls lap data from FastF1 and plays back synchronised speed, throttle, brake, and gear channels against an animated SVG circuit map. You can watch the fastest clean lap for outright pace, or a representative lap closest to the driver's median for how they drove on average, with the replay running independently of the OpenF1 analysis pipeline and keyed only on year, circuit, and session type.
-
-<img src="assets/telemetry-replay.gif" alt="Circuit Telemetry Replay, Interlagos" width="100%" />
-
-### AI Race Engineer
-
-The chat is grounded in the session's own computed analysis, not a general-purpose model guessing from memory. Before answering, it receives a compact summary of the actual signals, including chaos score and peak lap, top clean-pace drivers, tyre cliffs, pit sequence, and race control events, so its answers reference this specific race and carry the same confidence framing as the rest of the dashboard. The model never sees raw OpenF1 arrays, only the interpreted analysis. In production the backend routes to Groq (`openai/gpt-oss-120b`) when `GROQ_API_KEY` is set; locally it tries Ollama first and falls back to Groq if no local model is running. If neither is available the chat degrades gracefully with a clear offline message.
-
-<img src="assets/ai-chat.gif" alt="AI Race Engineer, grounded Q&A" width="100%" />
-
-### Also included
-
-- **DRS Train Detection**: identifies groups of three or more cars stuck within one second of each other and how long each train held together.
-- **Pit Stop Impact detail**: per-stop breakdown of lane time and net position change with a plain-language verdict.
-- **Race DNA Card**: a deterministic eight-point fingerprint of the race (tyre management, strategy sensitivity, overtaking difficulty, and more), fully reproducible from the same input.
+| | |
+|---|---|
+| ![Analysis](docs/img/readme-analysis.png) | ![Live](docs/img/readme-live.png) |
+| Race analysis | Live mode |
+| ![Telemetry](docs/img/readme-telemetry.png) | ![Chaos](docs/img/readme-chaos.png) |
+| Telemetry replay | Chaos Index and race phases |
 
 ---
 
 ## Architecture
 
-The backend is a FastAPI application with an async OpenF1 client (httpx, `asyncio.Semaphore(3)` for concurrency, three-attempt exponential backoff). All OpenF1 responses are cached as JSON files per session and treated as immutable for historical races: no TTL and no re-fetch. The central design decision is a `RaceTimeline` object built once per session from all raw data, which every downstream service uses as its source of truth. This avoids each service independently resolving timestamps and lap boundaries. Data processing uses Polars; models are Pydantic v2.
-
-The frontend is Next.js 14 with the App Router, TypeScript strict mode, a custom Tailwind design system (no default palette), Framer Motion for transitions, and Zustand for race state. The interface separates analysis into two modes (Strategy View and Data View) and five tabs: Strategy, Tyre & Pit, Weather, Race Control, and Telemetry. The Circuit Telemetry Replay tab uses FastF1 for lap data and renders everything in animated SVG, without canvas or external charting libraries for the telemetry panel.
-
 ```
-OpenF1 API
-↓
-FastAPI backend (Python)
-├── Async client (httpx + semaphore + retry)
-├── File-based JSON cache (per session_key)
-├── RaceTimeline builder (canonical object, shared across all services)
-└── Services: pace · tyre · pit · chaos · dna · drs · weather · crossover
-             race_phase · clean_air · notes · decisions · telemetry
-↓
-FullRaceAnalysis (typed Pydantic model, cached as _analysis.json)
-↓
-Next.js 14 frontend (TypeScript)
-├── Strategy View / Data View toggle
-├── 5 tabs: Strategy · Tyre & Pit · Weather · Race Control · Telemetry
-├── Circuit Telemetry Replay (FastF1 + animated SVG, G-G diagram)
-└── AI Race Engineer chat (Ollama local → Groq cloud fallback, session context injected as system prompt)
+OpenF1 (REST + MQTT)
+  |
+  |-- Analysis API (FastAPI, Render)
+  |     async OpenF1 client (httpx, semaphore, retry)
+  |     per-session JSON cache, immutable for past races
+  |     RaceTimeline (one canonical object shared by every service)
+  |     services: pace, tyre, pit, chaos, drs, weather, crossover,
+  |               race phase, clean air, decisions, notes, DNA
+  |     FastF1 telemetry, precomputed and served from cache
+  |     AI chat: Ollama locally, Groq in production
+  |
+  |-- Recorder (Render, persistent disk)
+  |     holds the MQTT subscription, writes the capture,
+  |     archives finished captures to Cloudflare R2
+  |
+  |-- Live server (Render)
+  |     second MQTT subscription, one snapshot, SSE to browsers
+  |
+Frontend (Next.js 14 on Netlify)
+      historical analysis, Live mode, docs, access settings
 ```
+
+- **Frontend:** Next.js 14 (App Router), TypeScript strict, Tailwind, Framer Motion, Zustand, Recharts. Deployed on Netlify.
+- **Backend:** FastAPI, Pydantic v2, Polars, NumPy, httpx. Deployed on Render.
+- **Source:** OpenF1 for laps, stints, pit stops, position, intervals, race control, weather, drivers and the live MQTT feed. FastF1 for circuit telemetry.
+- **Cloudflare R2:** S3-compatible storage where the recorder archives finished live captures.
+- **Why the recorder and the live server are separate:** a bug in the viewer must never stop the recording, and OpenF1 MQTT has no replay. See [docs/live-infrastructure.md](docs/live-infrastructure.md) and [docs/live-deployment.md](docs/live-deployment.md).
+- **Publication:** a GitHub Action publishes each finished race into `backend/cache/` and a daily job precomputes telemetry. A commit to `main` is a deploy, which is why the Render blueprint uses build filters. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ---
 
-## Tech stack
+## Plans
 
-| Layer | Tech |
-|---|---|
-| Backend | Python 3.11, FastAPI, Pydantic v2, httpx, Polars, NumPy |
-| Frontend | Next.js 14, TypeScript strict, Tailwind CSS, Framer Motion, Zustand, Recharts |
-| Telemetry | FastF1, NumPy, SVG animation |
-| Data | OpenF1 REST API, file-based JSON cache per session |
-| AI | Groq cloud (`openai/gpt-oss-120b`, production) · Ollama (`llama3.1:8b`, local dev) |
+| | Seasons | Includes |
+|---|---|---|
+| **Free** | 2023 and 2024 | Full analysis, every session type, no account |
+| **PRO** | 2025 onwards and the current season | The above plus Live mode, EUR 2.99 per month once subscriptions open |
+
+Subscriptions are not open yet. PRO is available with an access code, entered once in Settings. The gate lives on the backend: the browser only holds a signed token. Details at [pitwallengineer.com/docs](https://pitwallengineer.com/docs).
 
 ---
 
-## Local setup
+## Run it locally
 
-### Prerequisites
+Requirements: Python 3.11, Node.js 18 or later. Ollama with `llama3.1:8b` is optional and only used by the AI chat.
 
-- Python 3.11+
-- Node.js 18+
-- Ollama with `llama3.1:8b` (optional, AI chat only)
+```bash
+# Backend
+cd backend
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload    # http://localhost:8000
+```
 
-### Backend
+```bash
+# Frontend
+cd frontend
+cp .env.local.example .env.local
+npm install
+npm run dev                      # http://localhost:3000
+```
+
+Tests:
+
+```bash
+cd backend && pip install -r requirements-dev.txt && pytest
+cd frontend && npm test
+```
+
+### Live mode against a recording
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
+pip install -r requirements-live.txt
+python scripts/live_server.py --replay 9636 --replay-speed 0.02
+# or replay a capture recorded by the recorder:
+python scripts/live_server.py --replay-capture <capture dir> --speed 60
+
+cd ../frontend
+NEXT_PUBLIC_LIVE_URL=http://localhost:8099 npm run dev
 ```
 
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:3000
-
-### AI race engineer
-
-**Production (Groq):** set `GROQ_API_KEY` in your environment (free tier at [console.groq.com](https://console.groq.com)). The backend picks it up automatically and routes to `openai/gpt-oss-120b` with no local model required.
-
-**Local dev (Ollama):** the backend tries Ollama first before falling back to Groq.
-
-```bash
-ollama pull llama3.1:8b
-ollama serve
-```
-
-If neither Ollama nor a Groq key is available, the chat degrades gracefully with a clear offline message rather than breaking the rest of the analysis.
-
-### Telemetry for additional sessions (optional)
-
-The featured sessions (Brasil 2024, España 2024) include precomputed telemetry. To generate it for any other cached session, run:
+### Telemetry for another session
 
 ```bash
 cd backend
 python scripts/precompute_telemetry.py --sessions <session_key> --drivers VER,NOR,LEC,PIA,RUS
 ```
 
-Replace `<session_key>` with the OpenF1 session key (e.g. `9662` for Abu Dhabi 2024). The script writes a JSON file to `backend/cache/` that the telemetry endpoint serves on the next request.
+---
+
+## Environment variables
+
+Names only. Real values belong in the host dashboards, never in the repo. Templates: `backend/.env.example` and `frontend/.env.local.example`.
+
+**Backend**
+
+| Variable | Purpose |
+|---|---|
+| `OPENF1_BASE_URL` | OpenF1 REST base URL |
+| `OPENF1_USERNAME`, `OPENF1_PASSWORD` | OpenF1 account, exchanged for a renewing bearer token |
+| `OPENF1_API_TOKEN` | Legacy static token, ignored when username and password are set |
+| `CACHE_DIR` | Where per-session JSON is stored |
+| `CORS_ORIGINS` | Allowed browser origins |
+| `ENVIRONMENT` | `development` or `production` |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Local AI chat |
+| `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_REASONING_EFFORT` | Production AI chat |
+| `FREE_SEASONS` | Seasons open to everyone |
+| `PRO_ACCESS_CODES`, `PRO_TOKEN_SECRET`, `PRO_TOKEN_TTL_DAYS` | PRO gate |
+| `INTERNAL_BUILD_SECRET` | Lets the publication Action compute PRO seasons |
+
+**Recorder and live server**
+
+| Variable | Purpose |
+|---|---|
+| `CAPTURE_BUCKET`, `CAPTURE_ENDPOINT_URL`, `CAPTURE_REGION` | S3-compatible archive (Cloudflare R2) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Credentials for that bucket |
+| `LIVE_ALLOWED_ORIGINS` | Origins allowed to open the live stream |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Operational notifications |
+
+**Frontend**
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Analysis API |
+| `NEXT_PUBLIC_LIVE_URL` | Live server |
+| `NEXT_PUBLIC_PW_BUILD` | Build label |
 
 ---
 
-## Data source
+## Data and attribution
 
-Data via [OpenF1](https://openf1.org), free and with no API key required for historical sessions. Historical race data is available from 2023 onwards. The backend caches all OpenF1 responses per session key and endpoint, so loading a race a second time is near-instant and works offline. Cache files are treated as immutable for past sessions.
-
-OpenF1's own data being free doesn't mean every season is free to read on the live site — see [pitwallengineer.com/docs](https://pitwallengineer.com/docs) for what's open access and what's PRO.
-
----
+Session data comes from [OpenF1](https://openf1.org) and circuit telemetry from FastF1. Historical data starts in 2023. Team radio clips are linked from the official archive and are never copied or stored here.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
 
-**Not affiliated with Formula 1, FIA, or any F1 team.**  
-OpenF1 data is used under their open data terms.
-
----
-
-<p align="center">
-  <img src="assets/outro.gif" alt="Pit Wall Engineer" width="100%" />
-</p>
+**Unofficial project. Not affiliated with Formula 1, the FIA or any team.** F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.
