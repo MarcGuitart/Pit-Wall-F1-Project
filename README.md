@@ -72,10 +72,6 @@ A session view with eight tabs: **Timing**, **Track & car**, **Strategy**, **Pre
 
 Practice and qualifying sessions get their own profile: best laps, sector colours, long runs and session status.
 
-<p align="center">
-  <img src="docs/img/readme-live.png" alt="Live mode: timing, track map and car data" width="100%" />
-</p>
-
 ### Lap telemetry
 
 The telemetry tab replays one lap per driver, fastest clean or representative, with speed, throttle, brake, gear and g forces against the circuit map.
@@ -100,12 +96,12 @@ The telemetry tab replays one lap per driver, fastest clean or representative, w
 
 Captured from a published historical race by [`scripts/readme_shots.py`](scripts/readme_shots.py).
 
-| | |
-|---|---|
-| ![Analysis](docs/img/readme-analysis.png) | ![Live](docs/img/readme-live.png) |
-| Race analysis | Live mode |
-| ![Telemetry](docs/img/readme-telemetry.png) | ![Chaos](docs/img/readme-chaos.png) |
-| Lap telemetry | Chaos Index and race phases |
+| | | |
+|---|---|---|
+| ![Analysis](docs/img/readme-analysis.png) | ![Telemetry](docs/img/readme-telemetry.png) | ![Chaos](docs/img/readme-chaos.png) |
+| Race analysis | Lap telemetry | Chaos Index and key decisions |
+
+São Paulo 2024 race, captured from the live site. A Live mode capture follows during a race weekend.
 
 ---
 

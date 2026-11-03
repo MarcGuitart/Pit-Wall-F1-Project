@@ -72,10 +72,6 @@ Una vista de sesión con ocho pestañas: **Timing**, **Track & car**, **Strategy
 
 Los libres y la clasificación tienen su propio perfil: mejores vueltas, colores de sector, tandas largas y estado de la sesión.
 
-<p align="center">
-  <img src="docs/img/readme-live.png" alt="Modo Live: tiempos, mapa de pista y datos del coche" width="100%" />
-</p>
-
 ### Telemetría por vuelta
 
 La pestaña de telemetría reproduce una vuelta por piloto, la más rápida limpia o la representativa, con velocidad, acelerador, freno, marcha y fuerzas g sobre el mapa del circuito.
@@ -100,12 +96,12 @@ La pestaña de telemetría reproduce una vuelta por piloto, la más rápida limp
 
 Tomadas de una carrera histórica publicada con [`scripts/readme_shots.py`](scripts/readme_shots.py).
 
-| | |
-|---|---|
-| ![Análisis](docs/img/readme-analysis.png) | ![Live](docs/img/readme-live.png) |
-| Análisis de carrera | Modo Live |
-| ![Telemetría](docs/img/readme-telemetry.png) | ![Caos](docs/img/readme-chaos.png) |
-| Telemetría por vuelta | Chaos Index y fases de carrera |
+| | | |
+|---|---|---|
+| ![Análisis](docs/img/readme-analysis.png) | ![Telemetría](docs/img/readme-telemetry.png) | ![Caos](docs/img/readme-chaos.png) |
+| Análisis de carrera | Telemetría por vuelta | Chaos Index y decisiones clave |
+
+Carrera de São Paulo 2024, capturada del sitio en producción. Una captura del modo Live llegará durante un fin de semana de carrera.
 
 ---
 

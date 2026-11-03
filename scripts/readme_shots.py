@@ -84,9 +84,16 @@ def shot(page: Page, name: str) -> None:
     print(f"saved {path.relative_to(ROOT)}")
 
 
+def to_tabs(page: Page) -> None:
+    """Bring the analysis tabs to the top, under the sticky bar: the shot is the tab's content, not the race header."""
+    page.evaluate("""() => { const nav = document.querySelector('nav[aria-label="Analysis views"]');
+        window.scrollTo(0, nav.getBoundingClientRect().top + scrollY - 90) }""")
+    page.wait_for_timeout(800)
+
+
 def analysis(page: Page) -> None:
     open_race(page, "Strategy")
-    page.evaluate("window.scrollTo(0, 0)")
+    to_tabs(page)
     shot(page, "analysis")
 
 
@@ -98,16 +105,33 @@ def telemetry(page: Page) -> None:
     except PWTimeout:
         print("skipped telemetry: the tab did not show laps for this race.", file=sys.stderr)
         return
-    page.wait_for_timeout(3000)
+    # The circuit map is drawn once the lap is in: wait for its path, not a fixed time.
+    try:
+        page.locator('[data-telemetry-panel="data"] svg path').first.wait_for(timeout=30_000)
+    except PWTimeout:
+        pass
+    # The replay starts at the line with empty channels: move it to about 70 % of the lap, so the traces are drawn
+    # and the car is on track (End, then back with the arrow key, as a keyboard user would).
+    scrub = page.get_by_role("slider", name="Lap position").first
+    scrub.focus()
+    page.keyboard.press("End")
+    while int(scrub.get_attribute("aria-valuenow") or 100) > 70:
+        page.keyboard.press("ArrowLeft")
+    page.wait_for_timeout(2000)
     clean(page)
+    to_tabs(page)
     shot(page, "telemetry")
 
 
 def chaos(page: Page) -> None:
     open_race(page, "Strategy")
-    target = page.get_by_role("heading", name="Chaos Index").first
+    # The Chaos Index card lives in the Strategy tab's Data View, under a panel title (not a heading).
+    page.get_by_text("Data View", exact=True).first.click()
+    settle(page, 800)
+    target = page.get_by_text("Chaos Index", exact=True).first
+    # The card's title just under the two sticky bars (site and Data View), so the whole card (score and its five parts) is in the frame.
     target.scroll_into_view_if_needed()
-    page.evaluate("window.scrollBy(0, -120)")
+    target.evaluate("el => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 190)")
     page.wait_for_timeout(500)
     shot(page, "chaos")
 
