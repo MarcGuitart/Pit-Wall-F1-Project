@@ -82,19 +82,22 @@ La pestaña de telemetría reproduce una vuelta por piloto, la más rápida limp
 
 ### Recon Lap
 
-`/recon/<circuito>` presenta un circuito antes de su Gran Premio a partir de la vuelta de la pole de la temporada anterior: la línea que siguió el coche en 3D con su desnivel registrado, reproduciéndose sola y deteniéndose en cada zona de frenada, con velocidad, marcha, acelerador y freno, un minimapa con el avance de la vuelta y un perfil de altura.
+`/recon/<circuito>` presenta un circuito antes de su Gran Premio a partir de la vuelta de la pole de la temporada anterior: la línea que siguió el coche en 3D con su desnivel registrado, como un recorrido por sus zonas de frenada, una a una. Las flechas del teclado o los botones pasan a la zona anterior o siguiente con la cámara quieta sobre ella, y un panel muestra lo que midieron los datos del coche en esa zona: velocidad de entrada, velocidad mínima, distancia de frenada, tiempo con el freno pisado, marcha en el mínimo y cambio de elevación. Va marcado como aproximado, con la frecuencia de muestreo de los datos y la sesión de referencia. La vuelta completa solo se reproduce cuando se pide, nunca sola. Un minimapa y un perfil de altura muestran dónde está la zona.
+
+![Recon Lap en Interlagos: zona de frenada 1 de 7, con sus cifras medidas](docs/img/readme-recon.png)
 
 - Las zonas de frenada se numeran BZ1, BZ2, etcétera, en el orden de la vuelta. No son los números de curva de la FIA, y la página lo dice.
 - Las distancias se escalan a la longitud oficial de la vuelta, leída de la página de cada Gran Premio en formula1.com y guardada con su fuente en `data/circuit_lengths.json`, la misma tabla que usa la telemetría por vuelta.
 - El generador no publica un circuito cuyo desnivel registrado no sea plausible (un circuito llano por encima de 15 m, cualquier circuito por encima de 120 m, o una segunda vuelta que no coincida) hasta que alguien lo haya revisado.
-- La vista 3D solo se carga en esa página. Con movimiento reducido, ahorro de datos o un móvil lento, es una imagen fija y la tabla de zonas de frenada.
+- La vista 3D solo se carga en esa página. Con ahorro de datos, una conexión lenta o un móvil lento, es una imagen fija con el mismo panel y la tabla de zonas de frenada. Con movimiento reducido la vista 3D se carga y la cámara salta entre zonas en lugar de desplazarse.
+- Una vuelta sin señal de freno busca sus zonas por caídas fuertes de velocidad y no muestra tiempo con el freno pisado, en lugar de inventarlo.
 - El primer circuito es Interlagos, antes del Gran Premio de São Paulo.
 
 ---
 
 ## Capturas
 
-Tomadas de una carrera histórica publicada con [`scripts/readme_shots.py`](scripts/readme_shots.py).
+Tomadas de una carrera histórica publicada con [`scripts/readme_shots.py`](scripts/readme_shots.py). La de la Recon Lap es Interlagos, zona de frenada 1.
 
 | | | |
 |---|---|---|

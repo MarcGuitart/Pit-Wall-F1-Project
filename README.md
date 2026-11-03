@@ -82,19 +82,22 @@ The telemetry tab replays one lap per driver, fastest clean or representative, w
 
 ### Recon Lap
 
-`/recon/<circuit>` previews a circuit before its Grand Prix from the previous season's pole lap: the line the car took in 3D with its recorded height, playing by itself and holding at every braking zone, with speed, gear, throttle and brake, a minimap with the lap's progress and a height profile.
+`/recon/<circuit>` previews a circuit before its Grand Prix from the previous season's pole lap: the line the car took in 3D with its recorded height, as a tour of its braking zones, one at a time. The arrow keys or the buttons move to the previous or next zone with the camera still on it, and a panel shows what the lap's car data measured there: entry speed, minimum speed, braking distance, time on the brakes, gear at the minimum and height change. It is labelled approximate, with the data's sampling rate and the reference session. The whole lap plays only when asked, never by itself. A minimap and a height profile show where the zone sits.
+
+![Recon Lap at Interlagos: braking zone 1 of 7, with its measured figures](docs/img/readme-recon.png)
 
 - Braking zones are numbered BZ1, BZ2 and so on in lap order. They are not the FIA turn numbers, and the page says so.
 - Distances are scaled to the official lap length, read from each Grand Prix's page on formula1.com and kept with its source in `data/circuit_lengths.json`, the same table the lap telemetry uses.
 - The generator refuses to publish a circuit whose recorded height is implausible (a flat circuit over 15 m, any circuit over 120 m, or a second lap that disagrees) until someone has reviewed it.
-- The 3D view loads only on that page. With reduced motion, data saver or a slow phone, it is a still image and the braking zone table.
+- The 3D view loads only on that page. With data saver, a slow connection or a slow phone, it is a still image with the same panel and the braking zone table. With reduced motion the 3D view loads and the camera cuts between zones instead of flying.
+- A lap with no brake signal finds its zones from the speed falling hard and shows no time on the brakes, rather than inventing one.
 - The first circuit is Interlagos, ahead of the São Paulo Grand Prix.
 
 ---
 
 ## Screenshots
 
-Captured from a published historical race by [`scripts/readme_shots.py`](scripts/readme_shots.py).
+Captured from a published historical race by [`scripts/readme_shots.py`](scripts/readme_shots.py). The Recon Lap shot is Interlagos, braking zone 1.
 
 | | | |
 |---|---|---|

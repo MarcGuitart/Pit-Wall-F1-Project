@@ -1,10 +1,10 @@
-"""Capture the four README screenshots from the deployed site.
+"""Capture the README screenshots from the deployed site.
 
     pip install playwright && playwright install chromium
     python scripts/readme_shots.py
     python scripts/readme_shots.py --only analysis telemetry
 
-Writes docs/img/readme-{analysis,live,telemetry,chaos}.png at 1440x900, device
+Writes docs/img/readme-{analysis,live,telemetry,chaos,recon}.png at 1440x900, device
 scale factor 2. Everything is captured in English from a historical race that is
 already published, so the numbers on screen are the site's own, not a mock.
 
@@ -136,6 +136,21 @@ def chaos(page: Page) -> None:
     shot(page, "chaos")
 
 
+def recon(page: Page) -> None:
+    """The Recon Lap at its first braking zone: the 3D scene with the zone panel over its foot."""
+    page.goto(f"{SITE}/recon/interlagos", wait_until="domcontentloaded", timeout=90_000)
+    # The tour opens on BZ1, parked. Wait for the scene itself (it counts its frames), then let the camera settle.
+    page.wait_for_function("() => (window.__pw3d && window.__pw3d.frames) > 30", timeout=90_000)
+    page.wait_for_timeout(2500)
+    page.add_style_tag(content="[data-promo-banner] { display: none !important; } * { caret-color: transparent !important; }")
+    # The stage just under the sticky site bar, so the scene and its panel are the whole frame.
+    page.evaluate("""() => { const st = document.querySelector('[role="group"]');
+        window.scrollTo(0, st.getBoundingClientRect().top + scrollY - 76) }""")
+    page.mouse.move(0, 0)
+    page.wait_for_timeout(800)
+    shot(page, "recon")
+
+
 def current_live_url() -> str | None:
     """The /live page of the session the live server is serving now, or None."""
     import json
@@ -168,7 +183,7 @@ def live(page: Page, live_url: str | None) -> None:
     shot(page, "live")
 
 
-SHOTS = {"analysis": analysis, "telemetry": telemetry, "chaos": chaos}
+SHOTS = {"analysis": analysis, "telemetry": telemetry, "chaos": chaos, "recon": recon}
 
 
 def main() -> int:
@@ -186,7 +201,8 @@ def main() -> int:
     token = args.pro_token or os.environ.get("PW_PRO_TOKEN")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        # The Recon Lap is WebGL: a software renderer at 2x would fall back to its still image, so use the GPU.
+        browser = p.chromium.launch(args=["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"] if "recon" in wanted else [])
         ctx = browser.new_context(
             viewport=VIEWPORT,
             device_scale_factor=SCALE,
