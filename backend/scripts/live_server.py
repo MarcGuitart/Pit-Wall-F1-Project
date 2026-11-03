@@ -240,6 +240,8 @@ class LiveFeed:
         self.token_at = 0.0
         self.token_ttl = 0.0
         self.renewals = 0
+        self.running = False                 # the feed thread is inside run()
+        self.last_error: str | None = None   # the last token or connect failure, for /health
         self._renewing = threading.Event()
         self._stop = threading.Event()
 
@@ -295,7 +297,11 @@ class LiveFeed:
         c.reconnect_delay_set(min_delay=1, max_delay=30)
         c.on_connect, c.on_subscribe = self.on_connect, self.on_subscribe
         c.on_disconnect, c.on_message = self.on_disconnect, self.on_message
-        c.connect(BROKER_HOST, BROKER_PORT, keepalive=60)
+        # connect_async, not connect: a blocking connect raised (TimeoutError on a
+        # broker that did not answer) before the loop existed, and the feed thread
+        # died with it. loop_start runs loop_forever(retry_first_connection=True),
+        # so paho itself retries the first connection with the backoff above.
+        c.connect_async(BROKER_HOST, BROKER_PORT, keepalive=60)
         c.loop_start()
         self.client = c
 
@@ -324,13 +330,36 @@ class LiveFeed:
         log("RENEW" if self.connected else "RENEW!",
             f"#{self.renewals} {'reconnected' if self.connected else 'NOT reconnected'} — gap {time.time() - cut:.2f}s")
 
-    def run(self) -> None:
-        self.fetch_token()
-        self.connect()
+    def first_token(self, min_delay: float = 2.0, max_delay: float = 60.0) -> bool:
+        """The first token, retried with backoff: an OpenF1 hiccup at boot must not end the feed."""
+        delay = min_delay
         while not self._stop.is_set():
-            time.sleep(1.0)
-            if not self._renewing.is_set() and self.token_expires_in <= RENEW_BEFORE_S:
-                self.renew()
+            try:
+                self.fetch_token()
+                return True
+            except (Exception, SystemExit) as exc:   # SystemExit: get_token() gave nothing back
+                self.last_error = f"token: {exc}"
+                log("TOKEN!", f"{exc} — retrying in {delay:.0f}s")
+                self._stop.wait(delay)
+                delay = min(delay * 2, max_delay)
+        return False
+
+    def run(self) -> None:
+        self.running = True
+        try:
+            if not self.first_token():
+                return
+            self.connect()
+            while not self._stop.is_set():
+                time.sleep(1.0)
+                if not self._renewing.is_set() and self.token_expires_in <= RENEW_BEFORE_S:
+                    self.renew()
+        except Exception as exc:
+            self.last_error = f"feed: {type(exc).__name__}: {exc}"
+            log("FEED!", f"the feed thread stopped: {self.last_error}")
+            traceback.print_exc()
+        finally:
+            self.running = False
 
     def stop(self) -> None:
         self._stop.set()
@@ -501,6 +530,10 @@ def build_app(state: RaceState, hub: Hub, feed: "LiveFeed | None",
             "uptime_s": round(time.time() - STARTED_AT),
             "messages": {t.replace("v1/", ""): n for t, n in state.counts.items()},
             "drivers_known": len(state.drivers),
+            # Whether the MQTT feed is alive at all: a dead thread used to look
+            # exactly like a quiet morning. Still 200, so Render's check is unchanged.
+            "feed": ({"running": feed.running, "connected": feed.connected,
+                      "renewals": feed.renewals, "last_error": feed.last_error} if feed else None),
         })
 
     async def index(request: Request) -> Response:
