@@ -475,3 +475,21 @@ def test_the_open_week_opens_the_live_gate_until_the_date(client, monkeypatch):
 def test_without_the_variable_the_live_gate_is_as_today(client, monkeypatch):
     monkeypatch.delenv("OPEN_ACCESS_UNTIL", raising=False)
     assert client.get("/live/11377/snapshot").status_code == 402
+
+
+# ── a public promo code (PRO_PROMO_CODES) ────────────────────────────────────
+
+def test_a_promo_token_opens_live_mode_and_outlives_the_promo(client, monkeypatch):
+    from datetime import datetime, timezone
+    from app.core import access
+    monkeypatch.delenv("OPEN_ACCESS_UNTIL", raising=False)
+    monkeypatch.setattr(settings, "pro_promo_codes", ["TESTPROMO9|2026-11-10T23:59:00+01:00"])
+    monkeypatch.setattr(access, "_now", lambda: datetime(2026, 11, 10, 22, 58, tzinfo=timezone.utc))
+    promo = access.find_promo("testpromo9")
+    assert promo is not None and promo.active()
+    t = encode_token(mint_token(promo.id, ttl_days=7))
+    assert client.get("/live/11377/snapshot").status_code == 402
+    assert client.get("/live/11377/snapshot", headers={"Authorization": f"Bearer {t}"}).status_code == 200
+    monkeypatch.setattr(access, "_now", lambda: datetime(2026, 11, 10, 23, 0, tzinfo=timezone.utc))
+    assert not promo.active()
+    assert client.get("/live/11377/snapshot", headers={"Authorization": f"Bearer {t}"}).status_code == 200

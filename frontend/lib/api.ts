@@ -234,6 +234,28 @@ export async function fetchOpenAccess(timeoutMs = 4000): Promise<OpenAccess> {
   }
 }
 
+/** The public promo code (PRO_PROMO_CODES on the API): GET /access/promo, read at run time, so the code itself is
+ *  never in this repo or the build. Never throws: no answer reads as no promo. */
+export type Promo = { active: boolean; code: string | null; until: string | null; days: number | null; answered: boolean }
+
+export async function fetchPromo(timeoutMs = 4000): Promise<Promo> {
+  const none = { active: false, code: null, until: null, days: null }
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/access/promo`, { signal: ctrl.signal })
+    if (!res.ok) return { ...none, answered: false }
+    const body = await res.json()
+    const active = body?.active === true && typeof body?.code === 'string' && typeof body?.until === 'string'
+    if (!active) return { ...none, answered: true }
+    return { active, code: body.code, until: body.until, days: typeof body.days === 'number' ? body.days : null, answered: true }
+  } catch {
+    return { ...none, answered: false }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Whether the API answers at all (GET /health, no token). The analysis loader
  * asks once a long wait has begun: an answer means the server is up and the

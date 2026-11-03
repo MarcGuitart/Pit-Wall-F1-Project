@@ -22,6 +22,7 @@ import { ProOffer } from '@/components/billing/ProOffer'
 
 export const REDEEM_ERROR: Record<string, string> = {
   INVALID_ACCESS_CODE: 'That code is not valid.',
+  PROMO_EXPIRED: 'That code has ended.',
   RATE_LIMITED: 'Too many attempts. Wait a few minutes and try again.',
   PRO_ACCESS_UNAVAILABLE: 'Access codes are not switched on yet.',
 }
