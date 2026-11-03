@@ -53,11 +53,13 @@ export function promoLanguage(): Lang {
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
 
-/** "3 days remaining", or "5h remaining" within the last 24 hours; rounded up, so it never reads 0 while running. */
+/** Whole days left, rounded down ("7 days remaining" while 7 or more full days are left), then hours within the
+ *  last 24 hours, rounded up so it never reads 0h while the promo runs. */
 export function remainingText(until: string, now: number, lang: Lang): string {
   const left = Math.max(0, Date.parse(until) - now)
   if (left > DAY) {
-    const n = Math.ceil(left / DAY)
+    const n = Math.floor(left / DAY)
+    if (n === 1) return lang === 'es' ? 'Queda 1 día' : '1 day remaining'
     return lang === 'es' ? `Quedan ${n} días` : `${n} days remaining`
   }
   const h = Math.max(1, Math.ceil(left / HOUR))
