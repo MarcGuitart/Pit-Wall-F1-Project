@@ -159,3 +159,34 @@ describe('refresh — concurrent calls', () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('the API not answering', () => {
+  // A reload right after redeeming aborted /access/status; the aborted request read as pro:false and the store
+  // dropped the token it had just been given (seen in production on 3 Nov). No answer must never drop a token.
+  it('keeps a stored token and the local guess when the status request fails', async () => {
+    storeToken('tok', Math.floor(Date.now() / 1000) + 3600)
+    vi.spyOn(api, 'fetchAccessStatus').mockRejectedValue(new TypeError('Failed to fetch'))
+    await useAccessStore.getState().refresh()
+    const s = useAccessStore.getState()
+    expect(s.pro).toBe(true)
+    expect(s.checked).toBe(false)
+    expect(localStorage.getItem('pwiq_pro_token')).toBe('tok')
+  })
+
+  it('keeps it on a server error too (a waking or failing API)', async () => {
+    storeToken('tok', Math.floor(Date.now() / 1000) + 3600)
+    vi.spyOn(api, 'fetchAccessStatus').mockRejectedValue(new Error('502'))
+    await useAccessStore.getState().refresh()
+    expect(localStorage.getItem('pwiq_pro_token')).toBe('tok')
+  })
+
+  it('an answer of pro:false still drops a token the API no longer accepts', async () => {
+    storeToken('tok', Math.floor(Date.now() / 1000) + 3600)
+    vi.spyOn(api, 'fetchAccessStatus').mockResolvedValue({
+      pro: false, expires_at: null, expires_in: null, free_seasons: [2023, 2024], redemption_available: true,
+    })
+    await useAccessStore.getState().refresh()
+    expect(useAccessStore.getState().pro).toBe(false)
+    expect(localStorage.getItem('pwiq_pro_token')).toBeNull()
+  })
+})
