@@ -9,9 +9,11 @@ pitwallengineer.com and this API is on Render, so a cookie between them is a
 third-party cookie and Safari blocks those outright. A cookie-based gate would
 work in development and fail silently for a large share of real visitors.
 
-Redemption is rate-limited per IP. The codes are long, but an endpoint that will
-answer "wrong code" as fast as you can ask is worth guessing at; a few attempts
-an hour is not.
+Redemption is rate-limited per IP, counting failed attempts only. The codes are
+long, but an endpoint that will answer "wrong code" as fast as you can ask is
+worth guessing at; a few wrong guesses an hour is not. A good code never counts:
+a public promo code is redeemed by many people behind one address (an office, a
+mobile carrier's NAT), and they must not lock each other out.
 """
 from __future__ import annotations
 
@@ -38,8 +40,8 @@ from app.core.ratelimit import SlidingWindow
 router = APIRouter(tags=["access"])
 logger = logging.getLogger(__name__)
 
-# Ten tries an hour from one address. Enough that mistyping a dash is harmless,
-# far too few to search a code space.
+# Ten failed tries an hour from one address. Enough that mistyping a dash is
+# harmless, far too few to search a code space.
 REDEEM_LIMIT = 10
 REDEEM_WINDOW_S = 3600
 _redeem_limiter = SlidingWindow(REDEEM_LIMIT, REDEEM_WINDOW_S)
@@ -82,8 +84,6 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
             status=429,
             details={"retry_after_seconds": int(wait) + 1, "scope": "ip"},
         )
-    _redeem_limiter.hit(ip)
-
     if not settings.pro_access_configured:
         # Not the caller's fault and not a wrong code: say so, rather than
         # letting a misconfigured deployment look like a rejected code.
@@ -99,6 +99,7 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
     if matched is None:
         promo = find_promo(body.code)
         if promo is not None and not promo.active():
+            _redeem_limiter.hit(ip)
             logger.info("[PRO] an ended promo code was tried from %s", ip)
             raise AppError(
                 "PROMO_EXPIRED",
@@ -108,6 +109,7 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
         if promo is not None:
             matched, ttl_days = promo.id, settings.pro_promo_token_ttl_days
     if matched is None:
+        _redeem_limiter.hit(ip)
         logger.info("[PRO] rejected an access code from %s", ip)
         raise AppError(
             "INVALID_ACCESS_CODE",

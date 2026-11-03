@@ -125,13 +125,31 @@ def test_the_same_promo_redeems_again_and_again(client, configured):
     assert [r.status_code for r in tokens] == [200, 200, 200]
 
 
-def test_redemption_is_rate_limited_per_address(client, configured):
+def test_failed_attempts_are_rate_limited_per_address(client, configured):
     from app.api import access as access_api
-    codes = [redeem(client, PROMO if i % 2 else "WRONG").status_code for i in range(access_api.REDEEM_LIMIT)]
-    assert 429 not in codes
-    r = redeem(client, PROMO)
+    codes = [redeem(client, "WRONG").status_code for _ in range(access_api.REDEEM_LIMIT)]
+    assert codes == [401] * access_api.REDEEM_LIMIT
+    r = redeem(client, PROMO)                      # even the right code, once the address is blocked
     assert r.status_code == 429
     assert error_code(r) == "RATE_LIMITED"
+
+
+def test_ended_promo_attempts_count_as_failures(client, configured, monkeypatch):
+    from app.api import access as access_api
+    monkeypatch.setattr(access, "_now", lambda: AFTER)
+    for _ in range(access_api.REDEEM_LIMIT):
+        assert error_code(redeem(client, PROMO)) == "PROMO_EXPIRED"
+    assert error_code(redeem(client, PROMO)) == "RATE_LIMITED"
+
+
+def test_good_redemptions_never_count(client, configured):
+    """Many people behind one address (an office, a carrier's NAT) redeem the public code."""
+    from app.api import access as access_api
+    codes = [redeem(client, PROMO).status_code for _ in range(3 * access_api.REDEEM_LIMIT)]
+    assert codes == [200] * (3 * access_api.REDEEM_LIMIT)
+    wrong = [redeem(client, "WRONG").status_code for _ in range(access_api.REDEEM_LIMIT)]
+    assert wrong == [401] * access_api.REDEEM_LIMIT       # the failures still have their full allowance
+    assert redeem(client, "WRONG").status_code == 429
 
 
 def test_a_redeemed_token_outlives_the_promo(client, configured, monkeypatch):
