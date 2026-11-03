@@ -23,7 +23,7 @@ _DEFAULT_CACHE_DIR = str(Path(__file__).parents[2] / "cache")
 # validators decide. JSON arrays still work, because the validators try JSON
 # first. (pydantic-settings 2.5 added NoDecode for exactly this; this project
 # is on 2.3.)
-_LENIENT_LIST_FIELDS = {"pro_access_codes", "free_seasons"}
+_LENIENT_LIST_FIELDS = {"pro_access_codes", "pro_promo_codes", "free_seasons"}
 
 
 class _LenientEnv(EnvSettingsSource):
@@ -95,6 +95,13 @@ class Settings(BaseSettings):
     # same as no gate at all, and failing closed is the only safe direction.
     pro_token_secret: SecretStr = SecretStr("")
     pro_token_ttl_days: int = 30
+    # Public promo codes: CODE|ISO 8601 instant with its zone, comma-separated
+    # (e.g. SOMECODE|2026-11-10T23:59:00+01:00). Anyone may redeem one, any
+    # number of times, until that instant; case does not matter. The token it
+    # mints lasts pro_promo_token_ttl_days and survives the code's end. Like the
+    # codes above, they live in Render's environment, never in this repo.
+    pro_promo_codes: list[str] = []
+    pro_promo_token_ttl_days: int = 7
     # A second, separate way through the PRO gate: the publication pipeline
     # (a GitHub Action) computes and commits a PRO-season analysis before
     # anyone could hold a user token for it. Not a PRO token — a static shared
@@ -115,7 +122,7 @@ class Settings(BaseSettings):
             file_secret_settings,
         )
 
-    @field_validator("pro_access_codes", "free_seasons", mode="before")
+    @field_validator("pro_access_codes", "pro_promo_codes", "free_seasons", mode="before")
     @classmethod
     def _parse_list(cls, v: object) -> object:
         """
@@ -153,7 +160,8 @@ class Settings(BaseSettings):
     @property
     def pro_access_configured(self) -> bool:
         """True when a code could actually be redeemed. Both halves are needed."""
-        return bool(self.pro_access_codes) and bool(self.pro_token_secret.get_secret_value())
+        has_codes = bool(self.pro_access_codes) or bool(self.pro_promo_codes)
+        return has_codes and bool(self.pro_token_secret.get_secret_value())
 
     @property
     def cache_path(self) -> Path:

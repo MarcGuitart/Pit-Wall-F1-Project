@@ -85,7 +85,10 @@ def code_id(code: str) -> str:
 
 
 def known_code_ids() -> set[str]:
-    return {code_id(c) for c in settings.pro_access_codes if c.strip()}
+    ids = {code_id(c) for c in settings.pro_access_codes if c.strip()}
+    # Every configured promo, ended or not: a code that stops redeeming must not
+    # take the tokens it already minted with it. Removing the entry does.
+    return ids | {p.id for p in promo_codes()}
 
 
 def match_code(submitted: str) -> str | None:
@@ -104,6 +107,70 @@ def match_code(submitted: str) -> str | None:
         if hmac.compare_digest(candidate, known):
             matched = known
     return matched
+
+
+# ── promo codes ──────────────────────────────────────────────────────────────
+#
+# PRO_PROMO_CODES: public codes, CODE|ISO 8601 instant with its zone. Anyone may
+# redeem one, as often as they like, until that instant, in any case. What they
+# mint is an ordinary token with its own expiry (PRO_PROMO_TOKEN_TTL_DAYS), so the
+# code ending stops new redemptions and leaves redeemed ones alone. An entry
+# without "|", without a zone, or with a date that does not parse is ignored and
+# logged, as OPEN_ACCESS_UNTIL is: an ambiguous end must not open anything.
+
+PROMO_PREFIX = "promo:"
+
+
+@dataclass(frozen=True)
+class PromoCode:
+    code: str              # as configured; matched without regard to case
+    until: datetime
+
+    @property
+    def id(self) -> str:
+        return PROMO_PREFIX + code_id(self.code.upper())
+
+    def active(self, now: datetime | None = None) -> bool:
+        return (now or _now()) < self.until
+
+
+def promo_codes() -> list[PromoCode]:
+    promos: list[PromoCode] = []
+    for entry in settings.pro_promo_codes:
+        code, sep, raw_until = (entry or "").partition("|")
+        code, raw_until = code.strip(), raw_until.strip()
+        if not code or not sep:
+            logger.warning("[PRO] a PRO_PROMO_CODES entry is not CODE|instant: ignored")
+            continue
+        try:
+            until = datetime.fromisoformat(raw_until.replace("Z", "+00:00"))
+        except ValueError:
+            logger.warning("[PRO] a PRO_PROMO_CODES end %r is not an ISO 8601 instant: ignored", raw_until)
+            continue
+        if until.tzinfo is None:
+            logger.warning("[PRO] a PRO_PROMO_CODES end %r has no time zone: ignored", raw_until)
+            continue
+        promos.append(PromoCode(code=code, until=until))
+    return promos
+
+
+def find_promo(submitted: str) -> PromoCode | None:
+    """The configured promo this code is, active or not, compared without case."""
+    submitted = (submitted or "").strip()
+    if not submitted:
+        return None
+    candidate = PROMO_PREFIX + code_id(submitted.upper())
+    found: PromoCode | None = None
+    for promo in promo_codes():
+        if hmac.compare_digest(candidate, promo.id):
+            found = promo
+    return found
+
+
+def current_promo(now: datetime | None = None) -> PromoCode | None:
+    """The active promo ending last, for the banner; None when none is running."""
+    running = [p for p in promo_codes() if p.active(now)]
+    return max(running, key=lambda p: p.until) if running else None
 
 
 # ── seasons ──────────────────────────────────────────────────────────────────

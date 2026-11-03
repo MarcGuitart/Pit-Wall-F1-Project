@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAccessStore } from '@/stores/accessStore'
-import { formatUntil, useHasAccess, useOpenAccess } from '@/lib/openAccess'
+import { useHasAccess } from '@/lib/openAccess'
 import { useLiveStatus } from '@/hooks/useLiveStatus'
 import { RadioTrigger } from '@/components/radio/RadioTrigger'
 import { AddToCalendarButton } from '@/components/ui/AddToCalendarButton'
@@ -13,6 +13,7 @@ import { proSeasons } from '@/lib/access'
 import { formatLocalDateTime } from '@/lib/format'
 import s from './shell.module.css'
 import { SweepLink } from './SweepLink'
+import { OpenWeekBanner } from './OpenWeekBanner'
 import { RACES_LABEL } from '@/lib/sweep'
 
 type BreadcrumbItem = {
@@ -36,7 +37,6 @@ export function TopBar({ breadcrumb }: TopBarProps) {
   const showProBadge = useAccessStore((st) => st.pro && st.showBadge)
   // PRO features in the interface: a token, or the open week (lib/openAccess.ts).
   const pro = useHasAccess()
-  const openWeek = useOpenAccess((st) => (st.open ? st.until : null))
   const currentSeasonYear = proSeasons()[0]
   const { liveSessionKey, liveChecked, nextLive } = useLiveStatus(pro, currentSeasonYear)
   const [showLiveTip, setShowLiveTip] = useState(false)
@@ -45,9 +45,8 @@ export function TopBar({ breadcrumb }: TopBarProps) {
 
   return (
     <header className={s.bar}>
-      {openWeek && (
-        <p className={s.openWeek} role="status">Open week: everything is free until {formatUntil(openWeek)}</p>
-      )}
+      {/* The public promo code (PRO_PROMO_CODES), fixed to the bottom of the viewport: it moves nothing here. */}
+      <OpenWeekBanner />
       <Link href="/" className={s.brand}>PIT WALL<span>ENGINEER</span></Link>
 
       {/* PRO indicator — only when active, never a permanent "Free" that adds

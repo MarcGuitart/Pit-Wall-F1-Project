@@ -1,6 +1,7 @@
 """
 POST /access/redeem — exchange an access code for a signed token.
 GET  /access/status  — what the token in the Authorization header is worth.
+GET  /access/promo   — the public promo code running now, for the banner.
 
 The token goes back in the response body and the browser stores it, sending it
 as `Authorization: Bearer <token>` afterwards. Not a cookie: the frontend is on
@@ -21,8 +22,10 @@ from pydantic import BaseModel, Field
 
 from app.core.access import (
     bearer_token,
+    current_promo,
     decode_token,
     encode_token,
+    find_promo,
     match_code,
     mint_token,
     is_open_access,
@@ -92,6 +95,18 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
         )
 
     matched = match_code(body.code)
+    ttl_days = None
+    if matched is None:
+        promo = find_promo(body.code)
+        if promo is not None and not promo.active():
+            logger.info("[PRO] an ended promo code was tried from %s", ip)
+            raise AppError(
+                "PROMO_EXPIRED",
+                "That code has ended.",
+                status=410,
+            )
+        if promo is not None:
+            matched, ttl_days = promo.id, settings.pro_promo_token_ttl_days
     if matched is None:
         logger.info("[PRO] rejected an access code from %s", ip)
         raise AppError(
@@ -100,7 +115,7 @@ async def redeem(body: RedeemRequest, request: Request) -> RedeemResponse:
             status=401,
         )
 
-    token = mint_token(matched)
+    token = mint_token(matched, ttl_days=ttl_days)
     logger.info("[PRO] issued a token for code %s (expires %s)", matched, token.expires_at)
     return RedeemResponse(
         token=encode_token(token),
@@ -126,6 +141,29 @@ async def open_access(response: Response) -> OpenAccessResponse:
     until = open_access_until()
     response.headers["Cache-Control"] = "public, max-age=60"
     return OpenAccessResponse(open=is_open_access(), until=until.isoformat() if until else None)
+
+
+class PromoResponse(BaseModel):
+    active: bool
+    code: str | None = None
+    until: str | None = None
+    days: int | None = None     # how long a redeemed token lasts
+
+
+@router.get("/access/promo", response_model=PromoResponse)
+async def promo(response: Response) -> PromoResponse:
+    """
+    Public: the promo code running now (PRO_PROMO_CODES), the one ending last if
+    several are. The code itself is in the answer on purpose: it is a public
+    code the banner shows, and keeping it here keeps it out of the repo and the
+    build. Nothing running answers active: false and no code.
+    """
+    response.headers["Cache-Control"] = "public, max-age=60"
+    current = current_promo()
+    if current is None:
+        return PromoResponse(active=False)
+    return PromoResponse(active=True, code=current.code, until=current.until.isoformat(),
+                         days=settings.pro_promo_token_ttl_days)
 
 
 @router.get("/access/status", response_model=StatusResponse)

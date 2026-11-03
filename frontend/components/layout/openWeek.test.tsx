@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   fetchRaces: vi.fn(async () => races2026),
   fetchSessions: vi.fn(async () => []),
   fetchPublished: vi.fn(async () => null),
+  fetchPromo: vi.fn(),
+  redeemAccessCode: vi.fn(),
 }))
 vi.mock('@/lib/api', () => api)
 vi.mock('@/stores/accessStore', () => ({
@@ -44,18 +46,19 @@ async function week(open: boolean) {
 }
 
 describe('top bar', () => {
-  it('says the week is open, with its end, and drops the "Live PRO" wall', async () => {
+  // The open week's line left the top bar for the promo banner (OpenWeekBanner.tsx); the week, if ever set,
+  // still opens every PRO feature in the interface.
+  it('the week drops the "Live PRO" wall, with no line of its own in the bar', async () => {
     await week(true)
     render(<TopBar />)
-    expect(screen.getByRole('status').textContent).toBe('Open week: everything is free until Tue 3 Nov, 10:00 CET')
+    expect(screen.queryByText(/Open week/)).toBeNull()
     expect(screen.queryByLabelText(/Live PRO/)).toBeNull()
   })
 
-  it('the notice goes by itself at 10:00 CET and the wall is back', async () => {
+  it('the wall is back by itself at 10:00 CET', async () => {
     await week(true)
     render(<TopBar />)
     await act(async () => { vi.advanceTimersByTime(2 * 60_000) })
-    expect(screen.queryByText(/Open week/)).toBeNull()
     expect(screen.getByLabelText(/Live PRO/)).toBeTruthy()
   })
 
