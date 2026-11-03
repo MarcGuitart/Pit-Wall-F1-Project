@@ -43,10 +43,15 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('remainingText', () => {
   const end = Date.parse(UNTIL)
-  it('whole days while more than a day is left, rounded up', () => {
+  it('whole days while more than a day is left, rounded down', () => {
     expect(remainingText(UNTIL, end - 7 * 86_400_000, 'en')).toBe('7 days remaining')
-    expect(remainingText(UNTIL, end - 25 * 3_600_000, 'en')).toBe('2 days remaining')
-    expect(remainingText(UNTIL, end - 3 * 86_400_000, 'es')).toBe('Quedan 3 días')
+    expect(remainingText(UNTIL, end - (7 * 24 + 13) * 3_600_000, 'en')).toBe('7 days remaining')   // 3 Nov's case
+    expect(remainingText(UNTIL, end - (7 * 86_400_000 - 60_000), 'en')).toBe('6 days remaining')   // a minute short of 7
+    expect(remainingText(UNTIL, end - 3.9 * 86_400_000, 'es')).toBe('Quedan 3 días')
+  })
+  it('one day, singular, between 24 and 48 hours', () => {
+    expect(remainingText(UNTIL, end - 25 * 3_600_000, 'en')).toBe('1 day remaining')
+    expect(remainingText(UNTIL, end - 47 * 3_600_000, 'es')).toBe('Queda 1 día')
   })
   it('hours on the last day, never 0 while running', () => {
     expect(remainingText(UNTIL, end - 24 * 3_600_000, 'en')).toBe('24h remaining')
@@ -78,7 +83,7 @@ describe('banner', () => {
     vi.setSystemTime(new Date('2026-11-09T22:58:30Z'))      // a day and 30 s left
     await promo()
     render(<OpenWeekBanner />)
-    expect(screen.getByText('2 days remaining')).toBeTruthy()
+    expect(screen.getByText('1 day remaining')).toBeTruthy()
     await act(async () => { vi.advanceTimersByTime(60_000) })
     expect(screen.getByText('24h remaining')).toBeTruthy()
   })
