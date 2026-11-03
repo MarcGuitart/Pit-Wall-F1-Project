@@ -22,7 +22,14 @@ const C = { bg: '#05060a', ground: '#07080c', asphalt: '#111318', text: '#f0f2f5
 const UP = new Vector3(0, 1, 0)
 const hot = (hex: string, k: number) => new Color(hex).multiplyScalar(k)
 
-export type Clock = { s: number; stop: number | null }
+/**
+ * What the page tells the scene each frame. `s` is where the car's light is. With `focus` the camera sits still
+ * on that stretch, framing the road from `from` to `to`; without it, it chases the light. `active` is the zone drawn
+ * brightest. `cut` skips the camera's easing (reduced motion): every change of view is a cut. `inset` is the
+ * fraction of the canvas's height covered at the foot by the zone panel: a focus is centred above it.
+ */
+export type Focus = { s: number; from: number; to: number }
+export type Clock = { s: number; focus: Focus | null; active: number | null; cut: boolean; inset: number }
 export type SceneState = { frames: number; dpr: number; bloom: boolean }
 
 declare global { interface Window { __pw3d?: SceneState } }
@@ -141,8 +148,9 @@ export function createScene(opts: {
   const left = new Line(m.edge(6.5), edgeMat), right = new Line(m.edge(-6.5), edgeMat)
   const centre = new Line(m.edge(0, 5), new LineDashedMaterial({ color: C.text, transparent: true, opacity: 0.22, dashSize: 10, gapSize: 14 }))
   centre.computeLineDistances()
-  const red = new MeshBasicMaterial({ color: hot(C.accent, 1.15), toneMapped: false, transparent: true, opacity: 0.95 })
-  const zones = recon.zones.map((z) => new Mesh(m.strip(z.from, Math.max(z.to, z.from + 8), 7, 0.25, 3), red))
+  const redOn = new MeshBasicMaterial({ color: hot(C.accent, 1.15), toneMapped: false, transparent: true, opacity: 0.95 })
+  const redOff = new MeshBasicMaterial({ color: hot(C.accent, 1.15), toneMapped: false, transparent: true, opacity: 0.4 })
+  const zones = recon.zones.map((z) => new Mesh(m.strip(z.from, Math.max(z.to, z.from + 8), 7, 0.25, 3), redOff))
   const start = new Mesh(m.strip(0, 3, 15, 0.3, 1), new MeshBasicMaterial({ color: hot(C.text, 1.2), toneMapped: false }))
   scene.add(ground, grid, asphalt, wall, left, right, ...zones, start)
   if (pose !== 'still') scene.add(centre)
@@ -180,12 +188,13 @@ export function createScene(opts: {
   ro.observe(canvas)
   resize()
 
-  // labels: one per zone, at the zone's minimum; shown for the next 700 m (DOM labels are not hidden by hills)
+  // labels: one per zone, at the zone's minimum; shown for the next 700 m, or within 450 m of a focus (DOM labels are not hidden by hills)
   const tags = recon.zones.map((z) => ({ z, el: labels.querySelector<HTMLElement>(`[data-bz="${z.id}"]`), p: m.at(z.apex).add(new Vector3(0, 8, 0)) }))
   const proj = new Vector3()
 
-  const look = new Vector3(), p = new Vector3(), t = new Vector3(), l = new Vector3(), want = new Vector3(), ahead = new Vector3()
-  let side = 0, first = true, last = performance.now()
+  const look = new Vector3(), p = new Vector3(), t = new Vector3(), l = new Vector3(), want = new Vector3(), ahead = new Vector3(), dir = new Vector3()
+  let first = true, last = performance.now(), viewShift = 0, fitKey = '', fitDist = 150
+  const fitMid = new Vector3(), fitDir = new Vector3(), fitV = new Vector3()
   const rig = (dt: number) => {
     if (pose === 'still') {
       const d = Math.max(m.box.max.x - m.box.min.x, (m.box.max.z - m.box.min.z) * 1.5)  // depth reads foreshortened: a tall circuit needs more room
@@ -193,16 +202,53 @@ export function createScene(opts: {
       camera.lookAt(cx - 30, 0, cz - 30)
       return
     }
-    m.at(clock.s, p); m.tangent(clock.s, t)
-    t.y = 0; t.normalize(); l.copy(t).cross(UP)
-    side += ((clock.stop != null ? 1 : 0) - side) * (1 - Math.exp(-dt * 2.2))
-    want.copy(p).addScaledVector(t, -85 + 30 * side).addScaledVector(l, 70 * side)
-    want.y += 38 + 55 * side
-    m.at(clock.s + 70 - 40 * side, ahead)
-    if (first) { camera.position.copy(want); look.copy(ahead); first = false }
+    const f = clock.focus
+    if (f) {
+      // still, above and beside the stretch, as far as it takes for all of it to sit in the part the panel leaves free
+      const key = `${f.from}|${f.to}|${camera.aspect.toFixed(3)}|${clock.inset.toFixed(3)}`
+      if (key !== fitKey) {
+        fitKey = key
+        const n = Math.max(2, Math.ceil((f.to - f.from) / 20))
+        const pts = Array.from({ length: n + 1 }, (_, i) => m.at(f.from + ((f.to - f.from) * i) / n))
+        fitMid.set(0, 0, 0)
+        pts.forEach((q) => fitMid.add(q))
+        fitMid.divideScalar(pts.length)
+        m.tangent((f.from + f.to) / 2, t)
+        t.y = 0; t.normalize(); l.copy(t).cross(UP)
+        fitDir.set(0, 0.78, 0).addScaledVector(t, -0.3).addScaledVector(l, 0.55).normalize()
+        const probe = new PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far)
+        const yLo = -1 + clock.inset + 0.1, yHi = 0.74 - clock.inset, xHi = 0.86  // the shift below moves the image up by `inset`
+        let d = 70
+        for (; d < 1200; d *= 1.06) {
+          probe.position.copy(fitMid).addScaledVector(fitDir, d)
+          probe.lookAt(fitMid)
+          probe.updateMatrixWorld()
+          probe.updateProjectionMatrix()
+          const fits = pts.every((q) => { fitV.copy(q).project(probe); return Math.abs(fitV.x) <= xHi && fitV.y >= yLo && fitV.y <= yHi })
+          if (fits) break
+        }
+        fitDist = d
+      }
+      want.copy(fitMid).addScaledVector(fitDir, fitDist)
+      ahead.copy(fitMid)
+    } else {
+      m.at(clock.s, p); m.tangent(clock.s, t)
+      t.y = 0; t.normalize()
+      want.copy(p).addScaledVector(t, -85)
+      want.y += 38
+      m.at(clock.s + 70, ahead)
+    }
+    if (first || clock.cut) { camera.position.copy(want); look.copy(ahead); first = false }
     camera.position.lerp(want, 1 - Math.exp(-dt * 4))
     look.lerp(ahead, 1 - Math.exp(-dt * 6))
     camera.lookAt(look)
+    // a focus is centred in what the panel leaves free: shift the image up by half the panel's share
+    const shift = f ? Math.round(canvas.clientHeight * clock.inset * 0.5) : 0
+    if (shift !== viewShift) {
+      viewShift = shift
+      if (shift) camera.setViewOffset(canvas.clientWidth, canvas.clientHeight, 0, shift, canvas.clientWidth, canvas.clientHeight)
+      else camera.clearViewOffset()
+    }
   }
 
   const state: SceneState = { frames: 0, dpr, bloom: bloomOn }
@@ -235,12 +281,15 @@ export function createScene(opts: {
     const c = traceAt(recon.trace, clock.s).brake ? brakeRed : white
     pc.setXYZ(0, c.r, c.g, c.b)
     pa.needsUpdate = pc.needsUpdate = true
+    zones.forEach((zm, i) => { zm.material = pose === 'still' || recon.zones[i].id === clock.active ? redOn : redOff })
     const w = canvas.clientWidth, h = canvas.clientHeight
     for (const tag of tags) {
       if (!tag.el) continue
-      const ahead = (((tag.z.apex - clock.s) % m.L) + m.L) % m.L
+      const ref = clock.focus ? clock.focus.s : clock.s
+      const ahead = (((tag.z.apex - ref) % m.L) + m.L) % m.L
       proj.copy(tag.p).project(camera)
-      const show = (pose === 'still' || ahead < 700 || ahead > m.L - 40) && proj.z < 1
+      const near = clock.focus ? ahead < 450 || ahead > m.L - 450 : ahead < 700 || ahead > m.L - 40
+      const show = (pose === 'still' || near) && proj.z < 1
       tag.el.style.opacity = show ? '1' : '0'
       if (show) tag.el.style.transform = `translate(${((proj.x + 1) / 2) * w}px, ${((1 - proj.y) / 2) * h}px) translate(-50%, -140%)`
     }

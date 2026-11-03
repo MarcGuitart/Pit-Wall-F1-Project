@@ -1,14 +1,16 @@
 /**
  * What the Recon Lap can afford on this device, decided before three.js loads.
  *
- *   still   the image and the table instead of the scene: reduced motion, data
- *           saver, 2G/3G, a small low-end phone, no WebGL
+ *   still   the image and the table instead of the scene: data saver, 2G/3G,
+ *           a small low-end phone, no WebGL. Reduced motion is not one of them:
+ *           the zone tour never moves by itself (the lap plays only when asked)
+ *           and the camera cuts instead of flying; see ReconView.
  *   bloom   off on a phone and on GPUs known to be weak (software renderers,
  *           integrated Intel HD/UHD, older Mali/Adreno/PowerVR)
  *
  * ?still=1 forces the still, ?force3d=1 the scene, ?bloom=0|1 the glow (captures, measurements).
  */
-export type StillReason = 'reduced-motion' | 'slow-device' | 'save-data' | 'no-webgl' | 'forced' | 'low-fps'
+export type StillReason = 'slow-device' | 'save-data' | 'no-webgl' | 'forced' | 'low-fps'
 
 type Nav = Navigator & { connection?: { saveData?: boolean; effectiveType?: string }; deviceMemory?: number }
 
@@ -19,7 +21,6 @@ export function stillReason(): StillReason | null {
   const q = new URLSearchParams(window.location.search)
   if (q.has('still')) return 'forced'
   if (q.has('force3d')) return null
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'reduced-motion'
   const nav = navigator as Nav
   if (nav.connection?.saveData) return 'save-data'
   if (/(^|-)2g$|^3g$/.test(nav.connection?.effectiveType ?? '')) return 'slow-device'
@@ -50,7 +51,6 @@ export function wantsBloom(): boolean {
 }
 
 export const STILL_COPY: Record<StillReason, string> = {
-  'reduced-motion': 'Still image: your system asks for reduced motion.',
   'slow-device': 'Still image: this device or connection is slow for the 3D view.',
   'save-data': 'Still image: data saver is on.',
   'no-webgl': 'Still image: WebGL is not available here.',

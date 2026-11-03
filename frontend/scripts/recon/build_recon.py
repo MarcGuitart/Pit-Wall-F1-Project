@@ -19,7 +19,9 @@ What it does, all from recorded data:
      itself is left as recorded; only the metre marks move.
   4. car_data (speed, gear, throttle, brake) is placed on the line by time. A braking zone is a run of brake
      samples (one-sample gaps bridged) with a drop of at least 20 km/h to the minimum that follows; zones are
-     numbered BZ1… in lap order. They are not the FIA's turn numbers and the page says so.
+     numbered BZ1… in lap order. They are not the FIA's turn numbers and the page says so. If the lap has no brake
+     sample at all, zones are found from the speed instead (runs of hard falls, same 20 km/h rule), the data says
+     so ("zones_by": "speed") and the time on the brakes is null: it was not measured.
 
 Output: <out>/<slug>.json (a few KB gzip), where slug is the circuit_short_name in lower-case kebab.
 """
@@ -199,28 +201,52 @@ def height_range(loc: list[dict], t0: float, dur: float) -> float:
 
 # ── braking zones ───────────────────────────────────────────────────────────
 
-def braking_zones(tr: list[dict]) -> list[dict]:
-    """tr: samples with s, speed, gear, brake (bool), in lap order."""
+MIN_DROP = 20        # km/h a zone must lose, from its first sample to the minimum that follows
+HARD_STEP = 12       # km/h lost between two consecutive samples (~0.25 s) that counts as braking when there is no brake signal
+
+
+def _zone(tr, a, b, by_brake):
+    # the minimum: from the first sample to where speed stops falling after the last one
+    m = min(range(a, min(len(tr), b + 12)), key=lambda k: tr[k]["speed"])
+    drop = tr[a]["speed"] - tr[m]["speed"]
+    if drop < MIN_DROP:
+        return None
+    return {"from": tr[a]["s"], "to": tr[b]["s"], "apex": tr[m]["s"], "fromSpeed": round(tr[a]["speed"]),
+            "minSpeed": round(tr[m]["speed"]), "drop": round(drop), "gear": tr[m]["gear"],
+            # time with the brake pressed exists only when there is a brake signal
+            "seconds": round(tr[b]["t"] - tr[a]["t"], 2) if by_brake else None}
+
+
+def braking_zones(tr: list[dict]) -> tuple[list[dict], str]:
+    """tr: samples with s, speed, gear, brake (bool), in lap order. Returns the zones and how they were found.
+
+    "brake": a run of brake samples (one-sample gaps bridged) that loses at least MIN_DROP km/h.
+    "speed": used only when the lap has no brake sample at all (the channel is missing or stuck at 0): a run of
+    samples that each lose at least HARD_STEP km/h to the next one (one-sample gaps bridged), starting at the sample
+    where the fall starts. The brake time is then not known and is left null."""
     n, zones, i = len(tr), [], 0
+    by_brake = any(r["brake"] for r in tr)
+    hard = [bool(r["brake"]) for r in tr] if by_brake else \
+           [k + 1 < n and tr[k]["speed"] - tr[k + 1]["speed"] >= HARD_STEP for k in range(n)]
     while i < n:
-        if not tr[i]["brake"]:
+        if not hard[i]:
             i += 1
             continue
         a = i
-        while i + 1 < n and (tr[i + 1]["brake"] or (i + 2 < n and tr[i + 2]["brake"])):
+        while i + 1 < n and (hard[i + 1] or (i + 2 < n and hard[i + 2])):
             i += 1
         b = i
-        # the minimum: from the first brake sample to where speed stops falling after the last one
-        m = min(range(a, min(n, b + 12)), key=lambda k: tr[k]["speed"])
-        drop = tr[a]["speed"] - tr[m]["speed"]
-        if drop >= 20:
-            zones.append({"from": tr[a]["s"], "to": tr[b]["s"], "apex": tr[m]["s"], "fromSpeed": round(tr[a]["speed"]),
-                          "minSpeed": round(tr[m]["speed"]), "drop": round(drop), "gear": tr[m]["gear"],
-                          "seconds": round(tr[b]["t"] - tr[a]["t"], 2)})
+        if not by_brake:
+            b = min(n - 1, b + 1)  # the run's last step ends on the sample after it
+            while b > a and not hard[b - 1]:
+                b -= 1
+        z = _zone(tr, a, b, by_brake)
+        if z:
+            zones.append(z)
         i += 1
     for k, z in enumerate(zones, 1):
         z["id"] = k
-    return zones
+    return zones, ("brake" if by_brake else "speed")
 
 
 # ── main ────────────────────────────────────────────────────────────────────
@@ -314,7 +340,7 @@ def main() -> None:
             sv += measured
         tr.append({"s": round(sv * k, 1), "t": round(t, 2), "speed": float(c.get("speed") or 0), "gear": int(c.get("n_gear") or 0),
                    "brake": (c.get("brake") or 0) > 0, "throttle": float(c.get("throttle") or 0)})
-    zones = braking_zones(tr)
+    zones, zones_by = braking_zones(tr)
 
     # Height checks. The P2 driver's best lap is measured the same way: a real hill shows on both laps, noise
     # or a bad z does not. Failing any check prints why and writes nothing (unless --force after a review).
@@ -359,7 +385,7 @@ def main() -> None:
         "elevation_m": q1(height), "elevation_check_m": q1(check) if check is not None else None,
         "line": [[q1(p[0]), q1(p[1]), q1(p[2])] for p in (line[i] for i in keep)],
         "line_s": [q1(s[i] * k) for i in keep],
-        "zones": zones,
+        "zones": zones, "zones_by": zones_by,
         "trace": [[r["s"], round(r["speed"]), r["gear"], 1 if r["brake"] else 0, round(r["throttle"]), r["t"]] for r in tr],
         "source": f"OpenF1 location (x, y, z) and car_data, session {key}",
         "note": ("Braking zones are numbered in lap order (BZ1…); they are not the FIA turn numbers. The line is the pole "
@@ -375,6 +401,7 @@ def main() -> None:
           f"{official or measured:.0f} m (×{k:.4f}) · elevation {data['elevation_m']} m · {len(zones)} braking zones · {api.requests} requests")
     for z in zones:
         print(f"  BZ{z['id']:<2} {z['from']:>7.1f}→{z['to']:>7.1f} m  {z['fromSpeed']:>3}→{z['minSpeed']:>3} km/h (−{z['drop']})  gear {z['gear']}  {z['seconds']} s")
+    print(f"zones found by: {zones_by}")
 
 
 if __name__ == "__main__":

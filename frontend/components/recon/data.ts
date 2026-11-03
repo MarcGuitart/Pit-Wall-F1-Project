@@ -16,8 +16,10 @@ export type BrakingZone = {
   fromSpeed: number
   minSpeed: number
   drop: number
+  /** Gear at the minimum speed. */
   gear: number
-  seconds: number
+  /** First to last brake sample, seconds. null when the lap has no brake signal (zones found from the speed). */
+  seconds: number | null
 }
 
 /** [s, speed, gear, brake 0|1, throttle, time into the lap] per car_data sample. */
@@ -39,6 +41,8 @@ export type Recon = {
   line: [number, number, number][]
   line_s: number[]
   zones: BrakingZone[]
+  /** How the zones were found: the brake channel, or (a lap without one) the speed falling. Older files: brake. */
+  zones_by?: 'brake' | 'speed'
   trace: TraceRow[]
   source: string
   note: string
@@ -78,27 +82,80 @@ export function timeAtS(tr: TraceRow[], s: number): number {
 }
 
 /**
- * The automatic lap: real time × `speed`, holding `hold` seconds at every
- * braking zone's minimum. Returns where the lap is at a wall-clock time.
+ * The fluid lap: real time x `speed`, with no holds. Returns the arc length
+ * reached `wall` seconds after it starts, `from` metres in (a lap begun at a zone).
  */
-export function timeline(r: Recon, speed = 6, hold = 1.3) {
+export function lapPlayer(r: Recon, speed = 6) {
   const tr = r.trace
-  const stops = r.zones.map((z) => ({ id: z.id, t: timeAtS(tr, z.apex) }))
   const lapT = tr[tr.length - 1][5]
-  const total = lapT / speed + stops.length * hold
+  const total = lapT / speed
   return {
     total,
-    at(wall: number): { s: number; stop: number | null } {
-      const e = ((wall % total) + total) % total
-      for (let k = 0; k < stops.length; k++) {
-        const reach = stops[k].t / speed + k * hold
-        if (e < reach) return { s: sAtTime(tr, (e - k * hold) * speed), stop: null }
-        if (e < reach + hold) return { s: sAtTime(tr, stops[k].t), stop: stops[k].id }
-      }
-      return { s: sAtTime(tr, Math.min(lapT, (e - stops.length * hold) * speed)), stop: null }
+    /** Arc length after `wall` seconds, starting at arc length `from`; wraps at the line. */
+    at(wall: number, from = 0): number {
+      const t0 = timeAtS(tr, Math.max(0, Math.min(from, tr[tr.length - 1][0])))
+      const t = (t0 + wall * speed) % lapT
+      return sAtTime(tr, t)
     },
   }
 }
+
+/** The zone a lap at arc length s is heading for: the first whose minimum speed is still ahead (the first again after the last). */
+export const zoneAhead = (r: Recon, s: number): number => {
+  const i = r.zones.findIndex((z) => z.apex >= s - 20)
+  return i < 0 ? 0 : i
+}
+
+/** Samples per second of the car data, from the first to the last sample of the lap. */
+export function sampleRate(tr: TraceRow[]): number {
+  const span = tr[tr.length - 1][5] - tr[0][5]
+  return span > 0 ? (tr.length - 1) / span : 0
+}
+
+/** Height above the lap's lowest point at arc length s, metres, along the recorded (smoothed) line. */
+export function heightAt(r: Recon, s: number): number {
+  const L = r.length_m, ss = r.line_s, n = ss.length
+  const x = ((s % L) + L) % L
+  let i = 0
+  while (i < n - 1 && ss[i + 1] <= x) i++
+  const j = (i + 1) % n, end = j === 0 ? L : ss[j]
+  const u = Math.max(0, Math.min(1, (x - ss[i]) / (end - ss[i] || 1)))
+  return r.line[i][2] + u * (r.line[j][2] - r.line[i][2])
+}
+
+/**
+ * What the panel shows for a zone: only figures read from the car data, or
+ * derived from them by arithmetic. Distances and times come from sample to
+ * sample, so each is good to about one sample step (see `stepMetres`).
+ */
+export type ZoneFacts = {
+  id: number
+  of: number
+  entry: number
+  min: number
+  /** First to last brake sample, metres (a lap without brake signal: the stretch of hard speed loss). */
+  metres: number
+  /** null when the lap has no brake signal. */
+  seconds: number | null
+  gear: number
+  /** Height at the last braking sample minus at the first, metres, from the recorded line. null without a height. */
+  climb: number | null
+}
+
+export function zoneFacts(r: Recon, z: BrakingZone): ZoneFacts {
+  const has = r.elevation_m > 0 && r.line.every((p) => Number.isFinite(p[2]))
+  return {
+    id: z.id, of: r.zones.length, entry: z.fromSpeed, min: z.minSpeed,
+    metres: Math.round(z.to - z.from), seconds: z.seconds, gear: z.gear,
+    climb: has ? Math.round(heightAt(r, z.to) - heightAt(r, z.from)) : null,
+  }
+}
+
+/** What the camera must show for a zone: the road from the first brake sample to the minimum speed (or the last brake sample, if later). */
+export const zoneFocus = (z: BrakingZone) => { const to = Math.max(z.apex, z.to); return { s: (z.from + to) / 2, from: z.from, to } }
+
+/** Metres the car covers between two samples at `kmh`, at the lap's sample rate: the resolution of every distance and time of a zone. */
+export const stepMetres = (kmh: number, hz: number) => (hz > 0 ? kmh / 3.6 / hz : 0)
 
 export const lapClock = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(3).padStart(6, '0')}`
 
