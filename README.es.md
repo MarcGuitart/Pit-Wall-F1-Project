@@ -159,7 +159,8 @@ Frontend (Next.js 14 en Netlify)
 
 - **Códigos de acceso:** PRO está disponible con un código de acceso, introducido una vez en Ajustes. La puerta vive en el backend; el navegador solo guarda un token firmado.
 - **Suscripciones:** las suscripciones PRO mensuales están integradas y permanecen apagadas tras un flag hasta que se abran. Apagadas, ningún código de pago llega al navegador y el sitio dice que las suscripciones abren pronto.
-- **Semana abierta:** definir `OPEN_ACCESS_UNTIL` en la API y en el servidor live abre todas las temporadas PRO y el modo Live a todo el mundo hasta ese instante, y la barra superior dice hasta cuándo. Pasado ese momento, todo vuelve a ser como antes sin desplegar.
+- **Códigos promocionales:** un código público definido en `PRO_PROMO_CODES` (código e instante de fin) lo puede canjear cualquiera, sin distinguir mayúsculas, hasta que termina. Un banner muestra el código con una cuenta atrás y un campo para canjearlo. Un código canjeado da PRO durante `PRO_PROMO_TOKEN_TTL_DAYS` días y sigue funcionando cuando el código ya ha terminado. El código vive en el entorno de la API, nunca en este repo.
+- **Semana abierta:** definir `OPEN_ACCESS_UNTIL` en la API y en el servidor live abre todas las temporadas PRO y el modo Live a todo el mundo hasta ese instante. Pasado ese momento, todo vuelve a ser como antes sin desplegar.
 
 Detalles en [pitwallengineer.com/docs](https://pitwallengineer.com/docs).
 
@@ -247,6 +248,7 @@ Solo nombres. Los valores reales van en los paneles de cada servicio, nunca en e
 | `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_REASONING_EFFORT` | Chat IA en producción |
 | `FREE_SEASONS` | Temporadas abiertas a todos |
 | `PRO_ACCESS_CODES`, `PRO_TOKEN_SECRET`, `PRO_TOKEN_TTL_DAYS` | Puerta PRO |
+| `PRO_PROMO_CODES`, `PRO_PROMO_TOKEN_TTL_DAYS` | Códigos promocionales públicos como `CÓDIGO\|instante ISO 8601 con su zona`, y cuánto dura uno canjeado |
 | `OPEN_ACCESS_UNTIL` | Semana abierta: un instante ISO 8601 con su zona horaria |
 | `INTERNAL_BUILD_SECRET` | Permite a la Action de publicación calcular temporadas PRO |
 | `PAYMENTS_ENABLED` | Suscripciones encendidas o apagadas |
@@ -262,6 +264,7 @@ Solo nombres. Los valores reales van en los paneles de cada servicio, nunca en e
 | `CAPTURE_BUCKET`, `CAPTURE_ENDPOINT_URL`, `CAPTURE_REGION` | Archivo compatible con S3 (Cloudflare R2) |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Credenciales de ese bucket |
 | `LIVE_ALLOWED_ORIGINS` | Orígenes que pueden abrir el stream live |
+| `PRO_ACCESS_CODES`, `PRO_PROMO_CODES`, `PRO_TOKEN_SECRET` | Los mismos valores que en la API, para que sus tokens abran el modo Live |
 | `OPEN_ACCESS_UNTIL` | Semana abierta, como en la API |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Notificaciones operativas |
 

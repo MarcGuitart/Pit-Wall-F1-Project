@@ -159,7 +159,8 @@ Frontend (Next.js 14 on Netlify)
 
 - **Access codes:** PRO is available with an access code, entered once in Settings. The gate lives on the backend; the browser only holds a signed token.
 - **Subscriptions:** monthly PRO subscriptions are built in and stay off behind a flag until they open. Off, no payment code reaches the browser and the site says subscriptions open soon.
-- **Open week:** setting `OPEN_ACCESS_UNTIL` on the API and the live server opens every PRO season and Live mode to everyone until that instant, and the top bar says until when. Past it, everything is as before without a deploy.
+- **Promo codes:** a public code set in `PRO_PROMO_CODES` (code and end instant) can be redeemed by anyone, in any case, until it ends. A banner shows the code with a countdown and a field to redeem it. A redeemed code gives PRO for `PRO_PROMO_TOKEN_TTL_DAYS` days, and keeps working after the code itself ends. The code lives in the API's environment, never in this repo.
+- **Open week:** setting `OPEN_ACCESS_UNTIL` on the API and the live server opens every PRO season and Live mode to everyone until that instant. Past it, everything is as before without a deploy.
 
 Details at [pitwallengineer.com/docs](https://pitwallengineer.com/docs).
 
@@ -247,6 +248,7 @@ Names only. Real values belong in the host dashboards, never in the repo. Templa
 | `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_REASONING_EFFORT` | Production AI chat |
 | `FREE_SEASONS` | Seasons open to everyone |
 | `PRO_ACCESS_CODES`, `PRO_TOKEN_SECRET`, `PRO_TOKEN_TTL_DAYS` | PRO gate |
+| `PRO_PROMO_CODES`, `PRO_PROMO_TOKEN_TTL_DAYS` | Public promo codes as `CODE\|ISO 8601 instant with its zone`, and how long a redeemed one lasts |
 | `OPEN_ACCESS_UNTIL` | Open week: an ISO 8601 instant with its time zone |
 | `INTERNAL_BUILD_SECRET` | Lets the publication Action compute PRO seasons |
 | `PAYMENTS_ENABLED` | Subscriptions on or off |
@@ -262,6 +264,7 @@ Names only. Real values belong in the host dashboards, never in the repo. Templa
 | `CAPTURE_BUCKET`, `CAPTURE_ENDPOINT_URL`, `CAPTURE_REGION` | S3-compatible archive (Cloudflare R2) |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Credentials for that bucket |
 | `LIVE_ALLOWED_ORIGINS` | Origins allowed to open the live stream |
+| `PRO_ACCESS_CODES`, `PRO_PROMO_CODES`, `PRO_TOKEN_SECRET` | The same values as the API, so its tokens open Live mode |
 | `OPEN_ACCESS_UNTIL` | Open week, as on the API |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Operational notifications |
 

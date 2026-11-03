@@ -14,7 +14,8 @@ The live shot is the one exception to "a historical race": the production live
 server only serves the session in progress. The script asks it (/live/state)
 which session that is and captures /live/<key>; with no session running it
 skips the shot with a message rather than saving a "not live yet" screen.
-PRO pages need a token (PW_PRO_TOKEN) unless an open week is on.
+PRO pages need a token (PW_PRO_TOKEN) unless an open week is on. The promo
+banner is hidden, as every other banner.
 """
 from __future__ import annotations
 
@@ -52,11 +53,8 @@ def clean(page: Page) -> None:
             except Exception:
                 pass
     page.keyboard.press("Escape")
-    # The open week line in the top bar is a banner, not product content.
-    page.evaluate("""() => { for (const el of document.querySelectorAll('header [role="status"], header p'))
-        if (/^Open week/i.test(el.textContent.trim())) el.style.display = 'none' }""")
     page.add_style_tag(content="""
-        [role="alert"], [data-banner], [aria-label*="cookie" i], [class*="toast" i],
+        [role="alert"], [data-banner], [data-promo-banner], [aria-label*="cookie" i], [class*="toast" i],
         [class*="Toast"], [aria-label="Open race engineer"] { display: none !important; }
         * { caret-color: transparent !important; }
         *, *::before, *::after { animation: none !important; transition: none !important; }
