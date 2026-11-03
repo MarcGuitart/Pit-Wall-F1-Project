@@ -9,9 +9,10 @@ export type MinimapHandle = { set: (s: number) => void }
 /**
  * The circuit from above, north up: the line, the braking zones in red, the
  * part of the lap already driven brighter, and a dot where the lap is. The
- * page moves the dot every frame through the handle; React renders it once.
+ * page moves the dot every frame through the handle; React renders it once
+ * (again when the active zone changes, which is drawn heavier).
  */
-export const Minimap = forwardRef<MinimapHandle, { recon: Recon; className?: string }>(function Minimap({ recon, className }, ref) {
+export const Minimap = forwardRef<MinimapHandle, { recon: Recon; className?: string; active?: number | null }>(function Minimap({ recon, className, active }, ref) {
   const W = 200, P = 8
   const geo = useMemo(() => {
     const xs = recon.line.map((p) => p[0]), ys = recon.line.map((p) => p[1])
@@ -53,7 +54,7 @@ export const Minimap = forwardRef<MinimapHandle, { recon: Recon; className?: str
     <svg className={`${s.minimap} ${className ?? ''}`} viewBox={`0 0 ${W} ${geo.H}`} role="img" aria-label={`${recon.circuit} from above, with the braking zones in red`}>
       <path d={geo.d} fill="none" stroke="var(--pw-text)" strokeOpacity={0.28} strokeWidth={2} strokeLinejoin="round" />
       <polyline ref={done} points="" fill="none" stroke="var(--pw-text)" strokeWidth={2} strokeLinejoin="round" />
-      {geo.zones.map((z) => <polyline key={z.id} points={z.pts} fill="none" stroke="#ec3013" strokeWidth={3.5} />)}
+      {geo.zones.map((z) => <polyline key={z.id} points={z.pts} fill="none" stroke="#ec3013" strokeWidth={z.id === active ? 6 : 3.5} strokeOpacity={active == null || z.id === active ? 1 : 0.55} />)}
       <circle ref={dot} r={4.5} cx={-10} cy={-10} fill="var(--pw-text)" stroke="var(--pw-bg)" strokeWidth={2} />
     </svg>
   )
