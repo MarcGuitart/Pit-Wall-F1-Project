@@ -17,7 +17,7 @@ export function TelemetryTab({ sessionKey, analysis }: Props) {
       <div className={a.toolbar} style={{ borderBottom: 0 }}>
         <div>
           <h3 className={ui.h6}>Circuit Telemetry</h3>
-          <div className={ui.sub}>Fastest clean lap · FastF1 · SVG replay</div>
+          <div className={ui.sub}>Fastest clean lap · SVG replay</div>
         </div>
         <div className={ui.sub}>
           {analysis.race.circuit_short_name ?? `Session ${analysis.race.session_key}`} · {analysis.race.year}
