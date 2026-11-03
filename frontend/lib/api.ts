@@ -2,7 +2,6 @@ import type { FullRaceAnalysis, RaceListItem, SessionInfo, SessionMeta } from '@
 import type { TelemetryData } from '@/types/telemetry'
 import { ApiError, type ErrorDetails } from '@/lib/errors'
 import {
-  FREE_SEASONS,
   announceAccessChange,
   authHeaders,
   clearToken,
@@ -156,18 +155,11 @@ export type AccessStatus = {
 }
 
 /** What the stored token is worth, according to the backend. Never throws. */
+/** What the API says the stored token is worth. Throws when it did not answer (a reload aborting the request, a
+ *  sleeping or failing API): only an answer may say "not PRO", because the store drops the token on that answer,
+ *  and a dropped request used to read as one and wipe a token the moment after it was redeemed. */
 export async function fetchAccessStatus(): Promise<AccessStatus> {
-  try {
-    return await apiFetch<AccessStatus>('/access/status')
-  } catch {
-    return {
-      pro: false,
-      expires_at: null,
-      expires_in: null,
-      free_seasons: FREE_SEASONS,
-      redemption_available: false,
-    }
-  }
+  return apiFetch<AccessStatus>('/access/status')
 }
 
 /**

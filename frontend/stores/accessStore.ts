@@ -79,9 +79,9 @@ export const useAccessStore = create<AccessState>((set) => {
     try {
       status = await fetchAccessStatus()
     } catch {
-      // fetchAccessStatus() itself does not throw (it degrades to pro:false),
-      // but guard anyway: a network failure must not leave `checked` true
-      // over a guess that was never actually confirmed.
+      // No answer (aborted, asleep, 5xx): keep the local guess and the token.
+      // Only the API answering pro:false may drop it, below; a network failure
+      // must not leave `checked` true over a guess never actually confirmed.
       return
     }
     if (!status.pro && hasToken()) {
